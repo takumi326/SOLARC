@@ -2,7 +2,9 @@
 
 require "csv"
 
-# JPX日経400構成銘柄ウェイト一覧 CSV（Shift_JIS）想定: 日付, 銘柄名, コード, 業種, …
+# JPX日経400構成銘柄ウェイト一覧 CSV 想定:
+# - 公式: Shift_JIS、列 日付, 銘柄名, コード, 業種, …
+# - スプレッドシート等: UTF-8、列 銘柄名, コード, 業種 でも可
 class StockCsvImporter
   Result = Struct.new(:created_industries, :updated_stocks, :created_stocks, :skipped_rows, keyword_init: true)
 
@@ -66,8 +68,13 @@ class StockCsvImporter
   private
 
   def read_utf8(raw)
-    raw = raw.dup.force_encoding("BINARY")
-    raw.encode("UTF-8", "CP932", invalid: :replace, undef: :replace)
+    binary = raw.dup.force_encoding("BINARY")
+    binary = binary.byteslice(3..) if binary.start_with?("\xEF\xBB\xBF".b)
+
+    utf8 = binary.dup.force_encoding("UTF-8")
+    return utf8 if utf8.valid_encoding?
+
+    binary.encode("UTF-8", "CP932", invalid: :replace, undef: :replace)
   end
 
   def cell(row, header)
