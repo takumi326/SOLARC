@@ -4,8 +4,26 @@ import { api, type StockListRow } from "../lib/api.ts"
 import { apiErrorMessage } from "../lib/errors.ts"
 import { useFetch } from "../lib/useFetch.ts"
 
+const SCOPE_STORAGE_KEY = "stocks-list-scope"
+
+function readScopeAll(): boolean {
+  try {
+    return sessionStorage.getItem(SCOPE_STORAGE_KEY) === "all"
+  } catch {
+    return false
+  }
+}
+
+function writeScopeAll(all: boolean) {
+  try {
+    sessionStorage.setItem(SCOPE_STORAGE_KEY, all ? "all" : "holdings")
+  } catch {
+    /* ignore */
+  }
+}
+
 export function StocksListPage() {
-  const [scopeAll, setScopeAll] = useState(false)
+  const [scopeAll, setScopeAll] = useState(readScopeAll)
   const [q, setQ] = useState("")
   const [qDraft, setQDraft] = useState("")
   const fileRef = useRef<HTMLInputElement>(null)
@@ -26,10 +44,11 @@ export function StocksListPage() {
     setImporting(true)
     try {
       const r = await api.importStocksCsv(file)
+      setScopeAll(true)
+      writeScopeAll(true)
       setImportMsg(
-        `新規業種 ${r.created_industries} / 新規銘柄 ${r.created_stocks} / 更新 ${r.updated_stocks} / スキップ ${r.skipped_rows}`,
+        `読み込んで登録しました。新規業種 ${r.created_industries} / 新規銘柄 ${r.created_stocks} / 更新 ${r.updated_stocks} / スキップ ${r.skipped_rows}`,
       )
-      result.refetch()
     } catch (e) {
       setImportErr(apiErrorMessage(e))
     } finally {
@@ -52,14 +71,19 @@ export function StocksListPage() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-3 text-xl font-bold">株一覧</h2>
         <p className="mb-4 text-sm text-slate-600">
-          実取引で保有がある銘柄をデフォルト表示します。JPX日経400 の CSV（Shift_JIS）から銘柄マスタを取り込めます。
+          CSV を選ぶと銘柄マスタへ読み込んで登録します（列: 銘柄名・コード・業種。UTF-8 / Shift_JIS どちらも可）。
+          一覧の初期表示は実取引の保有銘柄のみです。CSV 登録直後は全銘柄表示に切り替わります。
         </p>
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-slate-600">表示</span>
             <select
               value={scopeAll ? "all" : "holdings"}
-              onChange={(e) => setScopeAll(e.target.value === "all")}
+              onChange={(e) => {
+                const all = e.target.value === "all"
+                setScopeAll(all)
+                writeScopeAll(all)
+              }}
               className="rounded-lg border border-slate-300 px-2 py-1.5"
             >
               <option value="holdings">保有のみ（実取引）</option>
@@ -97,7 +121,7 @@ export function StocksListPage() {
               onClick={() => fileRef.current?.click()}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
             >
-              {importing ? "取り込み中…" : "CSV 取り込み"}
+              {importing ? "読み込み・登録中…" : "CSVを読み込んで登録"}
             </button>
           </div>
         </div>
@@ -120,7 +144,13 @@ export function StocksListPage() {
               ))}
             </tbody>
           </table>
-          {rows.length === 0 && <p className="py-6 text-center text-slate-500">該当する銘柄がありません</p>}
+          {rows.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-500">
+              {scopeAll
+                ? "該当する銘柄がありません"
+                : "実取引の保有銘柄がありません。CSV で登録した銘柄は「全銘柄」で表示されます。"}
+            </p>
+          )}
         </div>
       </section>
     </div>
