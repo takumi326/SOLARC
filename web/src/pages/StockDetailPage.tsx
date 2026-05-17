@@ -14,13 +14,8 @@ import { useFetch } from "../lib/useFetch.ts"
 import { Modal, FormError, FieldLabel, FormActions } from "../components/Modal.tsx"
 import { RowActionButtons } from "../components/RowActionButtons.tsx"
 import { TradeEventDetailModal } from "../components/TradeEventDetailModal.tsx"
-import {
-  QuickEntryModal,
-  QuickExitModal,
-  QuickLineModal,
-  tradeAxesFromTimelineTab,
-  type TimelineTab,
-} from "../components/StockTradeCreateModals.tsx"
+import { QuickEntryModal, QuickExitModal, QuickLineModal } from "../components/StockTradeCreateModals.tsx"
+import { tradeAxesFromTimelineTab, type TimelineTab } from "../lib/stockTradeAxes.ts"
 
 export function StockDetailPage() {
   const { id } = useParams()

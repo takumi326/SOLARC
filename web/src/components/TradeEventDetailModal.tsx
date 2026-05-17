@@ -29,7 +29,11 @@ function kindLabel(kind: StockTradeEventRow["kind"]) {
   return "ライン変更"
 }
 
-export function TradeEventDetailModal({ row, initialEditing = false, onClose, onSaved }: Props) {
+export function TradeEventDetailModal(props: Props) {
+  return <TradeEventDetailModalBody key={`${props.row.kind}-${props.row.id}`} {...props} />
+}
+
+function TradeEventDetailModalBody({ row, initialEditing = false, onClose, onSaved }: Props) {
   const [editing, setEditing] = useState(initialEditing)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
@@ -38,8 +42,6 @@ export function TradeEventDetailModal({ row, initialEditing = false, onClose, on
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setErr(null)
     void (async () => {
       try {
         if (row.kind === "entry") {
@@ -62,10 +64,6 @@ export function TradeEventDetailModal({ row, initialEditing = false, onClose, on
       cancelled = true
     }
   }, [row.kind, row.id])
-
-  useEffect(() => {
-    setEditing(initialEditing)
-  }, [row.kind, row.id, initialEditing])
 
   const del = async () => {
     if (!window.confirm("削除しますか？")) return
