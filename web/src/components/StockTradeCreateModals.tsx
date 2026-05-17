@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { api, type AiScriptRow } from "../lib/api.ts"
 import { apiErrorMessage } from "../lib/errors.ts"
+import { emptyToNull } from "../lib/stockFormUtils.ts"
 import type { TradeAxesConfig } from "../lib/stockTradeAxes.ts"
 import { Modal, FormError, FieldLabel, FormActions } from "./Modal.tsx"
 import { StockPicker } from "./StockPicker.tsx"
@@ -98,6 +99,8 @@ export function QuickEntryModal(props: ModalBaseProps) {
   const [selectedScriptId, setSelectedScriptId] = useState(() => initialScriptId(aiScriptId))
   const [stockId, setStockId] = useState(fixedStockId != null ? String(fixedStockId) : "")
   const [entryReason, setEntryReason] = useState("")
+  const [scenario, setScenario] = useState("")
+  const [memo, setMemo] = useState("")
   const [shares, setShares] = useState("")
   const [expectedPrice, setExpectedPrice] = useState("")
   const [actualPrice, setActualPrice] = useState("")
@@ -120,10 +123,12 @@ export function QuickEntryModal(props: ModalBaseProps) {
         judgment_type: cfg.judgment_type,
         ai_script_id: cfg.judgment_type === "ai" ? scriptId : null,
         entry_reason: entryReason,
+        scenario: emptyToNull(scenario),
+        memo: emptyToNull(memo),
         shares: shares ? Number(shares) : null,
-        expected_price: expectedPrice || null,
-        actual_price: actualPrice || null,
-        traded_at: tradedAt || null,
+        expected_price: emptyToNull(expectedPrice),
+        actual_price: emptyToNull(actualPrice),
+        traded_at: emptyToNull(tradedAt),
       }
       if (stopLoss || targetPrice) {
         body.initial_line = { stop_loss: stopLoss || null, target_price: targetPrice || null, reason: null }
@@ -148,6 +153,10 @@ export function QuickEntryModal(props: ModalBaseProps) {
           <FieldLabel>エントリー理由（必須）</FieldLabel>
           <textarea value={entryReason} onChange={(e) => setEntryReason(e.target.value)} className="min-h-20 rounded-lg border border-slate-300 px-2 py-1.5" required />
         </label>
+        <label className="flex flex-col gap-1">
+          <FieldLabel>シナリオ</FieldLabel>
+          <textarea value={scenario} onChange={(e) => setScenario(e.target.value)} className="min-h-16 rounded-lg border border-slate-300 px-2 py-1.5" />
+        </label>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1">
             <FieldLabel>株数</FieldLabel>
@@ -162,20 +171,24 @@ export function QuickEntryModal(props: ModalBaseProps) {
             <input value={actualPrice} onChange={(e) => setActualPrice(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
           <label className="flex flex-col gap-1">
-            <FieldLabel>約定日</FieldLabel>
+            <FieldLabel>約定日（空=未約定）</FieldLabel>
             <input type="date" value={tradedAt} onChange={(e) => setTradedAt(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1">
-            <FieldLabel>損切りライン</FieldLabel>
+            <FieldLabel>損切り（初期ライン）</FieldLabel>
             <input value={stopLoss} onChange={(e) => setStopLoss(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
           <label className="flex flex-col gap-1">
-            <FieldLabel>目標価格</FieldLabel>
+            <FieldLabel>目標株価（初期ライン）</FieldLabel>
             <input value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
         </div>
+        <label className="flex flex-col gap-1">
+          <FieldLabel>メモ</FieldLabel>
+          <textarea value={memo} onChange={(e) => setMemo(e.target.value)} className="min-h-16 rounded-lg border border-slate-300 px-2 py-1.5" />
+        </label>
         <FormError message={err} />
         <FormActions onCancel={onClose} submitting={saving} />
       </form>
@@ -192,6 +205,10 @@ export function QuickExitModal(props: ModalBaseProps) {
   const [expectedPrice, setExpectedPrice] = useState("")
   const [actualPrice, setActualPrice] = useState("")
   const [tradedAt, setTradedAt] = useState("")
+  const [reviewResult, setReviewResult] = useState("")
+  const [reviewMissed, setReviewMissed] = useState("")
+  const [reviewLearning, setReviewLearning] = useState("")
+  const [memo, setMemo] = useState("")
   const [err, setErr] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -209,9 +226,13 @@ export function QuickExitModal(props: ModalBaseProps) {
         ai_script_id: cfg.judgment_type === "ai" ? scriptId : null,
         exit_reason: exitReason,
         shares: shares ? Number(shares) : null,
-        expected_price: expectedPrice || null,
-        actual_price: actualPrice || null,
-        traded_at: tradedAt || null,
+        expected_price: emptyToNull(expectedPrice),
+        actual_price: emptyToNull(actualPrice),
+        traded_at: emptyToNull(tradedAt),
+        review_result: emptyToNull(reviewResult),
+        review_missed: emptyToNull(reviewMissed),
+        review_learning: emptyToNull(reviewLearning),
+        memo: emptyToNull(memo),
       })
       onSaved()
     } catch (e) {
@@ -246,10 +267,35 @@ export function QuickExitModal(props: ModalBaseProps) {
             <input value={actualPrice} onChange={(e) => setActualPrice(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
           <label className="flex flex-col gap-1">
-            <FieldLabel>約定日</FieldLabel>
+            <FieldLabel>約定日（空=未約定）</FieldLabel>
             <input type="date" value={tradedAt} onChange={(e) => setTradedAt(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
         </div>
+        <label className="flex flex-col gap-1">
+          <FieldLabel>レビュー</FieldLabel>
+          <select
+            value={reviewResult}
+            onChange={(e) => setReviewResult(e.target.value)}
+            className="rounded-lg border border-slate-300 px-2 py-1.5"
+          >
+            <option value="">—</option>
+            <option value="as_planned">計画どおり</option>
+            <option value="missed">外れた</option>
+            <option value="partial">一部のみ</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <FieldLabel>外れた点</FieldLabel>
+          <textarea value={reviewMissed} onChange={(e) => setReviewMissed(e.target.value)} className="min-h-16 rounded-lg border border-slate-300 px-2 py-1.5" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <FieldLabel>学び</FieldLabel>
+          <textarea value={reviewLearning} onChange={(e) => setReviewLearning(e.target.value)} className="min-h-16 rounded-lg border border-slate-300 px-2 py-1.5" />
+        </label>
+        <label className="flex flex-col gap-1">
+          <FieldLabel>メモ</FieldLabel>
+          <textarea value={memo} onChange={(e) => setMemo(e.target.value)} className="min-h-16 rounded-lg border border-slate-300 px-2 py-1.5" />
+        </label>
         <FormError message={err} />
         <FormActions onCancel={onClose} submitting={saving} />
       </form>
@@ -310,7 +356,7 @@ export function QuickLineModal(props: ModalBaseProps) {
             <input value={stopLoss} onChange={(e) => setStopLoss(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
           <label className="flex flex-col gap-1">
-            <FieldLabel>目標</FieldLabel>
+            <FieldLabel>目標株価</FieldLabel>
             <input value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
         </div>
