@@ -160,10 +160,7 @@ end
 
 create_table "ai_scripts", force: :cascade do |t|
   t.string "version_name", limit: 100, null: false
-  t.text "description"
-  t.text "scope"
-  t.date "started_at", null: false
-  t.date "ended_at"
+  t.text "prompt"
   t.datetime "created_at", null: false
   t.datetime "updated_at", null: false
   t.index [ "version_name" ], name: "index_ai_scripts_on_version_name", unique: true

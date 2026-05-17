@@ -6,8 +6,11 @@ module Api
 
     def index
       scope = Stock.includes(:industry).ordered
-      scope = scope.with_real_holdings unless params[:scope].to_s == "all"
-      scope = scope.search_by_term(params[:q]) if params[:q].present?
+      if params[:q].present?
+        scope = scope.search_by_term(params[:q])
+      elsif params[:scope].to_s != "all"
+        scope = scope.with_real_holdings
+      end
       render json: { data: scope.map { |s| stock_list_json(s) } }
     end
 
@@ -33,7 +36,13 @@ module Api
         judgment_type: judgment_type,
         ai_script_id: ai_script_id
       )
-      render json: { data: { rows: rows } }
+      line = current_line_for_timeline(
+        stock: @stock,
+        trade_type: trade_type,
+        judgment_type: judgment_type,
+        ai_script_id: ai_script_id
+      )
+      render json: { data: { rows: rows, current_line: line ? line_change_payload(line) : nil } }
     end
 
     def import
@@ -95,6 +104,14 @@ module Api
         industry_id: stock.industry_id,
         updated_at: stock.updated_at&.iso8601
       )
+    end
+
+    def current_line_for_timeline(stock:, trade_type:, judgment_type:, ai_script_id:)
+      if judgment_type.to_s == "ai" && ai_script_id.present?
+        stock.current_line(trade_type: trade_type, judgment_type: judgment_type, ai_script_id: ai_script_id)
+      else
+        stock.current_line(trade_type: trade_type, judgment_type: judgment_type)
+      end
     end
 
     def build_timeline_rows(stock:, trade_type:, judgment_type:, ai_script_id:)

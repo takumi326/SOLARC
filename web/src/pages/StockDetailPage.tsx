@@ -1,11 +1,21 @@
 import { useCallback, useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { api, type StockDetail, type StockNote, type StockTradeEventRow } from "../lib/api.ts"
+import {
+  api,
+  type AiScriptRow,
+  type StockCurrentLine,
+  type StockDetail,
+  type StockNote,
+  type StockTradeEventRow,
+} from "../lib/api.ts"
 import { apiErrorMessage } from "../lib/errors.ts"
+import { deleteTradeEvent } from "../lib/stockTradeActions.ts"
 import { useFetch } from "../lib/useFetch.ts"
 import { Modal, FormError, FieldLabel, FormActions } from "../components/Modal.tsx"
-
-type TimelineTab = "real" | "virtual-human" | "virtual-ai"
+import { RowActionButtons } from "../components/RowActionButtons.tsx"
+import { TradeEventDetailModal } from "../components/TradeEventDetailModal.tsx"
+import { QuickEntryModal, QuickExitModal, QuickLineModal } from "../components/StockTradeCreateModals.tsx"
+import { tradeAxesFromTimelineTab, type TimelineTab } from "../lib/stockTradeAxes.ts"
 
 export function StockDetailPage() {
   const { id } = useParams()
@@ -39,6 +49,8 @@ export function StockDetailPage() {
 
   const [memoOpen, setMemoOpen] = useState(false)
   const [noteOpen, setNoteOpen] = useState<StockNote | "new" | null>(null)
+  const [tradeDetail, setTradeDetail] = useState<{ row: StockTradeEventRow; initialEditing: boolean } | null>(null)
+  const [tradeCreateModal, setTradeCreateModal] = useState<"entry" | "exit" | "line" | null>(null)
 
   if (!Number.isFinite(stockId)) {
     return <p className="text-rose-600">不正な URL です</p>
@@ -100,14 +112,17 @@ export function StockDetailPage() {
         {notesResult.status === "success" && (
           <ul className="space-y-2">
             {notesResult.data.map((n) => (
-              <li key={n.id} className="rounded-lg border border-slate-100 p-3">
-                <div className="mb-1 flex justify-between gap-2 text-xs text-slate-500">
-                  <span className="tabular-nums">{n.noted_on}</span>
-                  <button type="button" onClick={() => setNoteOpen(n)} className="text-indigo-600 hover:underline">
-                    編集
-                  </button>
-                </div>
-                <p className="whitespace-pre-wrap text-sm text-slate-800">{n.note}</p>
+              <li
+                key={n.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"
+              >
+                <p className="min-w-0 flex-1 truncate text-sm text-slate-800" title={n.note}>
+                  {n.note}
+                </p>
+                <RowActionButtons
+                  onEdit={() => setNoteOpen(n)}
+                  onDelete={() => void deleteStockNote(stockId, n.id, () => notesResult.refetch())}
+                />
               </li>
             ))}
             {notesResult.data.length === 0 && <p className="text-sm text-slate-500">まだありません</p>}
@@ -116,7 +131,32 @@ export function StockDetailPage() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="mb-3 text-lg font-semibold">取引タイムライン</h3>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold">取引タイムライン</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setTradeCreateModal("entry")}
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm text-white hover:bg-indigo-500"
+            >
+              エントリー（買い）
+            </button>
+            <button
+              type="button"
+              onClick={() => setTradeCreateModal("exit")}
+              className="rounded-lg border border-indigo-600 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-50"
+            >
+              イグジット（売り）
+            </button>
+            <button
+              type="button"
+              onClick={() => setTradeCreateModal("line")}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+            >
+              ライン変更
+            </button>
+          </div>
+        </div>
         <div className="mb-3 flex flex-wrap gap-2">
           {(
             [
@@ -139,9 +179,9 @@ export function StockDetailPage() {
         </div>
         {tlTab === "virtual-ai" && scriptsResult.status === "success" && (
           <label className="mb-3 flex max-w-md flex-col gap-1 text-sm">
-            <span className="text-slate-600">AI スクリプト（空で全バージョン合算表示）</span>
+            <span className="text-slate-600">AI スクリプト</span>
             <select value={aiScriptId} onChange={(e) => setAiScriptId(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5">
-              <option value="">全バージョン</option>
+              <option value="">未指定（新規記録は先頭のスクリプト）</option>
               {scriptsResult.data.map((sc) => (
                 <option key={sc.id} value={String(sc.id)}>
                   {sc.version_name}
@@ -152,15 +192,36 @@ export function StockDetailPage() {
         )}
         {tlResult.status === "loading" && <p className="text-sm text-slate-600">読み込み中…</p>}
         {tlResult.status === "error" && <p className="text-sm text-rose-600">{tlResult.error.message}</p>}
+        {tlResult.status === "success" && <CurrentLinePanel line={tlResult.data.current_line} />}
         {tlResult.status === "success" && (
           <ul className="max-h-96 space-y-2 overflow-y-auto text-sm">
-            {tlResult.data.rows.map((r) => (
-              <li key={`${r.kind}-${r.id}`} className="rounded-lg border border-slate-100 px-3 py-2">
-                <span className="text-slate-500">{r.sort_on}</span>{" "}
-                <span className="font-medium">{r.kind === "entry" ? "エントリ" : r.kind === "exit" ? "イグジット" : "ライン"}</span>
-                <span className="ml-2 text-slate-700">{timelineSummary(r)}</span>
-              </li>
-            ))}
+            {tlResult.data.rows.map((r) => {
+              const row = withStockContext(r, s)
+              return (
+                <li
+                  key={`${r.kind}-${r.id}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="text-slate-500">{r.sort_on}</span>{" "}
+                    <span className="font-medium">
+                      {r.kind === "entry" ? "エントリー（買い）" : r.kind === "exit" ? "イグジット（売り）" : "ライン変更"}
+                    </span>
+                    <span className="ml-2 text-slate-700">{timelineSummary(r)}</span>
+                  </div>
+                  <RowActionButtons
+                    onDetail={() => setTradeDetail({ row, initialEditing: false })}
+                    onEdit={() => setTradeDetail({ row, initialEditing: true })}
+                    onDelete={() =>
+                      void deleteTradeEvent(row, () => {
+                        void tlResult.refetch()
+                        void stockResult.refetch()
+                      })
+                    }
+                  />
+                </li>
+              )
+            })}
             {tlResult.data.rows.length === 0 && <p className="text-slate-500">イベントがありません</p>}
           </ul>
         )}
@@ -187,7 +248,88 @@ export function StockDetailPage() {
           }}
         />
       )}
+      {tradeDetail && (
+        <TradeEventDetailModal
+          row={tradeDetail.row}
+          initialEditing={tradeDetail.initialEditing}
+          onClose={() => setTradeDetail(null)}
+          onSaved={() => {
+            setTradeDetail(null)
+            void tlResult.refetch()
+            void stockResult.refetch()
+          }}
+        />
+      )}
+      {tradeCreateModal && (
+        <StockTradeCreateModal
+          kind={tradeCreateModal}
+          stockId={stockId}
+          stockLabel={`${s.code} ${s.name}`}
+          tlTab={tlTab}
+          aiScriptId={aiScriptId === "" ? null : Number(aiScriptId)}
+          scripts={scriptsResult.status === "success" ? scriptsResult.data : []}
+          onClose={() => setTradeCreateModal(null)}
+          onSaved={() => {
+            setTradeCreateModal(null)
+            void tlResult.refetch()
+            void stockResult.refetch()
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+function StockTradeCreateModal({
+  kind,
+  stockId,
+  stockLabel,
+  tlTab,
+  aiScriptId,
+  scripts,
+  onClose,
+  onSaved,
+}: {
+  kind: "entry" | "exit" | "line"
+  stockId: number
+  stockLabel: string
+  tlTab: TimelineTab
+  aiScriptId: number | null
+  scripts: AiScriptRow[]
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const cfg = tradeAxesFromTimelineTab(tlTab)
+  const props = {
+    cfg,
+    aiScriptId,
+    scripts,
+    fixedStockId: stockId,
+    stockLabel,
+    onClose,
+    onSaved,
+  }
+  if (kind === "entry") return <QuickEntryModal {...props} />
+  if (kind === "exit") return <QuickExitModal {...props} />
+  return <QuickLineModal {...props} />
+}
+
+function formatLineValue(v: string | null | undefined) {
+  return v?.trim() ? v : "—"
+}
+
+function CurrentLinePanel({ line }: { line: StockCurrentLine | null }) {
+  if (!line) {
+    return (
+      <p className="mb-3 text-sm text-slate-500">ライン未登録</p>
+    )
+  }
+  return (
+    <p className="mb-3 text-sm tabular-nums text-slate-700">
+      <span className="text-slate-500">損切り</span> {formatLineValue(line.stop_loss)}
+      <span className="mx-3 text-slate-300">|</span>
+      <span className="text-slate-500">目標</span> {formatLineValue(line.target_price)}
+    </p>
   )
 }
 
@@ -195,6 +337,23 @@ function timelineSummary(r: StockTradeEventRow) {
   if (r.kind === "entry") return r.entry_reason ?? ""
   if (r.kind === "exit") return r.exit_reason ?? ""
   return r.reason ?? ""
+}
+
+function withStockContext(
+  r: StockTradeEventRow,
+  stock: { id: number; code: string; name: string },
+): StockTradeEventRow {
+  return { ...r, stock: r.stock ?? stock }
+}
+
+async function deleteStockNote(stockId: number, noteId: number, onDone: () => void) {
+  if (!window.confirm("この観察記録を削除しますか？")) return
+  try {
+    await api.deleteStockNote(stockId, noteId)
+    onDone()
+  } catch (e) {
+    window.alert(apiErrorMessage(e))
+  }
 }
 
 function MemoEditModal({
@@ -266,6 +425,21 @@ function StockNoteModal({
     }
   }
 
+  const del = async () => {
+    if (!existing) return
+    if (!window.confirm("この観察記録を削除しますか？")) return
+    setSaving(true)
+    setErr(null)
+    try {
+      await api.deleteStockNote(stockId, existing.id)
+      onSaved()
+    } catch (e) {
+      setErr(apiErrorMessage(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <Modal title={existing ? "観察メモを編集" : "観察メモを追加"} onClose={onClose}>
       <form onSubmit={(e) => void save(e)} className="space-y-3 text-sm">
@@ -278,7 +452,21 @@ function StockNoteModal({
           <textarea value={note} onChange={(e) => setNote(e.target.value)} className="min-h-32 rounded-lg border border-slate-300 px-2 py-1.5" required />
         </label>
         <FormError message={err} />
-        <FormActions onCancel={onClose} submitting={saving} />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {existing ? (
+            <button
+              type="button"
+              onClick={() => void del()}
+              disabled={saving}
+              className="text-sm text-rose-600 hover:underline disabled:opacity-50"
+            >
+              削除
+            </button>
+          ) : (
+            <span />
+          )}
+          <FormActions onCancel={onClose} submitting={saving} />
+        </div>
       </form>
     </Modal>
   )
