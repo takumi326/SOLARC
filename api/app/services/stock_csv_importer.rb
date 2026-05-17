@@ -17,7 +17,7 @@ class StockCsvImporter
   end
 
   def import!
-    text = read_utf8(@io.read)
+    text = read_utf8(io_content)
     created_industries = 0
     created_stocks = 0
     updated_stocks = 0
@@ -66,6 +66,10 @@ class StockCsvImporter
   end
 
   private
+
+  def io_content
+    @io.is_a?(String) ? @io : @io.read
+  end
 
   def read_utf8(raw)
     binary = raw.dup.force_encoding("BINARY")

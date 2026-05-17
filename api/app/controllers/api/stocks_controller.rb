@@ -43,7 +43,7 @@ module Api
         return
       end
 
-      result = StockCsvImporter.import!(file.read)
+      result = StockCsvImporter.import!(file)
       render json: {
         data: {
           created_industries: result.created_industries,
@@ -54,7 +54,7 @@ module Api
       }, status: :ok
     rescue StandardError => e
       Rails.logger.error("[StockCsvImporter] #{e.class}: #{e.message}")
-      render json: { error: { code: "import_failed", message: "CSV の取り込みに失敗しました。文字コード（Shift_JIS）と列構成を確認してください。" } },
+      render json: { error: { code: "import_failed", message: "CSV の取り込みに失敗しました。UTF-8 または Shift_JIS で、列「銘柄名・コード・業種」を含む形式か確認してください。" } },
              status: :unprocessable_entity
     end
 
