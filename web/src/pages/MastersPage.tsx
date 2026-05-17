@@ -24,6 +24,7 @@ import { PaymentMethodFormModal } from "../components/PaymentMethodFormModal.tsx
 import { ExpenseMasterFormModal } from "../components/ExpenseMasterFormModal.tsx"
 import { IncomeMasterFormModal } from "../components/IncomeMasterFormModal.tsx"
 import { Modal } from "../components/Modal.tsx"
+import { rowActionButtonBaseClass as actionButtonBaseClass } from "../components/RowActionButtons.tsx"
 
 const tabs = [
   { id: "expenses", label: "支出" },
@@ -31,9 +32,6 @@ const tabs = [
   { id: "categories", label: "カテゴリ" },
   { id: "payments", label: "支払方法" },
 ] as const
-
-const actionButtonBaseClass =
-  "inline-flex min-h-9 min-w-[3.25rem] items-center justify-center rounded-md border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors"
 
 type TabId = (typeof tabs)[number]["id"]
 

@@ -6,5 +6,4 @@ class AiScript < ApplicationRecord
   has_many :line_changes, foreign_key: :ai_script_id, inverse_of: :ai_script, dependent: :nullify
 
   validates :version_name, presence: true, uniqueness: true, length: { maximum: 100 }
-  validates :started_at, presence: true
 end

@@ -378,10 +378,7 @@ export type StockNote = {
 export type AiScriptRow = {
   id: number
   version_name: string
-  description: string | null
-  scope: string | null
-  started_at: string
-  ended_at: string | null
+  prompt: string | null
   created_at: string
   updated_at: string
 }
@@ -470,6 +467,19 @@ export type StockTradeEventRow = {
 export type StockTradeEventsResult = {
   rows: StockTradeEventRow[]
   total_realized_pl: string
+}
+
+export type StockCurrentLine = {
+  id: number
+  changed_on: string
+  stop_loss: string | null
+  target_price: string | null
+  reason: string | null
+}
+
+export type StockTimelineResult = {
+  rows: StockTradeEventRow[]
+  current_line: StockCurrentLine | null
 }
 
 export type StockCsvImportResult = {
@@ -584,7 +594,7 @@ export const api = {
     sp.set("trade_type", q.trade_type)
     sp.set("judgment_type", q.judgment_type)
     if (q.ai_script_id != null && q.ai_script_id !== undefined) sp.set("ai_script_id", String(q.ai_script_id))
-    return fetchJson<{ rows: StockTradeEventRow[] }>(`/api/stocks/${id}/timeline?${sp}`)
+    return fetchJson<StockTimelineResult>(`/api/stocks/${id}/timeline?${sp}`)
   },
   stockNotes: (stockId: number) => fetchJson<StockNote[]>(`/api/stocks/${stockId}/stock_notes`),
   createStockNote: (stockId: number, input: { noted_on: string; note: string }) =>
@@ -595,22 +605,11 @@ export const api = {
 
   aiScripts: () => fetchJson<AiScriptRow[]>("/api/ai_scripts"),
   aiScript: (id: number) => fetchJson<AiScriptRow>(`/api/ai_scripts/${id}`),
-  createAiScript: (input: {
-    version_name: string
-    description?: string | null
-    scope?: string | null
-    started_at: string
-    ended_at?: string | null
-  }) => postJson<AiScriptRow>("/api/ai_scripts", { ai_script: input }),
+  createAiScript: (input: { version_name: string; prompt?: string | null }) =>
+    postJson<AiScriptRow>("/api/ai_scripts", { ai_script: input }),
   updateAiScript: (
     id: number,
-    input: Partial<{
-      version_name: string
-      description: string | null
-      scope: string | null
-      started_at: string
-      ended_at: string | null
-    }>,
+    input: Partial<{ version_name: string; prompt: string | null }>,
   ) => patchJson<AiScriptRow>(`/api/ai_scripts/${id}`, { ai_script: input }),
   deleteAiScript: (id: number) => deleteJson(`/api/ai_scripts/${id}`),
 

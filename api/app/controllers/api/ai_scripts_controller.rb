@@ -5,7 +5,7 @@ module Api
     before_action :set_script, only: [ :show, :update, :destroy ]
 
     def index
-      rows = AiScript.order(started_at: :desc, id: :desc)
+      rows = AiScript.order(id: :desc)
       render json: { data: rows.map { |s| script_json(s) } }
     end
 
@@ -44,17 +44,14 @@ module Api
     end
 
     def script_params
-      params.expect(ai_script: [ :version_name, :description, :scope, :started_at, :ended_at ])
+      params.expect(ai_script: [ :version_name, :prompt ])
     end
 
     def script_json(s)
       {
         id: s.id,
         version_name: s.version_name,
-        description: s.description,
-        scope: s.scope,
-        started_at: s.started_at.iso8601,
-        ended_at: s.ended_at&.iso8601,
+        prompt: s.prompt,
         created_at: s.created_at.iso8601,
         updated_at: s.updated_at.iso8601
       }

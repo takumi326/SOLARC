@@ -617,6 +617,18 @@ export function StockDailyPage() {
               https://www.sc.mufg.jp/market/today_market/index.html
             </a>
           </p>
+          <p className="mt-2 leading-relaxed">
+            <span className="font-medium text-slate-600">日経225チャート</span>
+            <br />
+            <a
+              href="https://nikkei225jp.com/chart/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-indigo-700 underline decoration-indigo-300 underline-offset-2"
+            >
+              https://nikkei225jp.com/chart/
+            </a>
+          </p>
         </div>
         <FormError message={promptsLoadError} />
       </section>
