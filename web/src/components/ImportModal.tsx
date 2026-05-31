@@ -425,17 +425,16 @@ export function ImportModal({ onClose, onImported }: Props) {
     return set
   }, [pendingRows, compareMonthInput, existingRows])
 
-  useEffect(() => {
-    if (phase !== "preview" || existingLoad !== "success" || pendingDuplicateLineNumbers.size === 0) return
-    setSelectedImportLineNumbers((prev) => {
-      let changed = false
-      const next = new Set(prev)
-      for (const lineNumber of pendingDuplicateLineNumbers) {
-        if (next.delete(lineNumber)) changed = true
-      }
-      return changed ? next : prev
-    })
-  }, [phase, existingLoad, pendingDuplicateLineNumbers])
+  const effectiveSelectedImportLineNumbers = useMemo(() => {
+    if (phase !== "preview" || existingLoad !== "success") {
+      return selectedImportLineNumbers
+    }
+    const next = new Set(selectedImportLineNumbers)
+    for (const lineNumber of pendingDuplicateLineNumbers) {
+      next.delete(lineNumber)
+    }
+    return next
+  }, [selectedImportLineNumbers, phase, existingLoad, pendingDuplicateLineNumbers])
 
   const hiddenDuplicateCount = pendingDuplicateLineNumbers.size
 
@@ -476,11 +475,13 @@ export function ImportModal({ onClose, onImported }: Props) {
     return mapped
   }, [pendingRows, pendingDuplicateLineNumbers])
 
-  const selectedImportCount = selectedImportLineNumbers.size
+  const selectedImportCount = effectiveSelectedImportLineNumbers.size
   const selectedImportAmount = useMemo(() => {
     if (!pendingRows) return 0
-    return pendingRows.reduce((s, r) => (selectedImportLineNumbers.has(r.lineNumber) ? s + r.amount : s), 0)
-  }, [pendingRows, selectedImportLineNumbers])
+    return pendingRows.reduce((s, r) =>
+      effectiveSelectedImportLineNumbers.has(r.lineNumber) ? s + r.amount : s,
+    0)
+  }, [pendingRows, effectiveSelectedImportLineNumbers])
 
   const toggleImportLine = useCallback((lineNumber: number, checked: boolean) => {
     setSelectedImportLineNumbers((prev) => {
@@ -550,7 +551,7 @@ export function ImportModal({ onClose, onImported }: Props) {
       )
       return
     }
-    const rowsToImport = pendingRows.filter((r) => selectedImportLineNumbers.has(r.lineNumber))
+    const rowsToImport = pendingRows.filter((r) => effectiveSelectedImportLineNumbers.has(r.lineNumber))
     if (rowsToImport.length === 0) {
       setErrorMessage("取り込む行を1件以上選んでください")
       return
@@ -684,7 +685,7 @@ export function ImportModal({ onClose, onImported }: Props) {
                 <ImportPendingTable
                   title="今回取り込む（単発）"
                   rows={rightTableRows}
-                  selectedLineNumbers={selectedImportLineNumbers}
+                  selectedLineNumbers={effectiveSelectedImportLineNumbers}
                   onToggleLine={toggleImportLine}
                   onSelectAll={selectAllImportLines}
                   onSelectNone={selectNoImportLines}

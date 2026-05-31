@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
   api,
   type CategoryKind,
@@ -498,6 +498,7 @@ function ExpenseMastersSection() {
       )}
       {detail && (
         <MasterActualsModal
+          key={detail.id}
           title={`支出実績: ${formatCategory(minorMap.get(detail.minor_category_id))}`}
           kind="expense"
           masterId={detail.id}
@@ -646,6 +647,7 @@ function IncomeMastersSection() {
       )}
       {detail && (
         <MasterActualsModal
+          key={detail.id}
           title={`収入実績: ${formatCategory(minorMap.get(detail.minor_category_id))}`}
           kind="income"
           masterId={detail.id}
@@ -806,6 +808,11 @@ function Table({
   )
 }
 
+function defaultBulkAmount(masterAmount?: string | number): string {
+  const n = Math.round(Number(masterAmount))
+  return Number.isFinite(n) && n >= 0 ? String(n) : ""
+}
+
 function countActualsFromMonth(rows: MasterActual[], fromMonthInput: string): number {
   if (!fromMonthInput) return 0
   const from = `${fromMonthInput}-01`
@@ -840,17 +847,8 @@ function MasterActualsModal({
   const [editAmount, setEditAmount] = useState("")
   const [savingEditId, setSavingEditId] = useState<number | null>(null)
   const [bulkFromMonth, setBulkFromMonth] = useState("")
-  const [bulkAmount, setBulkAmount] = useState("")
+  const [bulkAmount, setBulkAmount] = useState(() => defaultBulkAmount(masterAmount))
   const [bulkSaving, setBulkSaving] = useState(false)
-
-  useEffect(() => {
-    if (!recurring) return
-    const n = Math.round(Number(masterAmount))
-    if (Number.isFinite(n) && n >= 0) {
-      setBulkAmount(String(n))
-    }
-    setBulkFromMonth("")
-  }, [recurring, masterAmount, masterId])
 
   const bulkTargetCount = useMemo(() => {
     if (result.status !== "success") return 0
