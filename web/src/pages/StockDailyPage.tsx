@@ -9,6 +9,9 @@ import {
   formatRecordDateJp,
   hypothesisForResultPromptFromRows,
   normalizeCalendarDateKey,
+  resultBodyFromRows,
+  resultForResultPromptFromRows,
+  usesPrevDayFallbackForStockPromptCopy,
   stockDailyPromptsFromPrefs,
 } from "../lib/stockDailyPrompts.ts"
 
@@ -31,6 +34,34 @@ const FIELD_LABEL: Record<EditField, string> = {
   result: "結果",
   sector: "セクター調べ",
 }
+
+const STOCK_DAILY_EXTERNAL_LINKS = {
+  claude: { label: "Claude", href: "https://claude.ai/new" },
+  worldMarket: { label: "世界の市況", href: "https://nikkei225jp.com/" },
+  todayMarket: {
+    label: "本日の市況",
+    href: "https://www.sc.mufg.jp/market/today_market/index.html",
+  },
+  japanMarket: { label: "日本の市況", href: "https://nikkei225jp.com/chart/" },
+} as const
+
+type StockDailyExternalLinkKey = keyof typeof STOCK_DAILY_EXTERNAL_LINKS
+
+const STOCK_DAILY_WORKFLOW_GROUPS: {
+  field: EditField
+  copyKey: "hypothesis" | "result" | "sector"
+  links: StockDailyExternalLinkKey[]
+}[] = [
+  { field: "hypothesis", copyKey: "hypothesis", links: ["claude", "worldMarket"] },
+  { field: "result", copyKey: "result", links: ["claude", "todayMarket", "japanMarket"] },
+  { field: "sector", copyKey: "sector", links: ["claude"] },
+]
+
+const actionButtonClass =
+  "inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
+
+const externalLinkButtonClass =
+  "inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-indigo-200 bg-white px-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
 
 function upsertRowField(
   rows: StockDailyRow[],
@@ -414,11 +445,14 @@ export function StockDailyPage() {
           : savedStockPrompts.sector
     const recordedOn = today()
     const recordedKey = normalizeCalendarDateKey(recordedOn)
-    const hypothesisForDay =
-      key === "result"
-        ? hypothesisForResultPromptFromRows(rows, recordedOn)
-        : (rows.find((r) => normalizeCalendarDateKey(r.date) === recordedKey)?.hypothesis ?? "")
-    const forClipboard = applyStockPromptPlaceholders(text, recordedOn, hypothesisForDay)
+    const prevDayFallback = usesPrevDayFallbackForStockPromptCopy(key)
+    const hypothesisForDay = prevDayFallback
+      ? hypothesisForResultPromptFromRows(rows, recordedOn)
+      : (rows.find((r) => normalizeCalendarDateKey(r.date) === recordedKey)?.hypothesis ?? "")
+    const resultForDay = prevDayFallback
+      ? resultForResultPromptFromRows(rows, recordedOn)
+      : resultBodyFromRows(rows, recordedOn)
+    const forClipboard = applyStockPromptPlaceholders(text, recordedOn, hypothesisForDay, resultForDay)
     try {
       await navigator.clipboard.writeText(forClipboard)
       setCopiedKey(key)
@@ -457,10 +491,6 @@ export function StockDailyPage() {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-bold">毎日の記録</h2>
-      </section>
-
       {promptModalOpen && (
         <Modal title="プロンプト編集" onClose={closePromptModal} size="lg">
           <p className="mt-1 text-xs text-slate-500">
@@ -468,12 +498,15 @@ export function StockDailyPage() {
           </p>
           <ul className="mt-2 mb-2 list-inside list-disc text-xs text-slate-600">
             <li>
-              <code className="rounded bg-slate-100 px-1">{"{{date}}"}</code> … YYYY年MM月DD日
+              <code className="rounded bg-slate-100 px-1">{"{{date}}"}</code> … コピー実行日（YYYY年MM月DD日）
             </li>
             <li>
-              <code className="rounded bg-slate-100 px-1">{"{{hypothesis}}"}</code> または{" "}
-              <code className="rounded bg-slate-100 px-1">{"{{仮説}}"}</code> …
-              仮説・セクター調べコピーはコピー実行日の記録の仮説。結果プロンプトコピーはその日の仮説が空のとき前日の仮説（それも空なら空）
+              <code className="rounded bg-slate-100 px-1">{"{{hypothesis}}"}</code> …
+              仮説プロンプトコピーはコピー実行日の記録の仮説。結果・セクター調べコピーはその日の仮説が空のとき前日の仮説（それも空なら空）
+            </li>
+            <li>
+              <code className="rounded bg-slate-100 px-1">{"{{result}}"}</code> …
+              仮説プロンプトコピーはコピー実行日の記録の結果。結果・セクター調べコピーはその日の結果が空のとき前日の結果（それも空なら空）
             </li>
           </ul>
           <FormError message={promptOpenError} />
@@ -562,73 +595,39 @@ export function StockDailyPage() {
       )}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
-          <button
-            type="button"
-            onClick={openPromptEditModal}
-            className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
-          >
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <h2 className="text-xl font-bold text-slate-900">毎日の記録</h2>
+          <button type="button" onClick={openPromptEditModal} className={actionButtonClass}>
             プロンプト編集
           </button>
-          <button
-            type="button"
-            onClick={() => void copyStockPrompt("hypothesis")}
-            className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
-          >
-            {copiedKey === "hypothesis" ? "仮説プロンプトコピー済" : "仮説プロンプトコピー"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void copyStockPrompt("result")}
-            className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
-          >
-            {copiedKey === "result" ? "結果プロンプトコピー済" : "結果プロンプトコピー"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void copyStockPrompt("sector")}
-            className="inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
-          >
-            {copiedKey === "sector" ? "セクター調べプロンプトコピー済" : "セクター調べプロンプトコピー"}
-          </button>
         </div>
-        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-700">
-          <p className="leading-relaxed">
-            <span className="font-medium text-slate-600">Claude</span>
-            <br />
-            <a
-              href="https://claude.ai/new"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="break-all text-indigo-700 underline decoration-indigo-300 underline-offset-2"
-            >
-              https://claude.ai/new
-            </a>
-          </p>
-          <p className="mt-2 leading-relaxed">
-            <span className="font-medium text-slate-600">本日の市況</span>
-            <br />
-            <a
-              href="https://www.sc.mufg.jp/market/today_market/index.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="break-all text-indigo-700 underline decoration-indigo-300 underline-offset-2"
-            >
-              https://www.sc.mufg.jp/market/today_market/index.html
-            </a>
-          </p>
-          <p className="mt-2 leading-relaxed">
-            <span className="font-medium text-slate-600">日経225チャート</span>
-            <br />
-            <a
-              href="https://nikkei225jp.com/chart/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="break-all text-indigo-700 underline decoration-indigo-300 underline-offset-2"
-            >
-              https://nikkei225jp.com/chart/
-            </a>
-          </p>
+        <div className="space-y-2">
+          {STOCK_DAILY_WORKFLOW_GROUPS.map(({ field, copyKey, links }) => (
+            <div key={field} className="flex flex-wrap items-center gap-2">
+              <span className="min-w-[5.5rem] shrink-0 text-xs font-medium text-slate-600">{FIELD_LABEL[field]}</span>
+              <button
+                type="button"
+                onClick={() => void copyStockPrompt(copyKey)}
+                className={actionButtonClass}
+              >
+                {copiedKey === copyKey ? "コピー済" : "プロンプトコピー"}
+              </button>
+              {links.map((linkKey) => {
+                const link = STOCK_DAILY_EXTERNAL_LINKS[linkKey]
+                return (
+                  <a
+                    key={linkKey}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={externalLinkButtonClass}
+                  >
+                    {link.label}
+                  </a>
+                )
+              })}
+            </div>
+          ))}
         </div>
         <FormError message={promptsLoadError} />
       </section>

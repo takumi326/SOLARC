@@ -1,7 +1,7 @@
 module Api
   class ExpensesController < ApplicationController
-    before_action :set_expense, only: [ :update, :destroy, :actuals, :update_actual, :destroy_actual ]
-    before_action :ensure_expense!, only: [ :update, :destroy, :actuals, :update_actual, :destroy_actual ]
+    before_action :set_expense, only: [ :update, :destroy, :actuals, :bulk_update_actuals_from_month, :update_actual, :destroy_actual ]
+    before_action :ensure_expense!, only: [ :update, :destroy, :actuals, :bulk_update_actuals_from_month, :update_actual, :destroy_actual ]
 
     def index
       expenses = Expense.joins(:minor_category)
@@ -40,6 +40,31 @@ module Api
       render json: {
         data: rows.map { |row| expense_actual_row_json(row.ledger_transaction) }
       }
+    end
+
+    def bulk_update_actuals_from_month
+      unless @expense.expense_type_recurring?
+        return render json: {
+          error: { code: "bad_request", message: "定期の支出のみ一括変更できます" }
+        }, status: :unprocessable_entity
+      end
+
+      attrs = bulk_actual_params
+      result = BulkUpdateMasterActualsFromMonthService.call(
+        master: @expense,
+        from_month: attrs[:from_month],
+        amount: attrs[:amount],
+        negative: true
+      )
+      render json: {
+        data: {
+          updated_count: result.updated_count,
+          from_month: Date.parse(attrs[:from_month]).beginning_of_month.iso8601,
+          amount: attrs[:amount].to_d.abs
+        }
+      }
+    rescue ArgumentError => e
+      render json: { error: { code: "bad_request", message: e.message } }, status: :bad_request
     end
 
     def update_actual
@@ -108,6 +133,14 @@ module Api
     def actual_ledger_params
       p = params.require(:actual).permit(:month, :amount)
       { month: p[:month].to_s.presence, amount: p[:amount].to_s.presence }
+    end
+
+    def bulk_actual_params
+      p = params.expect(bulk: [ :from_month, :amount ])
+      {
+        from_month: p[:from_month].to_s,
+        amount: p[:amount].to_s
+      }
     end
 
     def duplicate_expense_ledger_month?(expense:, month:, except_transaction_id:)

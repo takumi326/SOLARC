@@ -49,7 +49,7 @@ module Api
     end
 
     def note_params
-      params.expect(stock_note: [ :noted_on, :note ])
+      params.expect(stock_note: [ :noted_on, :title, :note ])
     end
 
     def note_json(n)
@@ -57,6 +57,7 @@ module Api
         id: n.id,
         stock_id: n.stock_id,
         noted_on: n.noted_on.iso8601,
+        title: n.title,
         note: n.note,
         created_at: n.created_at.iso8601,
         updated_at: n.updated_at.iso8601

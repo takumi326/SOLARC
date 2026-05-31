@@ -22,6 +22,7 @@ Rails.application.routes.draw do
     resources :expenses, only: [ :index, :create, :update, :destroy ] do
       member do
         get :actuals
+        post "actuals/bulk_from_month", action: :bulk_update_actuals_from_month
         patch "actuals/:transaction_id", action: :update_actual
         delete "actuals/:transaction_id", action: :destroy_actual
       end
@@ -29,6 +30,7 @@ Rails.application.routes.draw do
     resources :incomes, only: [ :index, :create, :update, :destroy ] do
       member do
         get :actuals
+        post "actuals/bulk_from_month", action: :bulk_update_actuals_from_month
         patch "actuals/:transaction_id", action: :update_actual
         delete "actuals/:transaction_id", action: :destroy_actual
       end

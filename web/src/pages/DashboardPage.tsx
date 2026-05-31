@@ -6,7 +6,11 @@ import { apiErrorMessage } from "../lib/errors.ts"
 import {
   applyStockPromptPlaceholders,
   formatRecordDateJp,
+  hypothesisForResultPromptFromRows,
+  resultBodyFromRows,
+  resultForResultPromptFromRows,
   stockDailyPromptsFromPrefs,
+  usesPrevDayFallbackForStockPromptCopy,
 } from "../lib/stockDailyPrompts.ts"
 
 type PromptBundle = { hypothesis: string; result: string; sector: string }
@@ -161,8 +165,18 @@ export function DashboardPage() {
       setCopyError(null)
       const raw =
         field === "hypothesis" ? prompts.hypothesis : field === "result" ? prompts.result : prompts.sector
-      const hypothesisBody = hypothesisBodyForDate(notes, date)
-      const forClipboard = applyStockPromptPlaceholders(raw, date, hypothesisBody)
+      const prevDayFallback = usesPrevDayFallbackForStockPromptCopy(field)
+      const hypothesisBody = prevDayFallback
+        ? hypothesisForResultPromptFromRows(
+            notes.map((n) => ({ date: n.recorded_on, hypothesis: n.hypothesis })),
+            date,
+          )
+        : hypothesisBodyForDate(notes, date)
+      const noteRows = notes.map((n) => ({ date: n.recorded_on, result: n.result }))
+      const resultBody = prevDayFallback
+        ? resultForResultPromptFromRows(noteRows, date)
+        : resultBodyFromRows(noteRows, date)
+      const forClipboard = applyStockPromptPlaceholders(raw, date, hypothesisBody, resultBody)
       try {
         await navigator.clipboard.writeText(forClipboard)
         setCopiedKey(feedbackKey)

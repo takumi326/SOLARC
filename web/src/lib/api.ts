@@ -266,6 +266,18 @@ export type MasterActualUpdateInput = {
   amount: number
 }
 
+/** 定期マスタの実績を指定月以降で一括変更。amount は正の数 */
+export type MasterActualsBulkFromMonthInput = {
+  from_month: string
+  amount: number
+}
+
+export type MasterActualsBulkFromMonthResult = {
+  updated_count: number
+  from_month: string
+  amount: string | number
+}
+
 export type BreakdownMode = "実" | "予"
 export type BreakdownItem = {
   label: string
@@ -370,6 +382,7 @@ export type StockNote = {
   id: number
   stock_id: number
   noted_on: string
+  title: string
   note: string
   created_at: string
   updated_at: string
@@ -538,6 +551,11 @@ export const api = {
     deleteJson(`/api/expenses/${expenseId}/actuals/${transactionId}`),
   updateExpenseActual: (expenseId: number, transactionId: number, input: MasterActualUpdateInput) =>
     patchJson<MasterActual>(`/api/expenses/${expenseId}/actuals/${transactionId}`, { actual: input }),
+  bulkUpdateExpenseActualsFromMonth: (expenseId: number, input: MasterActualsBulkFromMonthInput) =>
+    postJson<MasterActualsBulkFromMonthResult>(
+      `/api/expenses/${expenseId}/actuals/bulk_from_month`,
+      { bulk: input },
+    ),
 
   createIncome: (input: IncomeMasterInput) =>
     postJson<IncomeMaster>("/api/incomes", { income: input }),
@@ -549,6 +567,11 @@ export const api = {
     deleteJson(`/api/incomes/${incomeId}/actuals/${transactionId}`),
   updateIncomeActual: (incomeId: number, transactionId: number, input: MasterActualUpdateInput) =>
     patchJson<MasterActual>(`/api/incomes/${incomeId}/actuals/${transactionId}`, { actual: input }),
+  bulkUpdateIncomeActualsFromMonth: (incomeId: number, input: MasterActualsBulkFromMonthInput) =>
+    postJson<MasterActualsBulkFromMonthResult>(
+      `/api/incomes/${incomeId}/actuals/bulk_from_month`,
+      { bulk: input },
+    ),
 
   upsertForecast: (input: UpsertForecastInput) =>
     postJson<Forecast>("/api/forecasts/upsert", { forecast: input }),
@@ -597,9 +620,9 @@ export const api = {
     return fetchJson<StockTimelineResult>(`/api/stocks/${id}/timeline?${sp}`)
   },
   stockNotes: (stockId: number) => fetchJson<StockNote[]>(`/api/stocks/${stockId}/stock_notes`),
-  createStockNote: (stockId: number, input: { noted_on: string; note: string }) =>
+  createStockNote: (stockId: number, input: { noted_on: string; title: string; note: string }) =>
     postJson<StockNote>(`/api/stocks/${stockId}/stock_notes`, { stock_note: input }),
-  updateStockNote: (stockId: number, id: number, input: { noted_on: string; note: string }) =>
+  updateStockNote: (stockId: number, id: number, input: { noted_on: string; title: string; note: string }) =>
     patchJson<StockNote>(`/api/stocks/${stockId}/stock_notes/${id}`, { stock_note: input }),
   deleteStockNote: (stockId: number, id: number) => deleteJson(`/api/stocks/${stockId}/stock_notes/${id}`),
 

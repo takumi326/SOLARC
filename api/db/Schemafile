@@ -152,6 +152,7 @@ end
 create_table "stock_notes", force: :cascade do |t|
   t.bigint "stock_id", null: false
   t.date "noted_on", null: false
+  t.string "title", limit: 200, null: false, default: ""
   t.text "note", null: false
   t.datetime "created_at", null: false
   t.datetime "updated_at", null: false

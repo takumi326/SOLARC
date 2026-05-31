@@ -15,6 +15,7 @@ import { Modal, FormError, FieldLabel, FormActions } from "../components/Modal.t
 import { RowActionButtons } from "../components/RowActionButtons.tsx"
 import { TradeEventDetailModal } from "../components/TradeEventDetailModal.tsx"
 import { QuickEntryModal, QuickExitModal, QuickLineModal } from "../components/StockTradeCreateModals.tsx"
+import { toDateInputValue } from "../lib/stockFormUtils.ts"
 import { tradeAxesFromTimelineTab, type TimelineTab } from "../lib/stockTradeAxes.ts"
 
 export function StockDetailPage() {
@@ -109,25 +110,40 @@ export function StockDetailPage() {
             追加
           </button>
         </div>
-        {notesResult.status === "success" && (
-          <ul className="space-y-2">
-            {notesResult.data.map((n) => (
-              <li
-                key={n.id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"
-              >
-                <p className="min-w-0 flex-1 truncate text-sm text-slate-800" title={n.note}>
-                  {n.note}
-                </p>
-                <RowActionButtons
-                  onEdit={() => setNoteOpen(n)}
-                  onDelete={() => void deleteStockNote(stockId, n.id, () => notesResult.refetch())}
-                />
-              </li>
-            ))}
-            {notesResult.data.length === 0 && <p className="text-sm text-slate-500">まだありません</p>}
-          </ul>
-        )}
+        {notesResult.status === "success" &&
+          (notesResult.data.length === 0 ? (
+            <p className="text-sm text-slate-500">まだありません</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full min-w-0 border-collapse text-sm">
+                <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="border-b border-slate-200 px-3 py-2 font-semibold whitespace-nowrap">日付</th>
+                    <th className="border-b border-slate-200 px-3 py-2 font-semibold">タイトル</th>
+                    <th className="border-b border-slate-200 px-3 py-2 font-semibold whitespace-nowrap">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {notesResult.data.map((n) => (
+                    <tr key={n.id}>
+                      <td className="px-3 py-2.5 align-middle font-medium whitespace-nowrap tabular-nums text-slate-700">
+                        {toDateInputValue(n.noted_on)}
+                      </td>
+                      <td className="min-w-0 px-3 py-2.5 align-middle text-slate-800">
+                        {n.title.trim() ? n.title : <span className="text-slate-400">（無題）</span>}
+                      </td>
+                      <td className="px-3 py-2.5 text-right align-middle">
+                        <RowActionButtons
+                          onEdit={() => setNoteOpen(n)}
+                          onDelete={() => void deleteStockNote(stockId, n.id, () => notesResult.refetch())}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -405,7 +421,10 @@ function StockNoteModal({
   onClose: () => void
   onSaved: () => void
 }) {
-  const [notedOn, setNotedOn] = useState(existing?.noted_on ?? new Date().toISOString().slice(0, 10))
+  const [notedOn, setNotedOn] = useState(
+    existing ? toDateInputValue(existing.noted_on) : new Date().toISOString().slice(0, 10),
+  )
+  const [title, setTitle] = useState(existing?.title ?? "")
   const [note, setNote] = useState(existing?.note ?? "")
   const [err, setErr] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -415,8 +434,8 @@ function StockNoteModal({
     setSaving(true)
     setErr(null)
     try {
-      if (existing) await api.updateStockNote(stockId, existing.id, { noted_on: notedOn, note })
-      else await api.createStockNote(stockId, { noted_on: notedOn, note })
+      if (existing) await api.updateStockNote(stockId, existing.id, { noted_on: notedOn, title, note })
+      else await api.createStockNote(stockId, { noted_on: notedOn, title, note })
       onSaved()
     } catch (e) {
       setErr(apiErrorMessage(e))
@@ -444,8 +463,19 @@ function StockNoteModal({
     <Modal title={existing ? "観察メモを編集" : "観察メモを追加"} onClose={onClose}>
       <form onSubmit={(e) => void save(e)} className="space-y-3 text-sm">
         <label className="flex flex-col gap-1">
-          <FieldLabel>記録日</FieldLabel>
+          <FieldLabel>日付</FieldLabel>
           <input type="date" value={notedOn} onChange={(e) => setNotedOn(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" required />
+        </label>
+        <label className="flex flex-col gap-1">
+          <FieldLabel>タイトル</FieldLabel>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={200}
+            className="rounded-lg border border-slate-300 px-2 py-1.5"
+            required
+          />
         </label>
         <label className="flex flex-col gap-1">
           <FieldLabel>内容</FieldLabel>

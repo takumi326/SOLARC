@@ -141,5 +141,30 @@ RSpec.describe "Api::Incomes", type: :request do
       expect(tx.month).to eq(Date.new(2026, 8, 1))
       expect(tx.amount).to eq(400_000)
     end
+
+    it "bulk-updates actual amounts from month for recurring income" do
+      income = create(
+        :income,
+        minor_category: minor,
+        income_type: :recurring,
+        amount: 300_000,
+        start_month: Date.new(2026, 1, 1)
+      )
+      jan = Transaction.create!(month: Date.new(2026, 1, 1), amount: 300_000)
+      jun = Transaction.create!(month: Date.new(2026, 6, 1), amount: 300_000)
+      IncomeTransaction.create!(income: income, ledger_transaction: jan)
+      IncomeTransaction.create!(income: income, ledger_transaction: jun)
+
+      post "/api/incomes/#{income.id}/actuals/bulk_from_month",
+           params: { bulk: { from_month: "2026-06-01", amount: 350_000 } },
+           headers: headers
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body.dig("data", "updated_count")).to eq(1)
+      expect(jan.reload.amount).to eq(300_000)
+      expect(jun.reload.amount).to eq(350_000)
+      expect(income.reload.amount).to eq(350_000)
+    end
   end
 end
