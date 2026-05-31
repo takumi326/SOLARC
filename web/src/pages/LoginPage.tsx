@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+import { warmUpApiInBackground } from "../lib/apiReady.ts"
 import { supabase } from "../lib/supabase.ts"
 
 type Props = {
@@ -5,6 +7,10 @@ type Props = {
 }
 
 export function LoginPage({ errorMessage }: Props) {
+  useEffect(() => {
+    warmUpApiInBackground()
+  }, [])
+
   const startGoogleLogin = async () => {
     if (!supabase) return
     await supabase.auth.signInWithOAuth({

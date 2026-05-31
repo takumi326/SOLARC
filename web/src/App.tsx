@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { NavLink, Navigate, Route, Routes } from "react-router-dom"
 import { api } from "./lib/api.ts"
+import { verifyAuthWithRetry, waitForApiReady } from "./lib/apiReady.ts"
 import { isSupabaseConfigured, supabase } from "./lib/supabase.ts"
 import { LoginPage } from "./pages/LoginPage.tsx"
 import { DashboardPage } from "./pages/DashboardPage.tsx"
@@ -54,6 +55,7 @@ export default function App() {
     IS_DEV ? "authenticated" : INITIAL_AUTH.status,
   )
   const [authError, setAuthError] = useState<string | null>(INITIAL_AUTH.error)
+  const [loadingMessage, setLoadingMessage] = useState("認証を確認中…")
   const closeDrawer = () => setDrawerOpen(false)
 
   useEffect(() => {
@@ -71,7 +73,12 @@ export default function App() {
           setAuthStatus("guest")
           return
         }
-        await api.me()
+        setAuthStatus("loading")
+        setLoadingMessage("サーバーを起動しています…")
+        await waitForApiReady({ shouldContinue: () => active })
+        if (!active) return
+        setLoadingMessage("認証を確認中…")
+        await verifyAuthWithRetry(() => api.me(), { shouldContinue: () => active })
         if (!active) return
         setAuthError(null)
         setAuthStatus("authenticated")
@@ -96,7 +103,7 @@ export default function App() {
   if (authStatus === "loading") {
     return (
       <div className="mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center p-6 text-slate-600">
-        認証を確認中…
+        {loadingMessage}
       </div>
     )
   }
