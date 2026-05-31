@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
   api,
   type CategoryKind,
@@ -498,10 +498,13 @@ function ExpenseMastersSection() {
       )}
       {detail && (
         <MasterActualsModal
+          key={detail.id}
           title={`支出実績: ${formatCategory(minorMap.get(detail.minor_category_id))}`}
           kind="expense"
           masterId={detail.id}
           masterMemo={detail.memo}
+          recurring={detail.expense_type === "recurring"}
+          masterAmount={detail.amount}
           loadActuals={loadExpenseDetailActuals}
           onClose={() => setDetail(null)}
         />
@@ -644,9 +647,12 @@ function IncomeMastersSection() {
       )}
       {detail && (
         <MasterActualsModal
+          key={detail.id}
           title={`収入実績: ${formatCategory(minorMap.get(detail.minor_category_id))}`}
           kind="income"
           masterId={detail.id}
+          recurring={detail.income_type === "recurring"}
+          masterAmount={detail.amount}
           loadActuals={loadIncomeDetailActuals}
           onClose={() => setDetail(null)}
         />
@@ -802,6 +808,17 @@ function Table({
   )
 }
 
+function defaultBulkAmount(masterAmount?: string | number): string {
+  const n = Math.round(Number(masterAmount))
+  return Number.isFinite(n) && n >= 0 ? String(n) : ""
+}
+
+function countActualsFromMonth(rows: MasterActual[], fromMonthInput: string): number {
+  if (!fromMonthInput) return 0
+  const from = `${fromMonthInput}-01`
+  return rows.filter((row) => row.month >= from).length
+}
+
 function MasterActualsModal({
   title,
   loadActuals,
@@ -809,6 +826,8 @@ function MasterActualsModal({
   kind,
   masterId,
   masterMemo,
+  recurring = false,
+  masterAmount,
 }: {
   title: string
   loadActuals: () => Promise<MasterActual[]>
@@ -817,6 +836,8 @@ function MasterActualsModal({
   masterId: number
   /** 支出マスタのメモ（一覧では出さず詳細のみ） */
   masterMemo?: string | null
+  recurring?: boolean
+  masterAmount?: string | number
 }) {
   const result = useFetch(loadActuals)
   const [rowError, setRowError] = useState<string | null>(null)
@@ -825,6 +846,14 @@ function MasterActualsModal({
   const [editMonth, setEditMonth] = useState("")
   const [editAmount, setEditAmount] = useState("")
   const [savingEditId, setSavingEditId] = useState<number | null>(null)
+  const [bulkFromMonth, setBulkFromMonth] = useState("")
+  const [bulkAmount, setBulkAmount] = useState(() => defaultBulkAmount(masterAmount))
+  const [bulkSaving, setBulkSaving] = useState(false)
+
+  const bulkTargetCount = useMemo(() => {
+    if (result.status !== "success") return 0
+    return countActualsFromMonth(result.data, bulkFromMonth)
+  }, [result, bulkFromMonth])
 
   const cancelEdit = () => {
     setEditingId(null)
@@ -864,6 +893,46 @@ function MasterActualsModal({
     }
   }
 
+  const onBulkUpdate = async () => {
+    if (!bulkFromMonth) {
+      setRowError("一括変更の開始月を選んでください")
+      return
+    }
+    const amount = Math.round(Number(bulkAmount))
+    if (!Number.isFinite(amount) || amount < 0) {
+      setRowError("金額は0以上の数値で入力してください")
+      return
+    }
+    if (bulkTargetCount === 0) {
+      setRowError("指定月以降に更新対象の実績がありません")
+      return
+    }
+    const monthLabel = bulkFromMonth.replace("-", "/")
+    if (
+      !window.confirm(
+        `${monthLabel} 以降の実績 ${bulkTargetCount} 件を ¥${amount.toLocaleString("ja-JP")} に揃えます。\nマスタの定期金額も同額に更新します。よろしいですか？`,
+      )
+    ) {
+      return
+    }
+    setBulkSaving(true)
+    setRowError(null)
+    try {
+      const payload = { from_month: `${bulkFromMonth}-01`, amount }
+      if (kind === "expense") {
+        await api.bulkUpdateExpenseActualsFromMonth(masterId, payload)
+      } else {
+        await api.bulkUpdateIncomeActualsFromMonth(masterId, payload)
+      }
+      cancelEdit()
+      result.refetch()
+    } catch (err) {
+      setRowError(apiErrorMessage(err))
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
   const onDeleteRow = async (row: MasterActual) => {
     if (
       !window.confirm(
@@ -897,6 +966,52 @@ function MasterActualsModal({
         <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
           <p className="text-xs font-medium text-slate-500">マスタのメモ</p>
           <p className="mt-1 whitespace-pre-wrap text-slate-800">{masterMemo.trim()}</p>
+        </div>
+      )}
+      {recurring && result.status === "success" && (
+        <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-3">
+          <p className="text-sm font-medium text-slate-800">指定月以降を一括変更</p>
+          <p className="mt-1 text-xs text-slate-600">
+            例: 1〜12月の実績があり、5月以降だけ金額を変えたいときに使います。マスタの定期金額も更新されます。
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="text-xs text-slate-600">
+              <span className="mb-1 block font-medium">この月以降</span>
+              <input
+                type="month"
+                value={bulkFromMonth}
+                onChange={(e) => setBulkFromMonth(e.target.value)}
+                disabled={bulkSaving || editingId != null}
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+              />
+            </label>
+            <label className="text-xs text-slate-600">
+              <span className="mb-1 block font-medium">金額（円）</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={bulkAmount}
+                onChange={(e) => setBulkAmount(e.target.value)}
+                disabled={bulkSaving || editingId != null}
+                className="w-32 rounded-md border border-slate-300 px-2 py-1 text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={bulkSaving || editingId != null || bulkTargetCount === 0 || !bulkFromMonth}
+              onClick={() => void onBulkUpdate()}
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {bulkSaving ? "更新中…" : "一括で反映"}
+            </button>
+          </div>
+          {bulkFromMonth && (
+            <p className="mt-2 text-xs text-slate-600">
+              対象: {bulkTargetCount} 件
+              {bulkTargetCount === 0 && "（この月以降の実績がありません）"}
+            </p>
+          )}
         </div>
       )}
       {result.status === "loading" && <p className="text-sm text-slate-500">実績を読み込み中…</p>}

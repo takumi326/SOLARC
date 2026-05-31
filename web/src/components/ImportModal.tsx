@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
+import { Modal } from "./Modal.tsx"
 import { api, type ExpenseMaster, type MinorCategory } from "../lib/api.ts"
 import { apiErrorMessage } from "../lib/errors.ts"
 import { sortMinorCategories } from "../lib/categorySort.ts"
@@ -7,6 +8,14 @@ import { buildImportClaudePrompt, parseImportMonthField } from "../lib/importPro
 import { useFetch } from "../lib/useFetch.ts"
 
 const FIXED_PAYMENT_METHOD_NAME = "Amazonカード"
+
+const actionButtonClass =
+  "inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
+
+const externalLinkButtonClass =
+  "inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-indigo-200 bg-white px-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
+
+const CLAUDE_NEW_URL = "https://claude.ai/new"
 
 type Props = {
   onClose: () => void
@@ -395,54 +404,68 @@ export function ImportModal({ onClose, onImported }: Props) {
     })
   }
 
-  const pendingRowsForDuplicateCheck = useMemo(() => {
+  const pendingRowsForCompareMonth = useMemo(() => {
     if (!pendingRows || !/^\d{4}-\d{2}$/.test(compareMonthInput)) return []
-    return pendingRows.filter(
-      (pr) => pr.monthLabel === compareMonthInput && selectedImportLineNumbers.has(pr.lineNumber),
-    )
-  }, [pendingRows, compareMonthInput, selectedImportLineNumbers])
+    return pendingRows.filter((pr) => pr.monthLabel === compareMonthInput)
+  }, [pendingRows, compareMonthInput])
 
   const existingRows = useMemo(() => {
     if (!pendingRows || !existingExpenses || !/^\d{4}-\d{2}$/.test(compareMonthInput)) return []
-    return buildExistingRows(existingExpenses, expenseMinors, compareMonthInput, pendingRowsForDuplicateCheck)
-  }, [existingExpenses, expenseMinors, compareMonthInput, pendingRows, pendingRowsForDuplicateCheck])
+    return buildExistingRows(existingExpenses, expenseMinors, compareMonthInput, pendingRowsForCompareMonth)
+  }, [existingExpenses, expenseMinors, compareMonthInput, pendingRows, pendingRowsForCompareMonth])
 
   const pendingDuplicateLineNumbers = useMemo(() => {
     if (!pendingRows || !compareMonthInput) return new Set<number>()
     const set = new Set<number>()
     for (const pr of pendingRows) {
-      if (!selectedImportLineNumbers.has(pr.lineNumber)) continue
       if (pr.monthLabel !== compareMonthInput) continue
       const dup = existingRows.some((er) => er.minorCategoryId === pr.minor.id && er.amount === pr.amount)
       if (dup) set.add(pr.lineNumber)
     }
     return set
-  }, [pendingRows, compareMonthInput, existingRows, selectedImportLineNumbers])
+  }, [pendingRows, compareMonthInput, existingRows])
+
+  const effectiveSelectedImportLineNumbers = useMemo(() => {
+    if (phase !== "preview" || existingLoad !== "success") {
+      return selectedImportLineNumbers
+    }
+    const next = new Set(selectedImportLineNumbers)
+    for (const lineNumber of pendingDuplicateLineNumbers) {
+      next.delete(lineNumber)
+    }
+    return next
+  }, [selectedImportLineNumbers, phase, existingLoad, pendingDuplicateLineNumbers])
+
+  const hiddenDuplicateCount = pendingDuplicateLineNumbers.size
 
   const leftTableRows = useMemo(
     () =>
-      existingRows.map((er) => ({
-        key: er.id,
-        month: er.monthLabel,
-        category: er.categoryPath,
-        amount: er.amount,
-        memo: er.memo,
-        warn: er.duplicateWithPending,
-      })),
+      existingRows
+        .filter((er) => !er.duplicateWithPending)
+        .map((er) => ({
+          key: er.id,
+          month: er.monthLabel,
+          category: er.categoryPath,
+          amount: er.amount,
+          memo: er.memo,
+          warn: false,
+        })),
     [existingRows],
   )
 
   const rightTableRows = useMemo(() => {
     if (!pendingRows) return []
-    const mapped = pendingRows.map((r) => ({
-      key: r.lineNumber,
-      lineNumber: r.lineNumber,
-      month: r.monthLabel,
-      category: r.categoryPath,
-      amount: r.amount,
-      memo: r.memo,
-      warn: pendingDuplicateLineNumbers.has(r.lineNumber),
-    }))
+    const mapped = pendingRows
+      .filter((r) => !pendingDuplicateLineNumbers.has(r.lineNumber))
+      .map((r) => ({
+        key: r.lineNumber,
+        lineNumber: r.lineNumber,
+        month: r.monthLabel,
+        category: r.categoryPath,
+        amount: r.amount,
+        memo: r.memo,
+        warn: false,
+      }))
     mapped.sort((a, b) => {
       const cat = a.category.localeCompare(b.category, "ja")
       if (cat !== 0) return cat
@@ -452,11 +475,13 @@ export function ImportModal({ onClose, onImported }: Props) {
     return mapped
   }, [pendingRows, pendingDuplicateLineNumbers])
 
-  const selectedImportCount = selectedImportLineNumbers.size
+  const selectedImportCount = effectiveSelectedImportLineNumbers.size
   const selectedImportAmount = useMemo(() => {
     if (!pendingRows) return 0
-    return pendingRows.reduce((s, r) => (selectedImportLineNumbers.has(r.lineNumber) ? s + r.amount : s), 0)
-  }, [pendingRows, selectedImportLineNumbers])
+    return pendingRows.reduce((s, r) =>
+      effectiveSelectedImportLineNumbers.has(r.lineNumber) ? s + r.amount : s,
+    0)
+  }, [pendingRows, effectiveSelectedImportLineNumbers])
 
   const toggleImportLine = useCallback((lineNumber: number, checked: boolean) => {
     setSelectedImportLineNumbers((prev) => {
@@ -526,7 +551,7 @@ export function ImportModal({ onClose, onImported }: Props) {
       )
       return
     }
-    const rowsToImport = pendingRows.filter((r) => selectedImportLineNumbers.has(r.lineNumber))
+    const rowsToImport = pendingRows.filter((r) => effectiveSelectedImportLineNumbers.has(r.lineNumber))
     if (rowsToImport.length === 0) {
       setErrorMessage("取り込む行を1件以上選んでください")
       return
@@ -576,108 +601,66 @@ export function ImportModal({ onClose, onImported }: Props) {
 
   const exampleId = expenseMinors[0]?.id ?? 1
   const jsonPlaceholder = `[{"month":"${importPromptMonth}","minor_category_id":${exampleId},"amount":1200,"memo":""}]`
+  const promptCopyDisabled =
+    bundle.status !== "success" ||
+    !fixedPaymentMethod ||
+    fixedPaymentMethod.method_type !== "card" ||
+    expenseMinors.length === 0
 
   return (
-    <div
-      className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/40 p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
+    <Modal
+      title="実績を取込"
+      titleAside={
+        <Link to="/finance/settings#import-prompt" className={actionButtonClass}>
+          プロンプト編集
+        </Link>
+      }
+      onClose={onClose}
+      size={phase === "preview" ? "2xl" : "lg"}
     >
-      <div
-        className={`w-full rounded-2xl bg-white p-5 shadow-xl ${phase === "preview" ? "max-w-6xl" : "max-w-xl"}`}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">実績を取込</h3>
-          <button
-            type="button"
-            className="-m-1 flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-            onClick={onClose}
-            aria-label="閉じる"
-          >
-            ×
-          </button>
+      <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="min-w-[5.5rem] shrink-0 text-xs font-medium text-slate-600">取込</span>
+            <button
+              type="button"
+              onClick={() => void copyPrompt()}
+              disabled={promptCopyDisabled}
+              className={actionButtonClass}
+            >
+              {copyStatus === "done" ? "コピー済" : "プロンプトコピー"}
+            </button>
+            <a href={CLAUDE_NEW_URL} target="_blank" rel="noopener noreferrer" className={externalLinkButtonClass}>
+              Claude
+            </a>
+          </div>
+          {copyStatus === "error" && (
+            <p className="text-xs text-rose-700">クリップボードへのコピーに失敗しました</p>
+          )}
         </div>
 
-        <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-          <p className="text-xs text-slate-500">
-            Claude 用のプロンプト本文は{" "}
-            <Link to="/finance/settings#import-prompt" className="font-medium text-indigo-600 underline hover:text-indigo-500">
-              設定
-            </Link>
-            から編集できます（サーバーに保存されます）。
-          </p>
+        {phase === "edit" && (
+          <>
+            {errorMessage && (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</p>
+            )}
+            <label className="block text-sm">
+              <span className="text-slate-600">JSON</span>
+              <textarea
+                rows={10}
+                value={rawJson}
+                onChange={(e) => setRawJson(e.target.value)}
+                placeholder={jsonPlaceholder}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"
+              />
+            </label>
+          </>
+        )}
 
-          <div className="text-xs text-slate-600">
-            <p>
-              <span className="text-slate-500">Claude:</span>{" "}
-              <a
-                href="https://claude.ai/new"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="break-all font-medium text-indigo-700 underline-offset-2 hover:underline"
-              >
-                https://claude.ai/new
-              </a>
-            </p>
-          </div>
-
-          {phase === "edit" && (
-            <>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="flex flex-wrap items-start gap-3">
-                  <details className="min-w-0 flex-1 [&_summary::-webkit-details-marker]:hidden">
-                    <summary className="cursor-pointer list-none text-sm font-medium text-slate-700">
-                      Claude用プロンプトの本文
-                    </summary>
-                    <div className="mt-3">
-                      <textarea
-                        readOnly
-                        value={claudePrompt}
-                        rows={16}
-                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs"
-                      />
-                    </div>
-                  </details>
-                  <div className="flex shrink-0 flex-col items-end gap-1 sm:pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => void copyPrompt()}
-                      disabled={
-                        bundle.status !== "success" ||
-                        !fixedPaymentMethod ||
-                        fixedPaymentMethod.method_type !== "card" ||
-                        expenseMinors.length === 0
-                      }
-                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      プロンプトをコピー
-                    </button>
-                    {copyStatus === "done" && <p className="text-xs text-emerald-700">コピーしました</p>}
-                    {copyStatus === "error" && <p className="text-xs text-rose-700">コピーに失敗しました</p>}
-                  </div>
-                </div>
-              </div>
-              {errorMessage && (
-                <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</p>
-              )}
-              <label className="block text-sm">
-                <span className="text-slate-600">JSON</span>
-                <textarea
-                  rows={10}
-                  value={rawJson}
-                  onChange={(e) => setRawJson(e.target.value)}
-                  placeholder={jsonPlaceholder}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"
-                />
-              </label>
-            </>
-          )}
-
-          {phase === "preview" && pendingRows && (
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-slate-800">
-                左で比較する月を選び、保存済みの<strong>単発</strong>支出と今回取り込む内容を並べて確認してください（定期は出しません）。右のチェックを付けた行だけが取り込まれます（同一利用月・同一カテゴリ・同一金額は行の背景色で示します）。
+        {phase === "preview" && pendingRows && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-slate-800">
+                左で比較する月を選び、保存済みの<strong>単発</strong>支出と今回取り込む内容を並べて確認してください（定期は出しません）。右のチェックを付けた行だけが取り込まれます。同一利用月・同一カテゴリ・同一金額の重複は一覧に表示しません。
               </p>
               <label className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-slate-600">比較する月（左の一覧）</span>
@@ -692,12 +675,17 @@ export function ImportModal({ onClose, onImported }: Props) {
               {existingLoad === "error" && existingLoadError && (
                 <p className="text-xs text-rose-700">保存済み支出の取得に失敗: {existingLoadError}</p>
               )}
+              {existingLoad === "success" && hiddenDuplicateCount > 0 && (
+                <p className="text-xs text-amber-800">
+                  保存済みと重複する {hiddenDuplicateCount} 件は表示・取り込み対象から除いています。
+                </p>
+              )}
               <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
                 <ImportPreviewTable title="保存済みの単発支出" rows={leftTableRows} />
                 <ImportPendingTable
                   title="今回取り込む（単発）"
                   rows={rightTableRows}
-                  selectedLineNumbers={selectedImportLineNumbers}
+                  selectedLineNumbers={effectiveSelectedImportLineNumbers}
                   onToggleLine={toggleImportLine}
                   onSelectAll={selectAllImportLines}
                   onSelectNone={selectNoImportLines}
@@ -713,54 +701,47 @@ export function ImportModal({ onClose, onImported }: Props) {
             </div>
           )}
 
-          <div className="flex flex-wrap justify-end gap-2 pt-2">
-            {phase === "edit" ? (
-              <>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
-                >
-                  キャンセル
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void onConfirmPreview()}
-                  disabled={
-                    bundle.status !== "success" ||
-                    !fixedPaymentMethod ||
-                    fixedPaymentMethod.method_type !== "card" ||
-                    expenseMinors.length === 0 ||
-                    rawJson.trim() === ""
-                  }
-                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
-                >
-                  内容を確認
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={backToEdit}
-                  disabled={submitting}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
-                >
-                  戻って修正
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void executeImport()}
-                  disabled={submitting || selectedImportCount === 0}
-                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
-                >
-                  {submitting ? "取込中…" : "選択した行を取り込む"}
-                </button>
-              </>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+          {phase === "edit" ? (
+            <>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => void onConfirmPreview()}
+                disabled={promptCopyDisabled || rawJson.trim() === ""}
+                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
+              >
+                内容を確認
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={backToEdit}
+                disabled={submitting}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+              >
+                戻って修正
+              </button>
+              <button
+                type="button"
+                onClick={() => void executeImport()}
+                disabled={submitting || selectedImportCount === 0}
+                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
+              >
+                {submitting ? "取込中…" : "選択した行を取り込む"}
+              </button>
+            </>
+          )}
+        </div>
+      </form>
+    </Modal>
   )
 }

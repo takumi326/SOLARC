@@ -207,5 +207,45 @@ RSpec.describe "Api::Expenses", type: :request do
 
       expect(response).to have_http_status(:unprocessable_entity)
     end
+
+    it "bulk-updates actual amounts from month for recurring expense" do
+      expense = create(
+        :expense,
+        minor_category: minor,
+        payment_method: payment_method,
+        expense_type: :recurring,
+        recurring_cycle: :monthly,
+        amount: 10_000,
+        start_month: Date.new(2026, 1, 1)
+      )
+      jan = Transaction.create!(month: Date.new(2026, 1, 1), amount: -10_000)
+      may = Transaction.create!(month: Date.new(2026, 5, 1), amount: -10_000)
+      dec = Transaction.create!(month: Date.new(2026, 12, 1), amount: -10_000)
+      ExpenseTransaction.create!(expense: expense, ledger_transaction: jan)
+      ExpenseTransaction.create!(expense: expense, ledger_transaction: may)
+      ExpenseTransaction.create!(expense: expense, ledger_transaction: dec)
+
+      post "/api/expenses/#{expense.id}/actuals/bulk_from_month",
+           params: { bulk: { from_month: "2026-05-01", amount: 15_000 } },
+           headers: headers
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body.dig("data", "updated_count")).to eq(2)
+      expect(jan.reload.amount).to eq(-10_000)
+      expect(may.reload.amount).to eq(-15_000)
+      expect(dec.reload.amount).to eq(-15_000)
+      expect(expense.reload.amount).to eq(15_000)
+    end
+
+    it "rejects bulk update for one-time expense" do
+      expense = create(:expense, minor_category: minor, payment_method: payment_method, expense_type: :one_time)
+
+      post "/api/expenses/#{expense.id}/actuals/bulk_from_month",
+           params: { bulk: { from_month: "2026-05-01", amount: 1000 } },
+           headers: headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
   end
 end

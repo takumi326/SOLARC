@@ -3,6 +3,8 @@ import { api, type Forecast } from "../lib/api.ts"
 import { apiErrorMessage } from "../lib/errors.ts"
 import { FormActions, FormError, Modal } from "./Modal.tsx"
 
+type ForecastKind = "income" | "expense"
+
 type Row = {
   month: string
   income: string
@@ -21,11 +23,50 @@ export function ForecastBulkEditorModal({ onClose, onSaved, forecasts, startMont
   const [rows, setRows] = useState<Row[]>(initialRows)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [bulkKind, setBulkKind] = useState<ForecastKind>("expense")
+  const [bulkFromMonth, setBulkFromMonth] = useState("")
+  const [bulkAmount, setBulkAmount] = useState("")
 
-  const updateAmount = (idx: number, kind: "income" | "expense", value: string) => {
+  const bulkTargetCount = useMemo(
+    () => countRowsFromMonth(rows, bulkFromMonth),
+    [rows, bulkFromMonth],
+  )
+
+  const updateAmount = (idx: number, kind: ForecastKind, value: string) => {
     setRows((prev) =>
       prev.map((r, i) => (i === idx ? { ...r, [kind]: value } : r)),
     )
+  }
+
+  const applyBulkToRows = () => {
+    if (!bulkFromMonth) {
+      setErrorMessage("一括変更の開始月を選んでください")
+      return
+    }
+    const amount = Math.round(Number(bulkAmount))
+    if (!Number.isFinite(amount) || amount < 0) {
+      setErrorMessage("金額は0以上の数値で入力してください")
+      return
+    }
+    if (bulkTargetCount === 0) {
+      setErrorMessage("指定月以降に更新対象の月がありません（表示中の12ヶ月の範囲内で選んでください）")
+      return
+    }
+    const monthLabel = bulkFromMonth.replace("-", "/")
+    const kindLabel = bulkKind === "income" ? "収入" : "支出"
+    if (
+      !window.confirm(
+        `${monthLabel} 以降の ${kindLabel} 予測 ${bulkTargetCount} ヶ月分を ¥${amount.toLocaleString("ja-JP")} に揃えます（下の表に反映。保存するまでDBには書き込みません）。よろしいですか？`,
+      )
+    ) {
+      return
+    }
+    const from = monthInputToRowMonth(bulkFromMonth)
+    const amountStr = String(amount)
+    setRows((prev) =>
+      prev.map((row) => (row.month >= from ? { ...row, [bulkKind]: amountStr } : row)),
+    )
+    setErrorMessage(null)
   }
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -54,6 +95,77 @@ export function ForecastBulkEditorModal({ onClose, onSaved, forecasts, startMont
     <Modal title="予測をまとめて編集（今月以降12ヶ月）" onClose={onClose}>
       <form className="space-y-3" onSubmit={onSubmit}>
         <FormError message={errorMessage} />
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-3 py-3">
+          <p className="text-sm font-medium text-slate-800">指定月以降を一括変更</p>
+          <p className="mt-1 text-xs text-slate-600">
+            収入または支出を選び、開始月以降の予測を同じ金額に揃えます。反映後に下部の表を確認し「保存」してください。
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <fieldset className="text-xs text-slate-600">
+              <legend className="mb-1 block font-medium">種別</legend>
+              <div className="flex gap-3">
+                <label className="inline-flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="bulkKind"
+                    value="income"
+                    checked={bulkKind === "income"}
+                    onChange={() => setBulkKind("income")}
+                    disabled={submitting}
+                  />
+                  収入
+                </label>
+                <label className="inline-flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="bulkKind"
+                    value="expense"
+                    checked={bulkKind === "expense"}
+                    onChange={() => setBulkKind("expense")}
+                    disabled={submitting}
+                  />
+                  支出
+                </label>
+              </div>
+            </fieldset>
+            <label className="text-xs text-slate-600">
+              <span className="mb-1 block font-medium">この月以降</span>
+              <input
+                type="month"
+                value={bulkFromMonth}
+                onChange={(e) => setBulkFromMonth(e.target.value)}
+                disabled={submitting}
+                className="rounded-md border border-slate-300 px-2 py-1 text-sm"
+              />
+            </label>
+            <label className="text-xs text-slate-600">
+              <span className="mb-1 block font-medium">金額（円）</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={bulkAmount}
+                onChange={(e) => setBulkAmount(e.target.value)}
+                disabled={submitting}
+                className="w-32 rounded-md border border-slate-300 px-2 py-1 text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={submitting || bulkTargetCount === 0 || !bulkFromMonth}
+              onClick={applyBulkToRows}
+              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              表に反映
+            </button>
+          </div>
+          {bulkFromMonth && (
+            <p className="mt-2 text-xs text-slate-600">
+              対象: {bulkTargetCount} ヶ月
+              {bulkTargetCount === 0 && "（表示中の12ヶ月の範囲外、または該当なし）"}
+            </p>
+          )}
+        </div>
         <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-slate-200">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
@@ -96,6 +208,16 @@ export function ForecastBulkEditorModal({ onClose, onSaved, forecasts, startMont
       </form>
     </Modal>
   )
+}
+
+function countRowsFromMonth(rows: Row[], fromMonthInput: string): number {
+  if (!fromMonthInput) return 0
+  const from = monthInputToRowMonth(fromMonthInput)
+  return rows.filter((row) => row.month >= from).length
+}
+
+function monthInputToRowMonth(yyyyMm: string): string {
+  return `${yyyyMm}-01`
 }
 
 function buildRows(forecasts: Forecast[], startMonth: string): Row[] {

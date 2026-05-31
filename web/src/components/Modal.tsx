@@ -2,6 +2,8 @@ import { useEffect, useRef, type ReactNode } from "react"
 
 type Props = {
   title: string
+  /** タイトル直後（毎日の記録の「プロンプト編集」など） */
+  titleAside?: ReactNode
   onClose: () => void
   children: ReactNode
   size?: "sm" | "md" | "lg" | "xl" | "2xl"
@@ -16,7 +18,7 @@ const MODAL_MAX: Record<NonNullable<Props["size"]>, string> = {
   "2xl": "max-w-[min(92rem,calc(100vw-2rem))]",
 }
 
-export function Modal({ title, onClose, children, size = "md" }: Props) {
+export function Modal({ title, titleAside, onClose, children, size = "md" }: Props) {
   /** オーバーレイ上で pointerdown したときだけ true。内側で押して外で離すと閉じないようにする */
   const overlayCloseArmed = useRef(false)
 
@@ -45,8 +47,11 @@ export function Modal({ title, onClose, children, size = "md" }: Props) {
       }}
     >
       <div className={`w-full ${MODAL_MAX[size]} max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-xl`}>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{title}</h3>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+            {titleAside}
+          </div>
           <button
             type="button"
             className="-m-1 flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-2xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-800"

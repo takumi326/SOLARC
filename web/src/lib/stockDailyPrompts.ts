@@ -53,18 +53,16 @@ export function normalizeCalendarDateKey(value: string): string {
   return `${y}-${mo}-${da}`
 }
 
-/**
- * 毎日の記録の行から結果プロンプト用の仮説本文を得る。
- * まず `focusIsoDate` の行の仮説、前後空白のみなら暦の前日の行の仮説。
- */
-export function hypothesisForResultPromptFromRows(
-  rows: readonly { date: string; hypothesis?: string | null }[],
+/** 結果プロンプト用: まず `focusIsoDate` の値、前後空白のみなら暦の前日の行 */
+function dailyNoteFieldWithPrevDayFallback<TRow extends { date: string }>(
+  rows: readonly TRow[],
   focusIsoDate: string,
+  pick: (row: TRow) => string | null | undefined,
 ): string {
   const focus = normalizeCalendarDateKey(focusIsoDate)
   const map = new Map<string, string>()
   for (const r of rows) {
-    map.set(normalizeCalendarDateKey(r.date), String(r.hypothesis ?? ""))
+    map.set(normalizeCalendarDateKey(r.date), String(pick(r) ?? ""))
   }
   const primary = map.get(focus) ?? ""
   if (String(primary).trim()) return primary
@@ -73,7 +71,29 @@ export function hypothesisForResultPromptFromRows(
 }
 
 /**
- * 結果プロンプトの `{{hypothesis}}` / `{{仮説}}` 用（API 行の `recorded_on` 想定）。
+ * 毎日の記録の行から結果プロンプト用の仮説本文を得る。
+ * まず `focusIsoDate` の行の仮説、前後空白のみなら暦の前日の行の仮説。
+ */
+export function hypothesisForResultPromptFromRows(
+  rows: readonly { date: string; hypothesis?: string | null }[],
+  focusIsoDate: string,
+): string {
+  return dailyNoteFieldWithPrevDayFallback(rows, focusIsoDate, (r) => r.hypothesis)
+}
+
+/**
+ * 毎日の記録の行から結果プロンプト用の結果本文を得る。
+ * まず `focusIsoDate` の行の結果、前後空白のみなら暦の前日の行の結果。
+ */
+export function resultForResultPromptFromRows(
+  rows: readonly { date: string; result?: string | null }[],
+  focusIsoDate: string,
+): string {
+  return dailyNoteFieldWithPrevDayFallback(rows, focusIsoDate, (r) => r.result)
+}
+
+/**
+ * 結果プロンプトの `{{hypothesis}}` 用（API 行の `recorded_on` 想定）。
  * まず `focusIsoDate` の仮説、空ならその前日。
  */
 export function hypothesisBodyForResultPromptCopy(
@@ -86,11 +106,30 @@ export function hypothesisBodyForResultPromptCopy(
   )
 }
 
-/** 株プロンプト用。コピー時に `recordedOnIso`（YYYY-MM-DD）とその日の仮説本文へ置換する */
+/** 結果・セクター調べプロンプトコピーは前日フォールバック、仮説コピーはコピー実行日のみ */
+export function usesPrevDayFallbackForStockPromptCopy(kind: "hypothesis" | "result" | "sector"): boolean {
+  return kind === "result" || kind === "sector"
+}
+
+/** コピー実行日の記録の結果本文（その日の行が無ければ空） */
+export function resultBodyFromRows(
+  rows: readonly { date: string; result?: string | null }[],
+  focusIsoDate: string,
+): string {
+  const focus = normalizeCalendarDateKey(focusIsoDate)
+  const map = new Map<string, string>()
+  for (const r of rows) {
+    map.set(normalizeCalendarDateKey(r.date), String(r.result ?? ""))
+  }
+  return map.get(focus) ?? ""
+}
+
+/** 株プロンプト用。コピー時に日付・仮説・結果のプレースホルダを置換する */
 export function applyStockPromptPlaceholders(
   text: string,
   recordedOnIso: string,
   hypothesisBody: string,
+  resultBody = "",
 ): string {
   const jp = formatRecordDateJp(recordedOnIso)
   return text
@@ -98,5 +137,5 @@ export function applyStockPromptPlaceholders(
     .replace(/\{\{\s*date\s*\}\}/gi, jp)
     .replace(/\{\{\s*記録日\s*\}\}/g, jp)
     .replace(/\{\{\s*hypothesis\s*\}\}/gi, () => hypothesisBody)
-    .replace(/\{\{\s*仮説\s*\}\}/g, () => hypothesisBody)
+    .replace(/\{\{\s*result\s*\}\}/gi, () => resultBody)
 }
