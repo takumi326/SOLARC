@@ -40,7 +40,7 @@ module Api
 
     def line_change_params
       params.expect(line_change: [
-        :stock_id, :trade_type, :judgment_type, :ai_script_id,
+        :stock_id, :trade_type, :judgment_type,
         :changed_on, :stop_loss, :target_price, :reason
       ])
     end
@@ -51,7 +51,6 @@ module Api
         stock_id: l.stock_id,
         trade_type: l.trade_type,
         judgment_type: l.judgment_type,
-        ai_script_id: l.ai_script_id,
         changed_on: l.changed_on.iso8601,
         stop_loss: l.stop_loss&.to_s("F"),
         target_price: l.target_price&.to_s("F"),
