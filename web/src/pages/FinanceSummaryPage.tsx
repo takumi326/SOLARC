@@ -101,6 +101,9 @@ export function FinanceSummaryPage() {
         // 同期失敗時も内訳は読みに行く
       }
       if (cancelled) return
+      // 少し待ってから refetch することでキャンセルを防ぐ
+      await new Promise<void>((resolve) => setTimeout(resolve, 100))
+      if (cancelled) return
       fiscalActualsState.refetch()
       dashboardState.refetch()
     })()
