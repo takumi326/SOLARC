@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
 import { NavLink, Navigate, Route, Routes } from "react-router-dom"
 import { api } from "./lib/api.ts"
-import { verifyAuthWithRetry, waitForApiReady, warmUpApiInBackground } from "./lib/apiReady.ts"
+import { verifyAuthWithRetry, waitForApiReady } from "./lib/apiReady.ts"
 import { isSupabaseConfigured, supabase } from "./lib/supabase.ts"
 import { LoginPage } from "./pages/LoginPage.tsx"
+import { DashboardPage } from "./pages/DashboardPage.tsx"
 import { FinanceSummaryPage } from "./pages/FinanceSummaryPage.tsx"
 import { MastersPage } from "./pages/MastersPage.tsx"
 import { SettingsPage } from "./pages/SettingsPage.tsx"
@@ -11,8 +12,12 @@ import { StockDailyPage } from "./pages/StockDailyPage.tsx"
 import { StocksListPage } from "./pages/StocksListPage.tsx"
 import { StockDetailPage } from "./pages/StockDetailPage.tsx"
 import { StockTradesPage } from "./pages/StockTradesPage.tsx"
+import { AiScriptsPage } from "./pages/AiScriptsPage.tsx"
 
 type SidebarNavItem = { to: string; label: string }
+
+/** 大項目見出しなし（ダッシュボードのみ） */
+const sidebarTopItems: SidebarNavItem[] = [{ to: "/", label: "ダッシュボード" }]
 
 const sidebarNavGroups: { label: string; items: SidebarNavItem[] }[] = [
   {
@@ -29,7 +34,9 @@ const sidebarNavGroups: { label: string; items: SidebarNavItem[] }[] = [
       { to: "/stocks/daily", label: "毎日の記録" },
       { to: "/stocks", label: "株一覧" },
       { to: "/stocks/trades/real", label: "実取引一覧" },
-      { to: "/stocks/trades/virtual-human", label: "仮想取引一覧" },
+      { to: "/stocks/trades/virtual-human", label: "仮想取引（人間）" },
+      { to: "/stocks/trades/virtual-ai", label: "仮想取引（AI）" },
+      { to: "/stocks/ai-scripts", label: "AIスクリプト" },
     ],
   },
 ]
@@ -57,8 +64,7 @@ export default function App() {
     const client = supabase
 
     let active = true
-    const verify = async (options?: { showLoading?: boolean }) => {
-      const showLoading = options?.showLoading ?? false
+    const verify = async () => {
       try {
         const { data } = await client.auth.getSession()
         if (!active) return
@@ -67,13 +73,11 @@ export default function App() {
           setAuthStatus("guest")
           return
         }
-        if (showLoading) {
-          setAuthStatus("loading")
-          setLoadingMessage("サーバーを起動しています…")
-        }
+        setAuthStatus("loading")
+        setLoadingMessage("サーバーを起動しています…")
         await waitForApiReady({ shouldContinue: () => active })
         if (!active) return
-        if (showLoading) setLoadingMessage("認証を確認中…")
+        setLoadingMessage("認証を確認中…")
         await verifyAuthWithRetry(() => api.me(), { shouldContinue: () => active })
         if (!active) return
         setAuthError(null)
@@ -85,22 +89,9 @@ export default function App() {
       }
     }
 
-    void verify({ showLoading: true })
-    const { data: listener } = client.auth.onAuthStateChange((event) => {
-      // フォアグラウンド復帰時のトークン更新で画面全体をアンマウントしない
-      if (event === "TOKEN_REFRESHED") {
-        warmUpApiInBackground()
-        return
-      }
-      if (event === "INITIAL_SESSION") return
-      if (event === "SIGNED_OUT") {
-        setAuthError(null)
-        setAuthStatus("guest")
-        return
-      }
-      if (event === "SIGNED_IN") {
-        void verify({ showLoading: true })
-      }
+    void verify()
+    const { data: listener } = client.auth.onAuthStateChange(() => {
+      void verify()
     })
 
     return () => {
@@ -144,7 +135,7 @@ export default function App() {
 
         <section className="min-w-0">
           <Routes>
-            <Route path="/" element={<Navigate to="/finance" replace />} />
+            <Route path="/" element={<DashboardPage />} />
             <Route path="/finance" element={<FinanceSummaryPage />} />
             <Route path="/masters" element={<Navigate to="/finance/masters" replace />} />
             <Route path="/settings" element={<Navigate to="/finance/settings" replace />} />
@@ -153,8 +144,11 @@ export default function App() {
             <Route path="/stocks/daily" element={<StockDailyPage />} />
             <Route path="/stocks/trades/real" element={<StockTradesPage mode="real" />} />
             <Route path="/stocks/trades/virtual-human" element={<StockTradesPage mode="virtual-human" />} />
+            <Route path="/stocks/trades/virtual-ai" element={<StockTradesPage mode="virtual-ai" />} />
+            <Route path="/stocks/ai-scripts" element={<AiScriptsPage />} />
             <Route path="/stocks/:id" element={<StockDetailPage />} />
             <Route path="/stocks" element={<StocksListPage />} />
+            <Route path="/todo" element={<Navigate to="/" replace />} />
           </Routes>
         </section>
       </div>
@@ -197,6 +191,11 @@ function SidebarHeader() {
 function SidebarNav({ onNavigate }: { onNavigate: () => void }) {
   return (
     <nav className="space-y-4">
+      <div className="space-y-1">
+        {sidebarTopItems.map((item) => (
+          <SidebarNavLink key={item.to} item={item} onNavigate={onNavigate} />
+        ))}
+      </div>
       {sidebarNavGroups.map((group) => (
         <div key={group.label}>
           <p className="mb-1 px-2 text-xs font-semibold tracking-wide text-slate-400">{group.label}</p>
@@ -215,7 +214,7 @@ function SidebarNavLink({ item, onNavigate }: { item: SidebarNavItem; onNavigate
   return (
     <NavLink
       to={item.to}
-      end={item.to === "/finance" || item.to === "/stocks"}
+      end={item.to === "/" || item.to === "/finance" || item.to === "/stocks"}
       onClick={onNavigate}
       className={({ isActive }) =>
         `block rounded-lg px-3 py-2 text-sm ${

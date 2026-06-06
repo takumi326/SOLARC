@@ -55,17 +55,33 @@ class Stock < ApplicationRecord
   end
 
   def holding_shares_virtual_human
-    holding_shares_for(trade_type: :virtual, judgment_type: :human)
+    holding_shares_for(trade_type: :virtual, judgment_type: :human, ai_script_id: nil)
   end
 
-  def holding_shares_for(trade_type:, judgment_type:)
+  def holding_shares_virtual_ai(ai_script_id: nil)
+    scope_entries = entries.virtual.ai.where.not(traded_at: nil).where.not(shares: nil)
+    scope_exits = stock_exits.virtual.ai.where.not(traded_at: nil).where.not(shares: nil)
+    if ai_script_id.present?
+      scope_entries = scope_entries.where(ai_script_id: ai_script_id)
+      scope_exits = scope_exits.where(ai_script_id: ai_script_id)
+    end
+    scope_entries.where(stock_id: id).sum(:shares) - scope_exits.where(stock_id: id).sum(:shares)
+  end
+
+  def holding_shares_for(trade_type:, judgment_type:, ai_script_id: nil)
     es = entries.public_send(trade_type).public_send(judgment_type).where.not(traded_at: nil).where.not(shares: nil)
     xs = stock_exits.public_send(trade_type).public_send(judgment_type).where.not(traded_at: nil).where.not(shares: nil)
+    if judgment_type.to_s == "ai" && ai_script_id.present?
+      es = es.where(ai_script_id: ai_script_id)
+      xs = xs.where(ai_script_id: ai_script_id)
+    end
     es.sum(:shares) - xs.sum(:shares)
   end
 
-  def current_line(trade_type:, judgment_type:)
-    line_changes.public_send(trade_type).public_send(judgment_type)
-      .order(changed_on: :desc, id: :desc).first
+  def current_line(trade_type:, judgment_type:, ai_script_id: nil)
+    scope = line_changes.public_send(trade_type).public_send(judgment_type)
+    scope = scope.where(ai_script_id: ai_script_id) if judgment_type.to_s == "ai"
+    scope = scope.where(ai_script_id: nil) if judgment_type.to_s == "human"
+    scope.order(changed_on: :desc, id: :desc).first
   end
 end

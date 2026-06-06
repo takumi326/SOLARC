@@ -40,7 +40,7 @@ module Api
 
     def exit_params
       params.expect(exit: [
-        :stock_id, :trade_type, :judgment_type,
+        :stock_id, :trade_type, :judgment_type, :ai_script_id,
         :expected_price, :actual_price, :shares, :traded_at,
         :exit_reason, :review_result, :review_missed, :review_learning, :memo
       ])
@@ -52,6 +52,7 @@ module Api
         stock_id: x.stock_id,
         trade_type: x.trade_type,
         judgment_type: x.judgment_type,
+        ai_script_id: x.ai_script_id,
         expected_price: x.expected_price&.to_s("F"),
         actual_price: x.actual_price&.to_s("F"),
         shares: x.shares,
