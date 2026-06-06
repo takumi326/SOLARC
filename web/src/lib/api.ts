@@ -330,21 +330,6 @@ export type AuthUser = {
   email: string
 }
 
-export type UserPreferences = {
-  import_claude_prompt_template: string | null
-  /** 毎日の記録・Claude 用（未設定は null） */
-  stock_daily_hypothesis_prompt: string | null
-  stock_daily_result_prompt: string | null
-  stock_daily_sector_prompt: string | null
-}
-
-export type UserPreferencesInput = {
-  import_claude_prompt_template?: string | null
-  stock_daily_hypothesis_prompt?: string | null
-  stock_daily_result_prompt?: string | null
-  stock_daily_sector_prompt?: string | null
-}
-
 export type StockDailyNote = {
   id: number
   recorded_on: string
@@ -388,23 +373,14 @@ export type StockNote = {
   updated_at: string
 }
 
-export type AiScriptRow = {
-  id: number
-  version_name: string
-  prompt: string | null
-  created_at: string
-  updated_at: string
-}
-
 export type TradeType = "real" | "virtual"
-export type JudgmentType = "human" | "ai"
+export type JudgmentType = "human"
 
 export type StockEntry = {
   id: number
   stock_id: number
   trade_type: TradeType
   judgment_type: JudgmentType
-  ai_script_id: number | null
   expected_price: string | null
   actual_price: string | null
   shares: number | null
@@ -421,7 +397,6 @@ export type StockExitRow = {
   stock_id: number
   trade_type: TradeType
   judgment_type: JudgmentType
-  ai_script_id: number | null
   expected_price: string | null
   actual_price: string | null
   shares: number | null
@@ -440,7 +415,6 @@ export type LineChangeRow = {
   stock_id: number
   trade_type: TradeType
   judgment_type: JudgmentType
-  ai_script_id: number | null
   changed_on: string
   stop_loss: string | null
   target_price: string | null
@@ -457,7 +431,6 @@ export type StockTradeEventRow = {
   stock_id?: number
   trade_type?: TradeType
   judgment_type?: JudgmentType
-  ai_script_id?: number | null
   expected_price?: string | null
   actual_price?: string | null
   shares?: number | null
@@ -510,7 +483,6 @@ export type StockTradeEventsQuery = {
   q?: string
   from?: string
   to?: string
-  ai_script_id?: number | null
 }
 
 export const api = {
@@ -587,10 +559,6 @@ export const api = {
   upsertMonthlyBalance: (input: { month: string; amount: number }) =>
     postJson<MonthlyBalance>("/api/monthly_balances/upsert", { monthly_balance: input }),
 
-  userPreferences: () => fetchJson<UserPreferences>("/api/preferences/import_prompt"),
-  updateUserPreferences: (input: UserPreferencesInput) =>
-    patchJson<UserPreferences>("/api/preferences/import_prompt", { user_preference: input }),
-
   stockDailyNotes: () => fetchJson<StockDailyNote[]>("/api/stock_daily_notes"),
   upsertStockDailyNote: (input: StockDailyNoteUpsertInput) =>
     postJson<StockDailyNote>("/api/stock_daily_notes/upsert", { stock_daily_note: input }),
@@ -612,11 +580,10 @@ export const api = {
   stock: (id: number) => fetchJson<StockDetail>(`/api/stocks/${id}`),
   updateStock: (id: number, input: { memo?: string | null }) =>
     patchJson<StockDetail>(`/api/stocks/${id}`, { stock: input }),
-  stockTimeline: (id: number, q: { trade_type: TradeType; judgment_type: JudgmentType; ai_script_id?: number | null }) => {
+  stockTimeline: (id: number, q: { trade_type: TradeType; judgment_type: JudgmentType }) => {
     const sp = new URLSearchParams()
     sp.set("trade_type", q.trade_type)
     sp.set("judgment_type", q.judgment_type)
-    if (q.ai_script_id != null && q.ai_script_id !== undefined) sp.set("ai_script_id", String(q.ai_script_id))
     return fetchJson<StockTimelineResult>(`/api/stocks/${id}/timeline?${sp}`)
   },
   stockNotes: (stockId: number) => fetchJson<StockNote[]>(`/api/stocks/${stockId}/stock_notes`),
@@ -625,16 +592,6 @@ export const api = {
   updateStockNote: (stockId: number, id: number, input: { noted_on: string; title: string; note: string }) =>
     patchJson<StockNote>(`/api/stocks/${stockId}/stock_notes/${id}`, { stock_note: input }),
   deleteStockNote: (stockId: number, id: number) => deleteJson(`/api/stocks/${stockId}/stock_notes/${id}`),
-
-  aiScripts: () => fetchJson<AiScriptRow[]>("/api/ai_scripts"),
-  aiScript: (id: number) => fetchJson<AiScriptRow>(`/api/ai_scripts/${id}`),
-  createAiScript: (input: { version_name: string; prompt?: string | null }) =>
-    postJson<AiScriptRow>("/api/ai_scripts", { ai_script: input }),
-  updateAiScript: (
-    id: number,
-    input: Partial<{ version_name: string; prompt: string | null }>,
-  ) => patchJson<AiScriptRow>(`/api/ai_scripts/${id}`, { ai_script: input }),
-  deleteAiScript: (id: number) => deleteJson(`/api/ai_scripts/${id}`),
 
   stockTradeEvents: (query: StockTradeEventsQuery) => {
     const sp = new URLSearchParams()
@@ -645,9 +602,6 @@ export const api = {
     if (query.q) sp.set("q", query.q)
     if (query.from) sp.set("from", query.from)
     if (query.to) sp.set("to", query.to)
-    if (query.ai_script_id != null && query.ai_script_id !== undefined) {
-      sp.set("ai_script_id", String(query.ai_script_id))
-    }
     return fetchJson<StockTradeEventsResult>(`/api/stock_trade_events?${sp}`)
   },
 

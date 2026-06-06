@@ -1,21 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
 import { Modal } from "./Modal.tsx"
 import { api, type ExpenseMaster, type MinorCategory } from "../lib/api.ts"
 import { apiErrorMessage } from "../lib/errors.ts"
 import { sortMinorCategories } from "../lib/categorySort.ts"
-import { buildImportClaudePrompt, parseImportMonthField } from "../lib/importPromptSettings.ts"
+import { parseImportMonthField } from "../lib/importMonth.ts"
 import { useFetch } from "../lib/useFetch.ts"
 
 const FIXED_PAYMENT_METHOD_NAME = "Amazonカード"
-
-const actionButtonClass =
-  "inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
-
-const externalLinkButtonClass =
-  "inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-indigo-200 bg-white px-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
-
-const CLAUDE_NEW_URL = "https://claude.ai/new"
 
 type Props = {
   onClose: () => void
@@ -262,9 +253,8 @@ export function ImportModal({ onClose, onImported }: Props) {
   const [existingLoadError, setExistingLoadError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "error">("idle")
   const [selectedImportLineNumbers, setSelectedImportLineNumbers] = useState<ReadonlySet<number>>(() => new Set())
-  const bundle = useFetch(() => Promise.all([api.minorCategories(), api.paymentMethods(), api.userPreferences()]))
+  const bundle = useFetch(() => Promise.all([api.minorCategories(), api.paymentMethods()]))
   const expenseMinors = useMemo(
     () =>
       bundle.status === "success"
@@ -320,40 +310,13 @@ export function ImportModal({ onClose, onImported }: Props) {
     throw new Error("month（YYYY-MM または YYYY年MM月）が必要です")
   }
 
-  /** プロンプト内 {{month}} の基準となる YYYY-MM（比較月が未設定なら暦月、プレビュー中は JSON からの最小月も可）。コピー本文では YYYY年MM月 に整形される */
-  const importPromptMonth = useMemo(() => {
+  /** JSON プレースホルダ用の YYYY-MM（比較月が未設定なら暦月、プレビュー中は JSON からの最小月も可） */
+  const exampleMonth = useMemo(() => {
     if (/^\d{4}-\d{2}$/.test(compareMonthInput)) return compareMonthInput
     if (pendingRows && pendingRows.length > 0) return minMonthLabel(pendingRows)
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
   }, [compareMonthInput, pendingRows])
-
-  const claudePrompt = useMemo(() => {
-    if (bundle.status !== "success") {
-      return "マスタを読み込み中です。しばらくしてから再度「プロンプトをコピー」してください。"
-    }
-    if (!fixedPaymentMethod) {
-      return `支払方法「${FIXED_PAYMENT_METHOD_NAME}」がマスタにありません。支出・収入タブの支払方法で「${FIXED_PAYMENT_METHOD_NAME}」（クレジットカード）を追加してからプロンプトを使ってください。`
-    }
-    if (fixedPaymentMethod.method_type !== "card") {
-      return `取り込みは翌月クレカ前提のため、支払方法「${FIXED_PAYMENT_METHOD_NAME}」の種別をクレジットカードにしてください。`
-    }
-    if (expenseMinors.length === 0) {
-      return "支出の小カテゴリがありません。先にマスタを整えてください。"
-    }
-
-    const catalog = expenseMinors
-      .map((m) => `- id ${m.id}: ${m.major_category.name} / ${m.name}`)
-      .join("\n")
-
-    return buildImportClaudePrompt({
-      catalog,
-      paymentMethodName: FIXED_PAYMENT_METHOD_NAME,
-      exampleMinorId: expenseMinors[0]?.id ?? 1,
-      month: importPromptMonth,
-      savedTemplate: bundle.data[2].import_claude_prompt_template,
-    })
-  }, [bundle, expenseMinors, fixedPaymentMethod, importPromptMonth])
 
   const buildPendingRows = (): PendingImportRow[] => {
     const rows = JSON.parse(rawJson) as ImportRow[]
@@ -589,19 +552,9 @@ export function ImportModal({ onClose, onImported }: Props) {
     }
   }
 
-  const copyPrompt = async () => {
-    try {
-      await navigator.clipboard.writeText(claudePrompt)
-      setCopyStatus("done")
-      setTimeout(() => setCopyStatus("idle"), 2000)
-    } catch {
-      setCopyStatus("error")
-    }
-  }
-
   const exampleId = expenseMinors[0]?.id ?? 1
-  const jsonPlaceholder = `[{"month":"${importPromptMonth}","minor_category_id":${exampleId},"amount":1200,"memo":""}]`
-  const promptCopyDisabled =
+  const jsonPlaceholder = `[{"month":"${exampleMonth}","minor_category_id":${exampleId},"amount":1200,"memo":""}]`
+  const previewDisabled =
     bundle.status !== "success" ||
     !fixedPaymentMethod ||
     fixedPaymentMethod.method_type !== "card" ||
@@ -610,35 +563,10 @@ export function ImportModal({ onClose, onImported }: Props) {
   return (
     <Modal
       title="実績を取込"
-      titleAside={
-        <Link to="/finance/settings#import-prompt" className={actionButtonClass}>
-          プロンプト編集
-        </Link>
-      }
       onClose={onClose}
       size={phase === "preview" ? "2xl" : "lg"}
     >
       <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="min-w-[5.5rem] shrink-0 text-xs font-medium text-slate-600">取込</span>
-            <button
-              type="button"
-              onClick={() => void copyPrompt()}
-              disabled={promptCopyDisabled}
-              className={actionButtonClass}
-            >
-              {copyStatus === "done" ? "コピー済" : "プロンプトコピー"}
-            </button>
-            <a href={CLAUDE_NEW_URL} target="_blank" rel="noopener noreferrer" className={externalLinkButtonClass}>
-              Claude
-            </a>
-          </div>
-          {copyStatus === "error" && (
-            <p className="text-xs text-rose-700">クリップボードへのコピーに失敗しました</p>
-          )}
-        </div>
-
         {phase === "edit" && (
           <>
             {errorMessage && (
@@ -714,7 +642,7 @@ export function ImportModal({ onClose, onImported }: Props) {
               <button
                 type="button"
                 onClick={() => void onConfirmPreview()}
-                disabled={promptCopyDisabled || rawJson.trim() === ""}
+                disabled={previewDisabled || rawJson.trim() === ""}
                 className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
               >
                 内容を確認

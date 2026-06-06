@@ -1,19 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkBreaks from "remark-breaks"
-import { FormActions, FormError, Modal } from "../components/Modal.tsx"
+import { FormError, Modal } from "../components/Modal.tsx"
 import { api, type StockDailyNote, type StockDailyNoteUpsertInput } from "../lib/api.ts"
 import { apiErrorMessage } from "../lib/errors.ts"
-import {
-  applyStockPromptPlaceholders,
-  formatRecordDateJp,
-  hypothesisForResultPromptFromRows,
-  normalizeCalendarDateKey,
-  resultBodyFromRows,
-  resultForResultPromptFromRows,
-  usesPrevDayFallbackForStockPromptCopy,
-  stockDailyPromptsFromPrefs,
-} from "../lib/stockDailyPrompts.ts"
+import { formatRecordDateJp } from "../lib/stockDailyFormat.ts"
 
 type StockDailyRow = {
   id: string
@@ -36,7 +27,6 @@ const FIELD_LABEL: Record<EditField, string> = {
 }
 
 const STOCK_DAILY_EXTERNAL_LINKS = {
-  claude: { label: "Claude", href: "https://claude.ai/new" },
   worldMarket: { label: "世界の市況", href: "https://nikkei225jp.com/" },
   todayMarket: {
     label: "本日の市況",
@@ -47,18 +37,11 @@ const STOCK_DAILY_EXTERNAL_LINKS = {
 
 type StockDailyExternalLinkKey = keyof typeof STOCK_DAILY_EXTERNAL_LINKS
 
-const STOCK_DAILY_WORKFLOW_GROUPS: {
-  field: EditField
-  copyKey: "hypothesis" | "result" | "sector"
-  links: StockDailyExternalLinkKey[]
-}[] = [
-  { field: "hypothesis", copyKey: "hypothesis", links: ["claude", "worldMarket"] },
-  { field: "result", copyKey: "result", links: ["claude", "todayMarket", "japanMarket"] },
-  { field: "sector", copyKey: "sector", links: ["claude"] },
+const STOCK_DAILY_LINK_GROUPS: { field: EditField; links: StockDailyExternalLinkKey[] }[] = [
+  { field: "hypothesis", links: ["worldMarket"] },
+  { field: "result", links: ["todayMarket", "japanMarket"] },
+  { field: "sector", links: [] },
 ]
-
-const actionButtonClass =
-  "inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white px-2 text-xs font-medium text-slate-800 hover:bg-slate-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
 
 const externalLinkButtonClass =
   "inline-flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-indigo-200 bg-white px-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 sm:h-auto sm:w-auto sm:px-3 sm:py-1.5 sm:text-sm"
@@ -211,20 +194,6 @@ export function StockDailyPage() {
   const [fieldEdit, setFieldEdit] = useState<{ date: string; field: EditField } | null>(null)
   const [fieldDraft, setFieldDraft] = useState("")
 
-  const [promptModalOpen, setPromptModalOpen] = useState(false)
-  const [draftHypothesis, setDraftHypothesis] = useState("")
-  const [draftResult, setDraftResult] = useState("")
-  const [draftSector, setDraftSector] = useState("")
-  const [promptOpenError, setPromptOpenError] = useState<string | null>(null)
-  const [promptSaveError, setPromptSaveError] = useState<string | null>(null)
-  const [promptSaving, setPromptSaving] = useState(false)
-  const [savedStockPrompts, setSavedStockPrompts] = useState({
-    hypothesis: "",
-    result: "",
-    sector: "",
-  })
-  const [promptsLoadError, setPromptsLoadError] = useState<string | null>(null)
-  const [copiedKey, setCopiedKey] = useState<"hypothesis" | "result" | "sector" | null>(null)
   const [detailDate, setDetailDate] = useState<string | null>(null)
 
   const [createRecordOpen, setCreateRecordOpen] = useState(false)
@@ -246,23 +215,6 @@ export function StockDailyPage() {
     () => (detailDate != null ? rows.find((r) => r.date === detailDate) ?? null : null),
     [rows, detailDate],
   )
-
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        const p = await api.userPreferences()
-        if (cancelled) return
-        setSavedStockPrompts(stockDailyPromptsFromPrefs(p))
-        setPromptsLoadError(null)
-      } catch (err) {
-        if (!cancelled) setPromptsLoadError(apiErrorMessage(err))
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const loadNotes = useCallback(async () => {
     setNotesLoading(true)
@@ -287,12 +239,12 @@ export function StockDailyPage() {
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState !== "visible") return
-      if (fieldEdit != null || createRecordOpen || promptModalOpen) return
+      if (fieldEdit != null || createRecordOpen) return
       void loadNotes()
     }
     document.addEventListener("visibilitychange", onVis)
     return () => document.removeEventListener("visibilitychange", onVis)
-  }, [loadNotes, fieldEdit, createRecordOpen, promptModalOpen])
+  }, [loadNotes, fieldEdit, createRecordOpen])
 
   /** 詳細を開いたあとにその日の行が消えたときだけモーダルを閉じる（同期 setState は queueMicrotask で回避） */
   useEffect(() => {
@@ -387,83 +339,6 @@ export function StockDailyPage() {
     }
   }
 
-  const openPromptEditModal = () => {
-    setPromptModalOpen(true)
-    setPromptOpenError(null)
-    setPromptSaveError(null)
-    void (async () => {
-      try {
-        const prefs = await api.userPreferences()
-        const s = stockDailyPromptsFromPrefs(prefs)
-        setDraftHypothesis(s.hypothesis)
-        setDraftResult(s.result)
-        setDraftSector(s.sector)
-      } catch (err) {
-        setPromptOpenError(apiErrorMessage(err))
-        setDraftHypothesis("")
-        setDraftResult("")
-        setDraftSector("")
-      }
-    })()
-  }
-
-  const closePromptModal = () => {
-    setPromptModalOpen(false)
-    setPromptOpenError(null)
-    setPromptSaveError(null)
-  }
-
-  const saveStockDailyPrompts = async () => {
-    setPromptSaveError(null)
-    setPromptSaving(true)
-    try {
-      const norm = (s: string) => s.replace(/\r\n/g, "\n").trimEnd()
-      const h = norm(draftHypothesis)
-      const r = norm(draftResult)
-      const sec = norm(draftSector)
-      const data = await api.updateUserPreferences({
-        stock_daily_hypothesis_prompt: h === "" ? null : h,
-        stock_daily_result_prompt: r === "" ? null : r,
-        stock_daily_sector_prompt: sec === "" ? null : sec,
-      })
-      setSavedStockPrompts(stockDailyPromptsFromPrefs(data))
-      setPromptsLoadError(null)
-      closePromptModal()
-    } catch (err) {
-      setPromptSaveError(apiErrorMessage(err))
-    } finally {
-      setPromptSaving(false)
-    }
-  }
-
-  const copyStockPrompt = async (key: "hypothesis" | "result" | "sector") => {
-    const text =
-      key === "hypothesis"
-        ? savedStockPrompts.hypothesis
-        : key === "result"
-          ? savedStockPrompts.result
-          : savedStockPrompts.sector
-    const recordedOn = today()
-    const recordedKey = normalizeCalendarDateKey(recordedOn)
-    const prevDayFallback = usesPrevDayFallbackForStockPromptCopy(key)
-    const hypothesisForDay = prevDayFallback
-      ? hypothesisForResultPromptFromRows(rows, recordedOn)
-      : (rows.find((r) => normalizeCalendarDateKey(r.date) === recordedKey)?.hypothesis ?? "")
-    const resultForDay = prevDayFallback
-      ? resultForResultPromptFromRows(rows, recordedOn)
-      : resultBodyFromRows(rows, recordedOn)
-    const forClipboard = applyStockPromptPlaceholders(text, recordedOn, hypothesisForDay, resultForDay)
-    try {
-      await navigator.clipboard.writeText(forClipboard)
-      setCopiedKey(key)
-      window.setTimeout(() => {
-        setCopiedKey((c) => (c === key ? null : c))
-      }, 2000)
-    } catch {
-      setPromptsLoadError("クリップボードへのコピーに失敗しました")
-    }
-  }
-
   const deleteRecordRow = async (recordDate: string) => {
     const prev = rows.find((r) => r.date === recordDate)
     try {
@@ -491,72 +366,6 @@ export function StockDailyPage() {
 
   return (
     <div className="space-y-4">
-      {promptModalOpen && (
-        <Modal title="プロンプト編集" onClose={closePromptModal} size="lg">
-          <p className="mt-1 text-xs text-slate-500">
-            毎日の記録の仮説・結果・セクター調べ用の Claude プロンプトをそれぞれ保存します。空で保存するとその項目は未設定になります。コピー時に次のプレースホルダを置き換えます（大文字小文字無視・前後に空白可）。日付はコピー実行日の暦日です。
-          </p>
-          <ul className="mt-2 mb-2 list-inside list-disc text-xs text-slate-600">
-            <li>
-              <code className="rounded bg-slate-100 px-1">{"{{date}}"}</code> … コピー実行日（YYYY年MM月DD日）
-            </li>
-            <li>
-              <code className="rounded bg-slate-100 px-1">{"{{hypothesis}}"}</code> …
-              仮説プロンプトコピーはコピー実行日の記録の仮説。結果・セクター調べコピーはその日の仮説が空のとき前日の仮説（それも空なら空）
-            </li>
-            <li>
-              <code className="rounded bg-slate-100 px-1">{"{{result}}"}</code> …
-              仮説プロンプトコピーはコピー実行日の記録の結果。結果・セクター調べコピーはその日の結果が空のとき前日の結果（それも空なら空）
-            </li>
-          </ul>
-          <FormError message={promptOpenError} />
-          <FormError message={promptSaveError} />
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void saveStockDailyPrompts()
-            }}
-          >
-            <label className="block text-sm text-slate-700">
-              仮説
-              <textarea
-                value={draftHypothesis}
-                onChange={(e) => setDraftHypothesis(e.target.value)}
-                rows={10}
-                spellCheck={false}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed"
-              />
-            </label>
-            <label className="block text-sm text-slate-700">
-              結果
-              <textarea
-                value={draftResult}
-                onChange={(e) => setDraftResult(e.target.value)}
-                rows={10}
-                spellCheck={false}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed"
-              />
-            </label>
-            <label className="block text-sm text-slate-700">
-              セクター調べ
-              <textarea
-                value={draftSector}
-                onChange={(e) => setDraftSector(e.target.value)}
-                rows={10}
-                spellCheck={false}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed"
-              />
-            </label>
-            <FormActions
-              onCancel={closePromptModal}
-              submitLabel="プロンプトを保存"
-              submitting={promptSaving}
-            />
-          </form>
-        </Modal>
-      )}
-
       {fieldEdit && (
         <Modal
           title={`${FIELD_LABEL[fieldEdit.field]}を編集（${formatRecordDateJp(fieldEdit.date)}）`}
@@ -595,23 +404,11 @@ export function StockDailyPage() {
       )}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <h2 className="text-xl font-bold text-slate-900">毎日の記録</h2>
-          <button type="button" onClick={openPromptEditModal} className={actionButtonClass}>
-            プロンプト編集
-          </button>
-        </div>
+        <h2 className="mb-3 text-xl font-bold text-slate-900">毎日の記録</h2>
         <div className="space-y-2">
-          {STOCK_DAILY_WORKFLOW_GROUPS.map(({ field, copyKey, links }) => (
+          {STOCK_DAILY_LINK_GROUPS.filter((g) => g.links.length > 0).map(({ field, links }) => (
             <div key={field} className="flex flex-wrap items-center gap-2">
               <span className="min-w-[5.5rem] shrink-0 text-xs font-medium text-slate-600">{FIELD_LABEL[field]}</span>
-              <button
-                type="button"
-                onClick={() => void copyStockPrompt(copyKey)}
-                className={actionButtonClass}
-              >
-                {copiedKey === copyKey ? "コピー済" : "プロンプトコピー"}
-              </button>
               {links.map((linkKey) => {
                 const link = STOCK_DAILY_EXTERNAL_LINKS[linkKey]
                 return (
@@ -629,7 +426,6 @@ export function StockDailyPage() {
             </div>
           ))}
         </div>
-        <FormError message={promptsLoadError} />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

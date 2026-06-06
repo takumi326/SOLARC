@@ -5,22 +5,20 @@ import {
   type StockTradeEventRow,
   type StockTradeEventsQuery,
   type TradeType,
-  type JudgmentType,
 } from "../lib/api.ts"
 import { useFetch } from "../lib/useFetch.ts"
 import { deleteTradeEvent } from "../lib/stockTradeActions.ts"
 import { TradeEventDetailModal } from "../components/TradeEventDetailModal.tsx"
 import { RowActionButtons } from "../components/RowActionButtons.tsx"
 
-export type StockTradesMode = "real" | "virtual-human" | "virtual-ai"
+export type StockTradesMode = "real" | "virtual-human"
 
 const MODE_CONFIG: Record<
   StockTradesMode,
-  { title: string; trade_type: TradeType; judgment_type: JudgmentType; scriptFilter: boolean }
+  { title: string; trade_type: TradeType; judgment_type: "human" }
 > = {
-  real: { title: "実取引一覧", trade_type: "real", judgment_type: "human", scriptFilter: false },
-  "virtual-human": { title: "仮想取引一覧（人間）", trade_type: "virtual", judgment_type: "human", scriptFilter: false },
-  "virtual-ai": { title: "仮想取引一覧（AI）", trade_type: "virtual", judgment_type: "ai", scriptFilter: true },
+  real: { title: "実取引一覧", trade_type: "real", judgment_type: "human" },
+  "virtual-human": { title: "仮想取引一覧", trade_type: "virtual", judgment_type: "human" },
 }
 
 type Tab = "all" | "entry" | "exit"
@@ -31,13 +29,9 @@ export function StockTradesPage({ mode }: { mode: StockTradesMode }) {
   const [settled, setSettled] = useState<"all" | "yes" | "no">("all")
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
-  const [aiScriptId, setAiScriptId] = useState<string>("")
-
-  const scriptsLoader = useCallback(() => (cfg.scriptFilter ? api.aiScripts() : Promise.resolve([])), [cfg.scriptFilter])
-  const scriptsResult = useFetch(scriptsLoader)
 
   const query = useMemo((): StockTradeEventsQuery => {
-    const qv: StockTradeEventsQuery = {
+    return {
       trade_type: cfg.trade_type,
       judgment_type: cfg.judgment_type,
       event_kind: tab,
@@ -45,20 +39,12 @@ export function StockTradesPage({ mode }: { mode: StockTradesMode }) {
       from: from.trim() || undefined,
       to: to.trim() || undefined,
     }
-    if (cfg.scriptFilter && aiScriptId !== "") {
-      qv.ai_script_id = Number(aiScriptId)
-    }
-    return qv
-  }, [cfg, tab, settled, from, to, aiScriptId])
+  }, [cfg, tab, settled, from, to])
 
   const eventsLoader = useCallback(() => api.stockTradeEvents(query), [query])
   const eventsResult = useFetch(eventsLoader)
 
   const [modal, setModal] = useState<null | { type: "detail"; row: StockTradeEventRow; initialEditing?: boolean }>(null)
-
-  if (scriptsResult.status === "loading" && cfg.scriptFilter) {
-    return <p className="text-slate-600">読み込み中…</p>
-  }
 
   return (
     <div className="space-y-4">
@@ -105,23 +91,6 @@ export function StockTradesPage({ mode }: { mode: StockTradesMode }) {
             <span className="text-slate-600">to</span>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" />
           </label>
-          {cfg.scriptFilter && scriptsResult.status === "success" && (
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-slate-600">AI スクリプト</span>
-              <select
-                value={aiScriptId}
-                onChange={(e) => setAiScriptId(e.target.value)}
-                className="min-w-[10rem] rounded-lg border border-slate-300 px-2 py-1.5"
-              >
-                <option value="">全バージョン</option>
-                {scriptsResult.data.map((s) => (
-                  <option key={s.id} value={String(s.id)}>
-                    {s.version_name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
         </div>
         {eventsResult.status === "loading" && <p className="text-slate-600">イベントを読み込み中…</p>}
         {eventsResult.status === "error" && <p className="text-rose-600">{eventsResult.error.message}</p>}
