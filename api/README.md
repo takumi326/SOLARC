@@ -18,12 +18,12 @@ Export current DB schema back to Schemafile:
 bundle exec ridgepole -c config/database.yml -E development --export -f db/Schemafile
 ```
 
-## Production (Render など)
+## Production (Render + Supabase)
 
-`DATABASE_URL` を設定したうえで、本番にも Schemafile を適用します。
+本番 DB は **Supabase PostgreSQL**。Render API の `DATABASE_URL` は Session pooler を使う。
 
-```bash
-bundle exec ridgepole -c config/database.yml -E production --apply -f db/Schemafile
-```
+**本番では起動時 Ridgepole を無効化する**（`SKIP_RIDGEPOLE_ON_BOOT=1`）。Supabase pooler 経由では Ridgepole のスキーマ introspection が正しく動かず、デプロイが落ちるため。
 
-本番 Docker は起動時に Ridgepole を流します（`bin/docker-start`）。手動・Pre-Deploy 用に `bin/render-release` もあります（ルート README 参照）。
+スキーマ変更は `api/db/Schemafile` を編集したうえで、**Supabase SQL Editor** で手動適用する。詳細はリポジトリルートの `README.md`（「本番 DB」「本番スキーマ管理」）と `.cursor/rules/supabase-production-db.mdc` を参照。
+
+`bin/docker-start` / `bin/render-release` の Ridgepole はローカル development や、pooler を使わない接続が確実な環境向け。

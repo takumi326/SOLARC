@@ -1,0 +1,56 @@
+---
+description: 本番 DB（Supabase PostgreSQL）と Render デプロイ時のスキーマ運用
+alwaysApply: true
+---
+
+# Supabase 本番 DB / スキーマ運用
+
+## 構成
+
+- Web: Vercel / API: Render / DB + Auth: Supabase（同一プロジェクト）
+- スキーマ正本: `api/db/Schemafile`（Ridgepole。`rails db:migrate` は使わない）
+- ローカル DB: Docker Compose の PostgreSQL（development / test）
+
+## Render API の必須環境変数
+
+| 変数 | 値 |
+|---|---|
+| `DATABASE_URL` | Supabase **Session pooler** URI（`pooler.supabase.com:5432`）。`?sslmode=require` |
+| `SKIP_RIDGEPOLE_ON_BOOT` | **`1`**（本番では起動時 Ridgepole を無効化） |
+| `SUPABASE_URL` | Vercel の `VITE_SUPABASE_URL` と同じプロジェクト |
+| `ALLOWED_EMAILS` | ログイン許可メール（カンマ区切り） |
+
+**`DATABASE_URL` に Direct（`db.<ref>.supabase.co`）を使わない。** IPv6 のため Render / Docker から `Network is unreachable` になりやすい。
+
+## 本番で起動時 Ridgepole を使わない理由
+
+- `api/bin/docker-start` は `SKIP_RIDGEPOLE_ON_BOOT` が無いと production で `ridgepole --apply` を実行する。
+- Supabase Session pooler 経由では Ridgepole が既存スキーマを正しく introspect できず、dry-run が全テーブル `create_table` になる。
+- そのまま apply すると `DuplicateTable` 等でデプロイ失敗する。
+- Render 無料プランに Shell がないため、本番スキーマは **Supabase SQL Editor** で手動適用する。
+
+## スキーマ変更の手順（エージェント向け）
+
+1. `api/db/Schemafile` を編集（PR）
+2. 差分に対応する SQL を Supabase SQL Editor 用に提示する（ユーザーが Run）
+3. `SKIP_RIDGEPOLE_ON_BOOT=1` は維持したままデプロイ
+4. **本番 Supabase に `ridgepole --apply` を勧めない**（pooler 経由は非推奨）
+
+ローカル development では従来どおり:
+
+```bash
+bundle exec ridgepole -c config/database.yml -E development --apply -f db/Schemafile
+```
+
+## Supabase ダッシュボードの場所
+
+- 接続文字列: プロジェクト上部 **Connect** → Session pooler / Direct
+- DB パスワードリセット: **Database → Configuration**
+- SQL 実行: 左サイドバー **SQL Editor**
+- データ確認: **Table Editor**
+
+## データ移行時の注意（初回のみ）
+
+- `pg_restore --data-only` は FK 順で失敗しやすい → `session_replication_role = replica` で SQL 投入
+- `pg_restore --disable-triggers` は Supabase で権限エラー
+- 外部キー・check 制約追加は、破壊的変更（DROP COLUMN / DROP TABLE）を含む場合は SQL で明示的に書く
