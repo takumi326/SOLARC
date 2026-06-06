@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { NavLink, Navigate, Route, Routes } from "react-router-dom"
 import { api } from "./lib/api.ts"
-import { verifyAuthWithRetry, waitForApiReady } from "./lib/apiReady.ts"
+import { verifyAuthWithRetry, waitForApiReady, warmUpApiInBackground } from "./lib/apiReady.ts"
 import { isSupabaseConfigured, supabase } from "./lib/supabase.ts"
 import { LoginPage } from "./pages/LoginPage.tsx"
 import { DashboardPage } from "./pages/DashboardPage.tsx"
@@ -64,7 +64,8 @@ export default function App() {
     const client = supabase
 
     let active = true
-    const verify = async () => {
+    const verify = async (options?: { showLoading?: boolean }) => {
+      const showLoading = options?.showLoading ?? false
       try {
         const { data } = await client.auth.getSession()
         if (!active) return
@@ -73,11 +74,13 @@ export default function App() {
           setAuthStatus("guest")
           return
         }
-        setAuthStatus("loading")
-        setLoadingMessage("サーバーを起動しています…")
+        if (showLoading) {
+          setAuthStatus("loading")
+          setLoadingMessage("サーバーを起動しています…")
+        }
         await waitForApiReady({ shouldContinue: () => active })
         if (!active) return
-        setLoadingMessage("認証を確認中…")
+        if (showLoading) setLoadingMessage("認証を確認中…")
         await verifyAuthWithRetry(() => api.me(), { shouldContinue: () => active })
         if (!active) return
         setAuthError(null)
@@ -89,9 +92,22 @@ export default function App() {
       }
     }
 
-    void verify()
-    const { data: listener } = client.auth.onAuthStateChange(() => {
-      void verify()
+    void verify({ showLoading: true })
+    const { data: listener } = client.auth.onAuthStateChange((event) => {
+      // フォアグラウンド復帰時のトークン更新で画面全体をアンマウントしない
+      if (event === "TOKEN_REFRESHED") {
+        warmUpApiInBackground()
+        return
+      }
+      if (event === "INITIAL_SESSION") return
+      if (event === "SIGNED_OUT") {
+        setAuthError(null)
+        setAuthStatus("guest")
+        return
+      }
+      if (event === "SIGNED_IN") {
+        void verify({ showLoading: true })
+      }
     })
 
     return () => {
