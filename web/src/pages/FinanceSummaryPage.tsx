@@ -128,7 +128,7 @@ export function FinanceSummaryPage() {
       map.set(key, row)
     }
     return map
-  }, [fiscalActualsState.data])
+  }, [fiscalActualsState.data, fiscalActualsState.status])
 
   const yearlySummary: MonthSummary[] = useMemo(
     () =>
