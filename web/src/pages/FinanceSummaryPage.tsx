@@ -47,7 +47,8 @@ export function FinanceSummaryPage() {
   const [recurringActualsError, setRecurringActualsError] = useState<string | null>(null)
   const [expenseBreakdownOpen, setExpenseBreakdownOpen] = useState(false)
 
-  const forecastState = useFetch<Forecast[]>(() => api.forecasts())
+  const forecastLoader = useCallback(() => api.forecasts(), [])
+  const forecastState = useFetch<Forecast[]>(forecastLoader)
   const dashboardLoader = useCallback(() => api.dashboard(monthInputToDate(month)), [month])
   const dashboardState = useFetch(dashboardLoader)
   const monthEndDashboardLoader = useCallback(
@@ -117,7 +118,7 @@ export function FinanceSummaryPage() {
 
   const selectedMonth = monthInputToDate(month)
   const fiscalMonths = useMemo(() => buildFiscalMonths(selectedMonth), [selectedMonth])
-  const forecastsByKey = useMemo(() => toForecastMap(forecastState.status === "success" ? forecastState.data : []), [forecastState])
+  const forecastsByKey = useMemo(() => toForecastMap(forecastState.status === "success" ? forecastState.data : []), [forecastState.data] )
 
   const fiscalActualsByMonth = useMemo(() => {
     const map = new Map<string, FiscalActualMonthRow>()
@@ -127,7 +128,7 @@ export function FinanceSummaryPage() {
       map.set(key, row)
     }
     return map
-  }, [fiscalActualsState])
+  }, [fiscalActualsState.data])
 
   const yearlySummary: MonthSummary[] = useMemo(
     () =>
