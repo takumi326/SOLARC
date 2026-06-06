@@ -107,34 +107,75 @@ ALLOWED_EMAILS=foo@example.com,bar@example.com
   - `DEPLOY_PORT` (任意)
   - `DEPLOY_APP_DIR` (サーバー上で `docker compose` を実行するディレクトリ)
 - API 本番では `ALLOWED_HOSTS` / `CORS_ORIGINS`（カンマ区切り）と `SUPABASE_URL` / `ALLOWED_EMAILS` を設定してください。
+<<<<<<< Updated upstream
 - 取込プロンプトの保存先 API は **`GET` / `PATCH /api/preferences/import_prompt`**（フロント既定）。`/api/user_preferences` も同じ処理の別ルートとして残しています。リバースプロキシでパスを個別に許可している場合はどちらか（または `/api/` 一括）を API に流してください。
 - Render Postgres の `DATABASE_URL` は `postgresql://...` 形式をそのまま使えます（Rails の `pg` アダプタ）。
+=======
+>>>>>>> Stashed changes
 
-### Render: DB スキーマ（Ridgepole）
+### 本番 DB（Supabase PostgreSQL）
 
-スキーマは **`rails db:migrate` ではなく** `api/db/Schemafile` を **Ridgepole** で当てます。本番 Docker イメージは **コンテナ起動時**（`api/bin/docker-start`）に一度 Ridgepole を実行してから Puma を起動するため、**Pre-Deploy（有料プラン向け）は必須ではありません**。無効化したい場合だけ API の環境変数に `SKIP_RIDGEPOLE_ON_BOOT=1` を設定してください。
+- **DB は Supabase PostgreSQL**（認証も同じ Supabase プロジェクト）。Render Postgres は使わない。
+- Render API の `DATABASE_URL` は **Session pooler**（IPv4）を使う。末尾に `?sslmode=require` を付ける。
 
-手動で当て直すときは **API サービス → Shell** で:
-
-```bash
-bundle exec ridgepole -c config/database.yml -E production --apply -f db/Schemafile
+```
+postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.com:5432/postgres?sslmode=require
 ```
 
-（有料プランで Pre-Deploy を使う場合は `bash bin/render-release` を **Settings → Deploy** に設定してもよいです。起動時と二重になるので、どちらか一方にするとよいです。）
+- **Direct connection**（`db.<project-ref>.supabase.co`、IPv6）は Render や Docker から届かないことが多い。**本番の `DATABASE_URL` に使わない。**
+- 接続文字列は Supabase ダッシュボード上部の **Connect** → **Session pooler** からコピーする（Project Settings 内の「Connection string」欄は UI 変更で無い場合がある）。
+- DB パスワードは **Database → Configuration** でリセットできる（既存パスワードは表示されない）。
 
-### Render 本番 Postgres に外部から接続して SQL を実行する
+### 本番スキーマ管理（Ridgepole + Supabase）
 
-GUI（DBeaver / TablePlus / Beekeeper Studio など）でも **ターミナルの psql** でも同じです。
+スキーマの正本は `api/db/Schemafile`。ローカル development では Ridgepole がそのまま使える。
 
-1. Render ダッシュボードで **PostgreSQL** のインスタンス（Web サービスではない）を開く。
-2. 画面上部付近の **Connect**（または **Info** / **Connections**）から **External Database URL** をコピーする。中にホスト・ポート・ユーザー・DB 名・パスワードが含まれる。
-3. **Inbound IP 許可**（IP Allow List）を Postgres 側で設定する。自宅のグローバル IP を追加するか、検証中のみ `0.0.0.0/0`（全世界）にするかはポリシー次第。**本番は可能なら自宅／固定 IP のみ**に絞る。
-4. クライアント側で **SSL を必須**にする（接続文字列に `sslmode=require` が付いていない場合は DBeaver のドライバプロパティや「SSL」タブで有効化）。
+**本番（Render + Supabase pooler）では起動時 Ridgepole を使わない。** 次を必ず守る。
 
-**psql の例**（URL はダッシュボードの値に置き換え）:
+| 項目 | 設定 |
+|---|---|
+| Render 環境変数 | `SKIP_RIDGEPOLE_ON_BOOT=1` |
+| スキーマ変更の適用先 | Supabase **SQL Editor**（左サイドバー）で手動実行 |
+| Render Shell | 無料プランでは使えない前提 |
+
+#### なぜ `SKIP_RIDGEPOLE_ON_BOOT=1` か
+
+- `api/bin/docker-start` はデフォルトで起動時に `ridgepole --apply` を走らせる。
+- Supabase **Session pooler 経由**だと Ridgepole が既存テーブルを正しく読めず、dry-run で全テーブル `create_table` と出る（DB が空だと誤認）。
+- そのまま `--apply` すると `DuplicateTable` 等でデプロイが落ちる。
+- データ参照（Rails / psql）は pooler で問題ない。**スキーマ introspection だけ Ridgepole と相性が悪い。**
+
+#### スキーマを変える手順（本番）
+
+1. `api/db/Schemafile` を編集して PR / マージ
+2. Schemafile の差分に対応する SQL を書き、Supabase **SQL Editor** で実行
+3. `SKIP_RIDGEPOLE_ON_BOOT=1` のまま Render にデプロイ（コード変更のみ）
+
+ローカルで差分を眺めるとき（**本番に `--apply` しない**）:
 
 ```bash
-psql "postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require"
+docker compose run --rm \
+  -e RAILS_ENV=production \
+  -e DATABASE_URL="postgresql://postgres.<ref>:<pass>@aws-<n>-<region>.pooler.supabase.com:5432/postgres?sslmode=require" \
+  api bash -lc "bundle install && bundle exec ridgepole -c config/database.yml -E production --apply -f db/Schemafile --dry-run"
 ```
 
-接続できたら、通常の PostgreSQL と同様に `SELECT`、`CREATE TABLE` などを実行できます。スキーマの正本はリポジトリの `api/db/Schemafile` なので、**テーブル定義を変えたい場合はコード側を直してデプロイ**し、手元 SQL はデータ修正・調査用に使うと安全です。
+dry-run で `create_table` が大量に出ても、pooler の誤認の可能性が高い。**SQL Editor で手動適用したうえで無視してよい。**
+
+#### データ移行（Render Postgres → Supabase）のメモ
+
+初回移行時のみ。通常運用では不要。
+
+1. Render Postgres から `pg_dump`（外部 URL、`sslmode=require`）
+2. Supabase に Ridgepole または SQL でスキーマ作成
+3. `pg_restore --data-only` は FK 順のため失敗しやすい。次のどちらか:
+   - `pg_restore` 前に SQL を `restore_data.sql` に落とし、psql で `SET session_replication_role = replica;` してから `\i`
+   - 親テーブルから順に `pg_restore -t <table>`
+
+`pg_restore --disable-triggers` は Supabase では権限エラーになる。
+
+### Supabase で SQL を実行する
+
+- **SQL Editor**: 左サイドバー → `SQL Editor` → `New query` → 貼り付け → `Run`
+- 直接 URL: `https://supabase.com/dashboard/project/<project-ref>/sql/new`
+- テーブル確認: **Table Editor** または `SELECT COUNT(*) FROM ...`
