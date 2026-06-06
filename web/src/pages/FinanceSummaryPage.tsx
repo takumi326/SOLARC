@@ -106,7 +106,7 @@ export function FinanceSummaryPage() {
     return () => {
       cancelled = true
     }
-  }, [month, fiscalActualsState.refetch, dashboardState.refetch])
+  }, [month])
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const fetchedMonthEndBalanceInput =
