@@ -107,7 +107,6 @@ ALLOWED_EMAILS=foo@example.com,bar@example.com
   - `DEPLOY_PORT` (任意)
   - `DEPLOY_APP_DIR` (サーバー上で `docker compose` を実行するディレクトリ)
 - API 本番では `ALLOWED_HOSTS` / `CORS_ORIGINS`（カンマ区切り）と `SUPABASE_URL` / `ALLOWED_EMAILS` を設定してください。
-- 取込プロンプトの保存先 API は **`GET` / `PATCH /api/preferences/import_prompt`**（フロント既定）。`/api/user_preferences` も同じ処理の別ルートとして残しています。リバースプロキシでパスを個別に許可している場合はどちらか（または `/api/` 一括）を API に流してください。
 - Render Postgres の `DATABASE_URL` は `postgresql://...` 形式をそのまま使えます（Rails の `pg` アダプタ）。
 
 ### Render: DB スキーマ（Ridgepole）

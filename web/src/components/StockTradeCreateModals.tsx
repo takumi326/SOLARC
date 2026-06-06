@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { api, type AiScriptRow } from "../lib/api.ts"
+import { api } from "../lib/api.ts"
 import { apiErrorMessage } from "../lib/errors.ts"
 import { emptyToNull } from "../lib/stockFormUtils.ts"
 import type { TradeAxesConfig } from "../lib/stockTradeAxes.ts"
@@ -8,56 +8,10 @@ import { StockPicker } from "./StockPicker.tsx"
 
 type ModalBaseProps = {
   cfg: TradeAxesConfig
-  aiScriptId: number | null
-  scripts: AiScriptRow[]
   fixedStockId?: number
   stockLabel?: string
   onClose: () => void
   onSaved: () => void
-}
-
-function initialScriptId(aiScriptId: number | null): string {
-  return aiScriptId != null ? String(aiScriptId) : ""
-}
-
-function resolveAiScriptId(cfg: TradeAxesConfig, selectedScriptId: string, scripts: AiScriptRow[]) {
-  if (cfg.judgment_type !== "ai") return null
-  if (scripts.length === 0) throw new Error("AI スクリプトを先に登録してください")
-  const id = Number(selectedScriptId)
-  if (!Number.isFinite(id) || id <= 0) throw new Error("AI スクリプトを選択してください")
-  return id
-}
-
-function AiScriptField({
-  scripts,
-  value,
-  onChange,
-}: {
-  scripts: AiScriptRow[]
-  value: string
-  onChange: (v: string) => void
-}) {
-  if (scripts.length === 0) {
-    return <p className="text-sm text-rose-600">AI スクリプトを先に「AI スクリプト一覧」で登録してください。</p>
-  }
-  return (
-    <label className="flex flex-col gap-1">
-      <FieldLabel>AI スクリプト</FieldLabel>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-slate-300 px-2 py-1.5"
-        required
-      >
-        <option value="">選択してください</option>
-        {scripts.map((s) => (
-          <option key={s.id} value={String(s.id)}>
-            {s.version_name}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
 }
 
 function resolveStockId(stockId: string, fixedStockId?: number) {
@@ -95,8 +49,7 @@ function StockField({
 }
 
 export function QuickEntryModal(props: ModalBaseProps) {
-  const { cfg, aiScriptId, scripts, fixedStockId, stockLabel, onClose, onSaved } = props
-  const [selectedScriptId, setSelectedScriptId] = useState(() => initialScriptId(aiScriptId))
+  const { cfg, fixedStockId, stockLabel, onClose, onSaved } = props
   const [stockId, setStockId] = useState(fixedStockId != null ? String(fixedStockId) : "")
   const [entryReason, setEntryReason] = useState("")
   const [scenario, setScenario] = useState("")
@@ -116,12 +69,10 @@ export function QuickEntryModal(props: ModalBaseProps) {
     setSaving(true)
     try {
       const sid = resolveStockId(stockId, fixedStockId)
-      const scriptId = resolveAiScriptId(cfg, selectedScriptId, scripts)
       const body: Record<string, unknown> = {
         stock_id: sid,
         trade_type: cfg.trade_type,
         judgment_type: cfg.judgment_type,
-        ai_script_id: cfg.judgment_type === "ai" ? scriptId : null,
         entry_reason: entryReason,
         scenario: emptyToNull(scenario),
         memo: emptyToNull(memo),
@@ -146,9 +97,6 @@ export function QuickEntryModal(props: ModalBaseProps) {
     <Modal title="エントリー（買い）を記録" onClose={onClose} size="lg">
       <form onSubmit={(e) => void submit(e)} className="space-y-3 text-sm">
         <StockField fixedStockId={fixedStockId} stockLabel={stockLabel} value={stockId} onChange={setStockId} />
-        {cfg.judgment_type === "ai" && (
-          <AiScriptField scripts={scripts} value={selectedScriptId} onChange={setSelectedScriptId} />
-        )}
         <label className="flex flex-col gap-1">
           <FieldLabel>エントリー理由（必須）</FieldLabel>
           <textarea value={entryReason} onChange={(e) => setEntryReason(e.target.value)} className="min-h-20 rounded-lg border border-slate-300 px-2 py-1.5" required />
@@ -197,8 +145,7 @@ export function QuickEntryModal(props: ModalBaseProps) {
 }
 
 export function QuickExitModal(props: ModalBaseProps) {
-  const { cfg, aiScriptId, scripts, fixedStockId, stockLabel, onClose, onSaved } = props
-  const [selectedScriptId, setSelectedScriptId] = useState(() => initialScriptId(aiScriptId))
+  const { cfg, fixedStockId, stockLabel, onClose, onSaved } = props
   const [stockId, setStockId] = useState(fixedStockId != null ? String(fixedStockId) : "")
   const [exitReason, setExitReason] = useState("")
   const [shares, setShares] = useState("")
@@ -218,12 +165,10 @@ export function QuickExitModal(props: ModalBaseProps) {
     setSaving(true)
     try {
       const sid = resolveStockId(stockId, fixedStockId)
-      const scriptId = resolveAiScriptId(cfg, selectedScriptId, scripts)
       await api.createStockExit({
         stock_id: sid,
         trade_type: cfg.trade_type,
         judgment_type: cfg.judgment_type,
-        ai_script_id: cfg.judgment_type === "ai" ? scriptId : null,
         exit_reason: exitReason,
         shares: shares ? Number(shares) : null,
         expected_price: emptyToNull(expectedPrice),
@@ -246,9 +191,6 @@ export function QuickExitModal(props: ModalBaseProps) {
     <Modal title="イグジット（売り）を記録" onClose={onClose} size="lg">
       <form onSubmit={(e) => void submit(e)} className="space-y-3 text-sm">
         <StockField fixedStockId={fixedStockId} stockLabel={stockLabel} value={stockId} onChange={setStockId} />
-        {cfg.judgment_type === "ai" && (
-          <AiScriptField scripts={scripts} value={selectedScriptId} onChange={setSelectedScriptId} />
-        )}
         <label className="flex flex-col gap-1">
           <FieldLabel>イグジット理由（必須）</FieldLabel>
           <textarea value={exitReason} onChange={(e) => setExitReason(e.target.value)} className="min-h-20 rounded-lg border border-slate-300 px-2 py-1.5" required />
@@ -304,8 +246,7 @@ export function QuickExitModal(props: ModalBaseProps) {
 }
 
 export function QuickLineModal(props: ModalBaseProps) {
-  const { cfg, aiScriptId, scripts, fixedStockId, stockLabel, onClose, onSaved } = props
-  const [selectedScriptId, setSelectedScriptId] = useState(() => initialScriptId(aiScriptId))
+  const { cfg, fixedStockId, stockLabel, onClose, onSaved } = props
   const [stockId, setStockId] = useState(fixedStockId != null ? String(fixedStockId) : "")
   const [changedOn, setChangedOn] = useState(() => new Date().toISOString().slice(0, 10))
   const [stopLoss, setStopLoss] = useState("")
@@ -320,12 +261,10 @@ export function QuickLineModal(props: ModalBaseProps) {
     setSaving(true)
     try {
       const sid = resolveStockId(stockId, fixedStockId)
-      const scriptId = resolveAiScriptId(cfg, selectedScriptId, scripts)
       await api.createLineChange({
         stock_id: sid,
         trade_type: cfg.trade_type,
         judgment_type: cfg.judgment_type,
-        ai_script_id: cfg.judgment_type === "ai" ? scriptId : null,
         changed_on: changedOn,
         stop_loss: stopLoss || null,
         target_price: targetPrice || null,
@@ -343,9 +282,6 @@ export function QuickLineModal(props: ModalBaseProps) {
     <Modal title="ライン変更" onClose={onClose} size="lg">
       <form onSubmit={(e) => void submit(e)} className="space-y-3 text-sm">
         <StockField fixedStockId={fixedStockId} stockLabel={stockLabel} value={stockId} onChange={setStockId} />
-        {cfg.judgment_type === "ai" && (
-          <AiScriptField scripts={scripts} value={selectedScriptId} onChange={setSelectedScriptId} />
-        )}
         <label className="flex flex-col gap-1">
           <FieldLabel>変更日</FieldLabel>
           <input type="date" value={changedOn} onChange={(e) => setChangedOn(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" required />

@@ -45,7 +45,7 @@ module Api
 
     def entry_params
       params.expect(entry: [
-        :stock_id, :trade_type, :judgment_type, :ai_script_id,
+        :stock_id, :trade_type, :judgment_type,
         :expected_price, :actual_price, :shares, :traded_at,
         :entry_reason, :scenario, :memo
       ])
@@ -74,7 +74,6 @@ module Api
         stock_id: entry.stock_id,
         trade_type: entry.trade_type,
         judgment_type: entry.judgment_type,
-        ai_script_id: entry.ai_script_id,
         changed_on: entry.traded_at || Time.zone.today,
         stop_loss: line[:stop_loss],
         target_price: line[:target_price],
@@ -88,7 +87,6 @@ module Api
         stock_id: e.stock_id,
         trade_type: e.trade_type,
         judgment_type: e.judgment_type,
-        ai_script_id: e.ai_script_id,
         expected_price: e.expected_price&.to_s("F"),
         actual_price: e.actual_price&.to_s("F"),
         shares: e.shares,

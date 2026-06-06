@@ -29,19 +29,12 @@ module Api
     def timeline
       trade_type = params.require(:trade_type)
       judgment_type = params.require(:judgment_type)
-      ai_script_id = parse_optional_id(params[:ai_script_id])
       rows = build_timeline_rows(
         stock: @stock,
         trade_type: trade_type,
-        judgment_type: judgment_type,
-        ai_script_id: ai_script_id
+        judgment_type: judgment_type
       )
-      line = current_line_for_timeline(
-        stock: @stock,
-        trade_type: trade_type,
-        judgment_type: judgment_type,
-        ai_script_id: ai_script_id
-      )
+      line = @stock.current_line(trade_type: trade_type, judgment_type: judgment_type)
       render json: { data: { rows: rows, current_line: line ? line_change_payload(line) : nil } }
     end
 
@@ -79,14 +72,6 @@ module Api
       params.expect(stock: [ :memo ])
     end
 
-    def parse_optional_id(v)
-      return nil if v.blank?
-
-      Integer(v)
-    rescue ArgumentError, TypeError
-      nil
-    end
-
     def stock_list_json(stock)
       {
         id: stock.id,
@@ -106,27 +91,10 @@ module Api
       )
     end
 
-    def current_line_for_timeline(stock:, trade_type:, judgment_type:, ai_script_id:)
-      if judgment_type.to_s == "ai" && ai_script_id.present?
-        stock.current_line(trade_type: trade_type, judgment_type: judgment_type, ai_script_id: ai_script_id)
-      else
-        stock.current_line(trade_type: trade_type, judgment_type: judgment_type)
-      end
-    end
-
-    def build_timeline_rows(stock:, trade_type:, judgment_type:, ai_script_id:)
+    def build_timeline_rows(stock:, trade_type:, judgment_type:)
       es = stock.entries.where(trade_type: trade_type, judgment_type: judgment_type)
       xs = stock.stock_exits.where(trade_type: trade_type, judgment_type: judgment_type)
       ls = stock.line_changes.where(trade_type: trade_type, judgment_type: judgment_type)
-      if judgment_type.to_s == "ai" && ai_script_id.present?
-        es = es.where(ai_script_id: ai_script_id)
-        xs = xs.where(ai_script_id: ai_script_id)
-        ls = ls.where(ai_script_id: ai_script_id)
-      elsif judgment_type.to_s == "human"
-        es = es.where(ai_script_id: nil)
-        xs = xs.where(ai_script_id: nil)
-        ls = ls.where(ai_script_id: nil)
-      end
 
       rows = []
       es.find_each do |e|
@@ -169,7 +137,6 @@ module Api
       {
         trade_type: e.trade_type,
         judgment_type: e.judgment_type,
-        ai_script_id: e.ai_script_id,
         expected_price: e.expected_price&.to_s("F"),
         actual_price: e.actual_price&.to_s("F"),
         shares: e.shares,
@@ -186,7 +153,6 @@ module Api
       {
         trade_type: x.trade_type,
         judgment_type: x.judgment_type,
-        ai_script_id: x.ai_script_id,
         expected_price: x.expected_price&.to_s("F"),
         actual_price: x.actual_price&.to_s("F"),
         shares: x.shares,
@@ -205,7 +171,6 @@ module Api
       {
         trade_type: l.trade_type,
         judgment_type: l.judgment_type,
-        ai_script_id: l.ai_script_id,
         changed_on: l.changed_on.iso8601,
         stop_loss: l.stop_loss&.to_s("F"),
         target_price: l.target_price&.to_s("F"),

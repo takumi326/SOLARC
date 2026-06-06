@@ -109,17 +109,6 @@ create_table "monthly_balances", force: :cascade do |t|
   t.index [ "month" ], name: "index_monthly_balances_on_month", unique: true
 end
 
-create_table "user_preferences", force: :cascade do |t|
-  t.string "owner_key", limit: 255, null: false
-  t.text "import_claude_prompt_template"
-  t.text "stock_daily_hypothesis_prompt"
-  t.text "stock_daily_result_prompt"
-  t.text "stock_daily_sector_prompt"
-  t.datetime "created_at", null: false
-  t.datetime "updated_at", null: false
-  t.index [ "owner_key" ], name: "index_user_preferences_on_owner_key", unique: true
-end
-
 create_table "stock_daily_notes", force: :cascade do |t|
   t.string "owner_key", limit: 255, null: false
   t.date "recorded_on", null: false
@@ -159,19 +148,10 @@ create_table "stock_notes", force: :cascade do |t|
   t.index [ "stock_id", "noted_on" ], name: "index_stock_notes_on_stock_id_and_noted_on"
 end
 
-create_table "ai_scripts", force: :cascade do |t|
-  t.string "version_name", limit: 100, null: false
-  t.text "prompt"
-  t.datetime "created_at", null: false
-  t.datetime "updated_at", null: false
-  t.index [ "version_name" ], name: "index_ai_scripts_on_version_name", unique: true
-end
-
 create_table "entries", force: :cascade do |t|
   t.bigint "stock_id", null: false
   t.string "trade_type", limit: 20, null: false
-  t.string "judgment_type", limit: 20, null: false
-  t.bigint "ai_script_id"
+  t.string "judgment_type", limit: 20, null: false, default: "human"
   t.decimal "expected_price", precision: 12, scale: 2
   t.decimal "actual_price", precision: 12, scale: 2
   t.integer "shares"
@@ -182,15 +162,13 @@ create_table "entries", force: :cascade do |t|
   t.datetime "created_at", null: false
   t.datetime "updated_at", null: false
   t.index [ "stock_id" ], name: "index_entries_on_stock_id"
-  t.index [ "ai_script_id" ], name: "index_entries_on_ai_script_id"
   t.index [ "stock_id", "trade_type", "judgment_type" ], name: "index_entries_on_stock_trade_judgment"
 end
 
 create_table "exits", force: :cascade do |t|
   t.bigint "stock_id", null: false
   t.string "trade_type", limit: 20, null: false
-  t.string "judgment_type", limit: 20, null: false
-  t.bigint "ai_script_id"
+  t.string "judgment_type", limit: 20, null: false, default: "human"
   t.decimal "expected_price", precision: 12, scale: 2
   t.decimal "actual_price", precision: 12, scale: 2
   t.integer "shares"
@@ -203,15 +181,13 @@ create_table "exits", force: :cascade do |t|
   t.datetime "created_at", null: false
   t.datetime "updated_at", null: false
   t.index [ "stock_id" ], name: "index_exits_on_stock_id"
-  t.index [ "ai_script_id" ], name: "index_exits_on_ai_script_id"
   t.index [ "stock_id", "trade_type", "judgment_type" ], name: "index_exits_on_stock_trade_judgment"
 end
 
 create_table "line_changes", force: :cascade do |t|
   t.bigint "stock_id", null: false
   t.string "trade_type", limit: 20, null: false
-  t.string "judgment_type", limit: 20, null: false
-  t.bigint "ai_script_id"
+  t.string "judgment_type", limit: 20, null: false, default: "human"
   t.date "changed_on", null: false
   t.decimal "stop_loss", precision: 12, scale: 2
   t.decimal "target_price", precision: 12, scale: 2
@@ -219,7 +195,6 @@ create_table "line_changes", force: :cascade do |t|
   t.datetime "created_at", null: false
   t.datetime "updated_at", null: false
   t.index [ "stock_id" ], name: "index_line_changes_on_stock_id"
-  t.index [ "ai_script_id" ], name: "index_line_changes_on_ai_script_id"
   t.index [ "stock_id", "trade_type", "judgment_type", "changed_on" ], name: "index_line_changes_on_stock_trade_judgment_changed"
 end
 
@@ -235,11 +210,8 @@ add_foreign_key "income_transactions", "transactions"
 add_foreign_key "stocks", "industries"
 add_foreign_key "stock_notes", "stocks"
 add_foreign_key "entries", "stocks"
-add_foreign_key "entries", "ai_scripts"
 add_foreign_key "exits", "stocks"
-add_foreign_key "exits", "ai_scripts"
 add_foreign_key "line_changes", "stocks"
-add_foreign_key "line_changes", "ai_scripts"
 
 add_check_constraint "major_categories", "kind IN (0, 1)", name: "major_categories_kind_check"
 add_check_constraint "expenses", "expense_type IN (0, 1)", name: "expenses_expense_type_check"
@@ -257,9 +229,9 @@ add_check_constraint "forecast_defaults", "expense_amount >= 0", name: "forecast
 add_check_constraint "forecast_defaults", "income_amount >= 0", name: "forecast_defaults_income_amount_check"
 
 add_check_constraint "entries", "trade_type IN ('real', 'virtual')", name: "entries_trade_type_check"
-add_check_constraint "entries", "judgment_type IN ('human', 'ai')", name: "entries_judgment_type_check"
+add_check_constraint "entries", "judgment_type IN ('human')", name: "entries_judgment_type_check"
 add_check_constraint "exits", "trade_type IN ('real', 'virtual')", name: "exits_trade_type_check"
-add_check_constraint "exits", "judgment_type IN ('human', 'ai')", name: "exits_judgment_type_check"
+add_check_constraint "exits", "judgment_type IN ('human')", name: "exits_judgment_type_check"
 add_check_constraint "exits", "review_result IS NULL OR review_result IN ('as_planned', 'missed', 'partial')", name: "exits_review_result_check"
 add_check_constraint "line_changes", "trade_type IN ('real', 'virtual')", name: "line_changes_trade_type_check"
-add_check_constraint "line_changes", "judgment_type IN ('human', 'ai')", name: "line_changes_judgment_type_check"
+add_check_constraint "line_changes", "judgment_type IN ('human')", name: "line_changes_judgment_type_check"
