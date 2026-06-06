@@ -2,6 +2,7 @@ import { useCallback, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import {
   api,
+  type AiScriptRow,
   type StockCurrentLine,
   type StockDetail,
   type StockNote,
@@ -21,6 +22,7 @@ export function StockDetailPage() {
   const { id } = useParams()
   const stockId = Number(id)
   const [tlTab, setTlTab] = useState<TimelineTab>("real")
+  const [aiScriptId, setAiScriptId] = useState<string>("")
 
   const stockLoader = useCallback(() => {
     if (!Number.isFinite(stockId)) return Promise.reject(new Error("不正な ID"))
@@ -34,11 +36,16 @@ export function StockDetailPage() {
   }, [stockId])
   const notesResult = useFetch(notesLoader)
 
+  const scriptsLoader = useCallback(() => api.aiScripts(), [])
+  const scriptsResult = useFetch(scriptsLoader)
+
   const tlQuery = useCallback(() => {
     if (!Number.isFinite(stockId)) return Promise.reject(new Error("不正な ID"))
-    const axes = tradeAxesFromTimelineTab(tlTab)
-    return api.stockTimeline(stockId, axes)
-  }, [stockId, tlTab])
+    if (tlTab === "real") return api.stockTimeline(stockId, { trade_type: "real", judgment_type: "human" })
+    if (tlTab === "virtual-human") return api.stockTimeline(stockId, { trade_type: "virtual", judgment_type: "human" })
+    const sid = aiScriptId === "" ? null : Number(aiScriptId)
+    return api.stockTimeline(stockId, { trade_type: "virtual", judgment_type: "ai", ai_script_id: sid ?? undefined })
+  }, [stockId, tlTab, aiScriptId])
   const tlResult = useFetch(tlQuery)
 
   const [memoOpen, setMemoOpen] = useState(false)
@@ -170,7 +177,8 @@ export function StockDetailPage() {
           {(
             [
               ["real", "実取引"],
-              ["virtual-human", "仮想"],
+              ["virtual-human", "仮想・人間"],
+              ["virtual-ai", "仮想・AI"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -185,6 +193,19 @@ export function StockDetailPage() {
             </button>
           ))}
         </div>
+        {tlTab === "virtual-ai" && scriptsResult.status === "success" && (
+          <label className="mb-3 flex max-w-md flex-col gap-1 text-sm">
+            <span className="text-slate-600">AI スクリプト</span>
+            <select value={aiScriptId} onChange={(e) => setAiScriptId(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5">
+              <option value="">未指定（新規記録は先頭のスクリプト）</option>
+              {scriptsResult.data.map((sc) => (
+                <option key={sc.id} value={String(sc.id)}>
+                  {sc.version_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {tlResult.status === "loading" && <p className="text-sm text-slate-600">読み込み中…</p>}
         {tlResult.status === "error" && <p className="text-sm text-rose-600">{tlResult.error.message}</p>}
         {tlResult.status === "success" && <CurrentLinePanel line={tlResult.data.current_line} />}
@@ -261,6 +282,8 @@ export function StockDetailPage() {
           stockId={stockId}
           stockLabel={`${s.code} ${s.name}`}
           tlTab={tlTab}
+          aiScriptId={aiScriptId === "" ? null : Number(aiScriptId)}
+          scripts={scriptsResult.status === "success" ? scriptsResult.data : []}
           onClose={() => setTradeCreateModal(null)}
           onSaved={() => {
             setTradeCreateModal(null)
@@ -278,6 +301,8 @@ function StockTradeCreateModal({
   stockId,
   stockLabel,
   tlTab,
+  aiScriptId,
+  scripts,
   onClose,
   onSaved,
 }: {
@@ -285,12 +310,16 @@ function StockTradeCreateModal({
   stockId: number
   stockLabel: string
   tlTab: TimelineTab
+  aiScriptId: number | null
+  scripts: AiScriptRow[]
   onClose: () => void
   onSaved: () => void
 }) {
   const cfg = tradeAxesFromTimelineTab(tlTab)
   const props = {
     cfg,
+    aiScriptId,
+    scripts,
     fixedStockId: stockId,
     stockLabel,
     onClose,

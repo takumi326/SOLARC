@@ -30,7 +30,7 @@ export function apiErrorMessageWithFetchHint(err: unknown): string {
 
 Web を API と別ホスト（例: Vercel + Render）で出している場合、ビルド時に VITE_API_BASE_URL に API のオリジン（例: https://your-api.onrender.com、末尾スラッシュなし）を必ず設定してください。未設定だとブラウザがフロントと同じ URL に /api を送り、静的ホストが 404 を返します。
 
-同一オリジンで /api をリバースプロキシしている場合は、API を最新にデプロイしエンドポイントが存在するか確認してください。`
+同一オリジンで /api をリバースプロキシしている場合は、API を最新にデプロイし /api/preferences/import_prompt（旧: /api/user_preferences）が存在するか確認してください。`
   }
   return base
 }

@@ -8,9 +8,10 @@ module Api
       trade_type = require_enum!(params[:trade_type], %w[real virtual])
       return if performed?
 
-      judgment_type = require_enum!(params[:judgment_type], %w[human])
+      judgment_type = require_enum!(params[:judgment_type], %w[human ai])
       return if performed?
 
+      ai_script_id = parse_optional_id(params[:ai_script_id])
       event_kind = (params[:event_kind].presence || "all").to_s
       unless %w[all entry exit].include?(event_kind)
         render json: { error: { code: "bad_request", message: "event_kind は all / entry / exit です" } }, status: :bad_request
@@ -35,6 +36,7 @@ module Api
 
       if event_kind != "exit"
         es = Entry.where(stock_id: stock_sub).where(trade_type: trade_type, judgment_type: judgment_type)
+        es = apply_ai_axis!(es, judgment_type: judgment_type, ai_script_id: ai_script_id)
         es = apply_settled_scope(es, settled, traded_col: :traded_at)
         es = apply_date_range_entries(es, from_d, to_d)
         es = es.includes(:stock)
@@ -45,6 +47,7 @@ module Api
 
       if event_kind != "entry"
         xs = StockExit.where(stock_id: stock_sub).where(trade_type: trade_type, judgment_type: judgment_type)
+        xs = apply_ai_axis!(xs, judgment_type: judgment_type, ai_script_id: ai_script_id)
         xs = apply_settled_scope(xs, settled, traded_col: :traded_at)
         xs = apply_date_range_exits(xs, from_d, to_d)
         xs = xs.includes(:stock)
@@ -56,6 +59,7 @@ module Api
 
       if event_kind == "all"
         ls = LineChange.where(stock_id: stock_sub).where(trade_type: trade_type, judgment_type: judgment_type)
+        ls = apply_ai_axis!(ls, judgment_type: judgment_type, ai_script_id: ai_script_id)
         ls = apply_line_settled(ls, settled)
         ls = apply_date_range_lines(ls, from_d, to_d)
         ls = ls.includes(:stock)
@@ -69,7 +73,7 @@ module Api
 
       total_pl =
         if event_kind != "entry"
-          StockRealizedPl.total_for_exits(exit_scope_for_pl)
+          StockRealizedPl.total_for_exits(filter_exits_for_pl(exit_scope_for_pl, judgment_type, ai_script_id))
         else
           BigDecimal("0")
         end
@@ -93,12 +97,30 @@ module Api
       v
     end
 
+    def parse_optional_id(v)
+      return nil if v.blank?
+
+      Integer(v)
+    rescue ArgumentError, TypeError
+      nil
+    end
+
     def parse_optional_date(v)
       return nil if v.blank?
 
       Date.iso8601(v.to_s)
     rescue ArgumentError
       nil
+    end
+
+    def apply_ai_axis!(rel, judgment_type:, ai_script_id:)
+      if judgment_type.to_s == "ai" && ai_script_id.present?
+        rel.where(ai_script_id: ai_script_id)
+      elsif judgment_type.to_s == "human"
+        rel.where(ai_script_id: nil)
+      else
+        rel
+      end
     end
 
     def apply_settled_scope(rel, settled, traded_col:)
@@ -166,6 +188,7 @@ module Api
         stock_id: e.stock_id,
         trade_type: e.trade_type,
         judgment_type: e.judgment_type,
+        ai_script_id: e.ai_script_id,
         expected_price: e.expected_price&.to_s("F"),
         actual_price: e.actual_price&.to_s("F"),
         shares: e.shares,
@@ -183,6 +206,7 @@ module Api
         stock_id: x.stock_id,
         trade_type: x.trade_type,
         judgment_type: x.judgment_type,
+        ai_script_id: x.ai_script_id,
         expected_price: x.expected_price&.to_s("F"),
         actual_price: x.actual_price&.to_s("F"),
         shares: x.shares,
@@ -202,6 +226,7 @@ module Api
         stock_id: l.stock_id,
         trade_type: l.trade_type,
         judgment_type: l.judgment_type,
+        ai_script_id: l.ai_script_id,
         changed_on: l.changed_on.iso8601,
         stop_loss: l.stop_loss&.to_s("F"),
         target_price: l.target_price&.to_s("F"),
@@ -209,6 +234,14 @@ module Api
         created_at: l.created_at.iso8601,
         updated_at: l.updated_at.iso8601
       }
+    end
+
+    def filter_exits_for_pl(scope, judgment_type, ai_script_id)
+      return scope if judgment_type.to_s == "human"
+
+      return scope.where(ai_script_id: ai_script_id) if ai_script_id.present?
+
+      scope
     end
   end
 end

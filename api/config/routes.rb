@@ -46,6 +46,13 @@ Rails.application.routes.draw do
     get "forecast_defaults", to: "forecast_defaults#show"
     patch "forecast_defaults", to: "forecast_defaults#update"
 
+    # 取込プロンプト設定。/api/user_preferences は一部のプロキシ・WAF でだけ 404 になる報告があるため、
+    # 実体は同じコントローラで別パスも用意する（フロントは import_prompt を優先）。
+    get "preferences/import_prompt", to: "user_preferences#show"
+    patch "preferences/import_prompt", to: "user_preferences#update"
+    get "user_preferences", to: "user_preferences#show"
+    patch "user_preferences", to: "user_preferences#update"
+
     post "actuals/sync", to: "actuals#sync"
     get "dashboard", to: "dashboard#show"
     get "dashboard/fiscal_actuals", to: "dashboard#fiscal_actuals"
@@ -76,6 +83,7 @@ Rails.application.routes.draw do
     resources :entries, only: [ :show, :create, :update, :destroy ]
     resources :exits, controller: "stock_exits", only: [ :show, :create, :update, :destroy ]
     resources :line_changes, only: [ :show, :create, :update, :destroy ]
+    resources :ai_scripts, only: [ :index, :show, :create, :update, :destroy ]
 
     get "stock_trade_events", to: "stock_trade_events#index"
   end
