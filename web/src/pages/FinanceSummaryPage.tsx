@@ -92,24 +92,28 @@ export function FinanceSummaryPage() {
   // 選択月の単発のみ台帳を揃える（定期は「定期実績を作成」で選択月の今年度12ヶ月）
   /* month のみで再同期。useFetch の戻りオブジェクトは毎レンダーで新参照になり得るため dashboardState / fiscalActualsState 全体は依存に入れない */
   /* eslint-disable react-hooks/exhaustive-deps */
+  // useEffect(() => {
+  //   let cancelled = false
+  //   void (async () => {
+  //     try {
+  //       await api.syncActuals({ month: monthInputToDate(month), expense_scope: "one_time" })
+  //     } catch {
+  //       // 同期失敗時も内訳は読みに行く
+  //     }
+  //     if (cancelled) return
+  //     // 少し待ってから refetch することでキャンセルを防ぐ
+  //     await new Promise<void>((resolve) => setTimeout(resolve, 100))
+  //     if (cancelled) return
+  //     fiscalActualsState.refetch()
+  //     dashboardState.refetch()
+  //   })()
+  //   return () => {
+  //     cancelled = true
+  //   }
+  // }, [month])
   useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        await api.syncActuals({ month: monthInputToDate(month), expense_scope: "one_time" })
-      } catch {
-        // 同期失敗時も内訳は読みに行く
-      }
-      if (cancelled) return
-      // 少し待ってから refetch することでキャンセルを防ぐ
-      await new Promise<void>((resolve) => setTimeout(resolve, 100))
-      if (cancelled) return
-      fiscalActualsState.refetch()
-      dashboardState.refetch()
-    })()
-    return () => {
-      cancelled = true
-    }
+    fiscalActualsState.refetch()
+    dashboardState.refetch()
   }, [month])
   /* eslint-enable react-hooks/exhaustive-deps */
 
