@@ -23,7 +23,10 @@ export function useFetch<T>(loader: () => Promise<T>): State<T> {
 
     loader()
       .then((data) => {
-        if (cancelled) return
+        if (cancelled) {
+          console.log("CANCELLED loader:", loader.toString().slice(0, 50), data)
+          return
+        }
         setState({ status: "success", data, error: null })
       })
       .catch((error: unknown) => {
