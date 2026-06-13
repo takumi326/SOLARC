@@ -24,7 +24,7 @@ services:
       dockerfile: Dockerfile
     container_name: iae_api
     working_dir: /app/api
-    command: bash -lc "bundle install && bundle exec ridgepole -c config/database.yml -E development --apply -f db/Schemafile && rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0 -p 3000"
+    command: bash -lc "bundle install && bundle exec rails db:migrate && bin/rails tailwindcss:build && rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0 -p 3000"
     environment:
       RAILS_ENV: development
       BUNDLE_PATH: /usr/local/bundle
@@ -40,26 +40,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-
-  web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    container_name: iae_web
-    working_dir: /app/web
-    # node_modules はホストの ./web/node_modules（bind）を使う。名前付きボリュームだと依存追加後に解決できないことがある
-    command: sh -lc "set -eu && npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
-    environment:
-      NODE_ENV: development
-      VITE_API_BASE_URL: http://localhost:3000
-      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
-      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./:/app
-    depends_on:
-      - api
 
 volumes:
   postgres_data:

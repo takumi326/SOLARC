@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
-# 本番 Docker 起動時: Schemafile を Ridgepole で当ててから Puma を起動する。
-# Pre-Deploy が使えない Render 無料枠でもデプロイ後にスキーマが揃う。
-# 無効化: 環境変数 SKIP_RIDGEPOLE_ON_BOOT=1
+# 本番 Docker 起動時: 未適用 migration を当ててから Puma を起動する。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [[ "${SKIP_RIDGEPOLE_ON_BOOT:-}" == "1" ]]; then
-  :
-elif [[ "${RAILS_ENV:-}" == "production" && -n "${DATABASE_URL:-}" ]]; then
-  bundle exec ridgepole -c config/database.yml -E production --apply -f db/Schemafile
+if [[ "${RAILS_ENV:-}" == "production" && -n "${DATABASE_URL:-}" ]]; then
+  bundle exec rails db:migrate
 fi
+
+bundle exec rails tailwindcss:build
 
 exec bundle exec puma -C config/puma.rb

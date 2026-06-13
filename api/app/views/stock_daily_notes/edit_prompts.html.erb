@@ -1,0 +1,27 @@
+<div class="mx-auto max-w-3xl space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold">毎日の記録プロンプト</h2>
+    <p class="mt-2 text-xs text-slate-500">
+      コピーボタン用のテンプレートです。プレースホルダ: <code class="rounded bg-slate-100 px-1">{{date}}</code>、<code class="rounded bg-slate-100 px-1">{{hypothesis}}</code>、<code class="rounded bg-slate-100 px-1">{{result}}</code>
+    </p>
+  </section>
+
+  <%= form_with url: stock_daily_prompts_path, method: :patch, class: "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4" do %>
+    <label class="block text-sm text-slate-700">
+      仮説プロンプト
+      <%= text_area_tag "stock_daily_prompts[hypothesis]", @prompts[:hypothesis], rows: 8, spellcheck: false, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed" %>
+    </label>
+    <label class="block text-sm text-slate-700">
+      結果プロンプト
+      <%= text_area_tag "stock_daily_prompts[result]", @prompts[:result], rows: 8, spellcheck: false, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed" %>
+    </label>
+    <label class="block text-sm text-slate-700">
+      セクター調べプロンプト
+      <%= text_area_tag "stock_daily_prompts[sector]", @prompts[:sector], rows: 8, spellcheck: false, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed" %>
+    </label>
+    <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+      <%= link_to "キャンセル", stock_daily_notes_path, class: btn_secondary_classes %>
+      <%= submit_tag "保存", class: btn_primary_classes %>
+    </div>
+  <% end %>
+</div>

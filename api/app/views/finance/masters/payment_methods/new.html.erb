@@ -1,0 +1,14 @@
+<div class="space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold"><%= @payment_method.new_record? ? "支払方法を追加" : "支払方法を編集" %></h2>
+    <%= form_with model: @payment_method, url: @payment_method.persisted? ? finance_masters_payment_method_path(@payment_method) : finance_masters_payment_methods_path, class: "mt-4 space-y-3" do |form| %>
+      <label class="block text-sm">名前 <%= form.text_field :name, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %></label>
+      <label class="block text-sm">種別 <%= form.select :method_type, [["クレジットカード", "card"], ["口座引き落とし", "bank_debit"], ["口座引き出し", "bank_withdrawal"]], {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %></label>
+      <label class="block text-sm">実績計上 <%= form.select :ledger_charge_timing, [["翌月計上", "next_month"], ["当月計上", "same_month"]], {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %></label>
+      <div class="flex gap-2">
+        <%= link_to "キャンセル", finance_masters_path(tab: "payments"), class: btn_classes(:secondary) %>
+        <%= form.submit "保存", class: btn_classes(:primary, extra: "cursor-pointer") %>
+      </div>
+    <% end %>
+  </section>
+</div>

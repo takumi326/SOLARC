@@ -1,0 +1,97 @@
+<div class="space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <h2 class="text-xl font-bold">株一覧</h2>
+      <%= link_to "業種を管理", industries_path, class: btn_secondary_classes %>
+    </div>
+
+    <div class="mb-4 flex flex-wrap items-end gap-3">
+      <%= form_with url: stocks_path, method: :get, class: "flex flex-wrap items-end gap-2" do %>
+        <label class="flex flex-col gap-1 text-sm">
+          <span class="text-slate-600">検索（コード・銘柄名）</span>
+          <%= text_field_tag :q, @q, class: "w-48 rounded-lg border border-slate-300 px-2 py-1.5", placeholder: "例: 7203" %>
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          <span class="text-slate-600">表示</span>
+          <%= select_tag :filter,
+                         options_for_select([ [ "監視またはエントリー済", "" ], [ "監視のみ", "watching" ] ], @filter),
+                         class: "rounded-lg border border-slate-300 px-2 py-1.5" %>
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          <span class="text-slate-600">業種</span>
+          <%= select_tag :industry_id,
+                         options_from_collection_for_select(@industries, :id, :name, @industry_id),
+                         include_blank: "すべて",
+                         class: "rounded-lg border border-slate-300 px-2 py-1.5" %>
+        </label>
+        <%= submit_tag "絞り込み", class: "rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-700 cursor-pointer" %>
+        <% if @searching || @filter.present? || @industry_id.present? %>
+          <%= link_to "クリア", stocks_path, class: btn_secondary_classes %>
+        <% end %>
+      <% end %>
+
+      <%= form_with url: import_stocks_path, multipart: true, class: "flex flex-wrap items-center gap-2" do %>
+        <%= file_field_tag :file, accept: ".csv,text/csv", class: "text-sm" %>
+        <%= submit_tag "CSVを読み込んで登録", class: btn_secondary_classes %>
+      <% end %>
+
+      <a href="https://indexes.nikkei.co.jp/nkave/index/profile?idx=jpxnk400" target="_blank" rel="noreferrer" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-50">
+        JPX日経400（構成銘柄）
+      </a>
+    </div>
+
+    <% unless @searching %>
+      <p class="mb-3 text-xs text-slate-500">監視中の銘柄と、一度でもエントリーした銘柄を表示しています。検索すると CSV 登録銘柄も探せます。</p>
+    <% end %>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-left text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-slate-500">
+            <th class="py-2 pr-3 text-center">監視</th>
+            <th class="py-2 pr-3">コード</th>
+            <th class="py-2 pr-3">銘柄名</th>
+            <th class="py-2 pr-3">業種</th>
+            <th class="py-2 pr-3 text-right">保有株数（実）</th>
+            <th class="py-2 pr-3">チャート</th>
+            <th class="py-2 pr-3">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @stocks.each do |stock| %>
+            <tr class="border-b border-slate-100">
+              <td class="py-2 pr-3 text-center">
+                <% if stock.watched? %>
+                  <span class="font-semibold text-emerald-600" title="監視中">○</span>
+                <% else %>
+                  <span class="text-slate-300" title="監視なし">—</span>
+                <% end %>
+              </td>
+              <td class="py-2 pr-3 font-mono"><%= stock.code %></td>
+              <td class="py-2 pr-3 font-medium"><%= stock.name %></td>
+              <td class="py-2 pr-3 text-slate-600"><%= stock.industry.name %></td>
+              <td class="py-2 pr-3 text-right tabular-nums"><%= stock.holding_shares_real %></td>
+              <td class="py-2 pr-3">
+                <a href="<%= stock.tradingview_url %>" target="_blank" rel="noreferrer" class="text-indigo-600 hover:underline">TradingView</a>
+              </td>
+              <td class="py-2 pr-3">
+                <%= link_to "詳細", stock_path(stock), class: "inline-flex items-center justify-center rounded-md border border-indigo-200 bg-white px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @stocks.empty? %>
+        <p class="py-6 text-center text-sm text-slate-500">
+          <% if @searching %>
+            「<%= @q %>」に一致する銘柄はありません
+          <% elsif @filter == "watching" %>
+            監視中の銘柄がありません
+          <% else %>
+            表示対象の銘柄がありません。監視を ON にするかエントリーしてください。CSV 登録銘柄は検索できます。
+          <% end %>
+        </p>
+      <% end %>
+    </div>
+  </section>
+</div>

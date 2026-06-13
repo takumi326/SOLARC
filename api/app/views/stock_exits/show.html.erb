@@ -1,0 +1,28 @@
+<div class="mx-auto max-w-2xl space-y-4">
+  <p class="text-sm text-slate-500">
+    <%= link_to @stock.name, stock_path(@stock), class: "text-indigo-600 hover:underline" %>
+    <span> / イグジット詳細</span>
+  </p>
+
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold">イグジット（売り）詳細</h2>
+    <dl class="mt-4 space-y-2 text-sm">
+      <div><dt class="text-slate-500">イグジット理由</dt><dd class="whitespace-pre-wrap"><%= @exit.exit_reason %></dd></div>
+      <div><dt class="text-slate-500">株数</dt><dd><%= @exit.shares || "—" %></dd></div>
+      <div><dt class="text-slate-500">予定価格</dt><dd><%= format_decimal(@exit.expected_price).presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">約定価格</dt><dd><%= format_decimal(@exit.actual_price).presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">約定日</dt><dd><%= format_date_value(@exit.traded_at).presence || "未約定" %></dd></div>
+      <div><dt class="text-slate-500">レビュー</dt><dd><%= @exit.review_result.presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">外れた点</dt><dd class="whitespace-pre-wrap"><%= @exit.review_missed.presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">学び</dt><dd class="whitespace-pre-wrap"><%= @exit.review_learning.presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">メモ</dt><dd class="whitespace-pre-wrap"><%= @exit.memo.presence || "—" %></dd></div>
+    </dl>
+    <div class="mt-4 flex flex-wrap justify-between gap-2">
+      <%= button_to "削除", exit_path(@exit), method: :delete, form: { data: { turbo_confirm: "削除しますか？" } }, class: "rounded-lg border border-rose-300 px-3 py-2 text-sm text-rose-700 hover:bg-rose-50 cursor-pointer" %>
+      <div class="flex gap-2">
+        <%= link_to "タイムラインへ", stock_timeline_path_for_record(@exit), class: btn_secondary_classes %>
+        <%= link_to "編集", edit_exit_path(@exit), class: btn_primary_classes %>
+      </div>
+    </div>
+  </section>
+</div>

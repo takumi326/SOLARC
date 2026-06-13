@@ -1,0 +1,24 @@
+<% if items.empty? %>
+  <p class="text-sm text-slate-500">この月に紐づく支出実績行がありません</p>
+<% else %>
+  <ul class="divide-y divide-slate-100">
+    <% items.each do |row| %>
+      <% memo = row[:memo].to_s.strip %>
+      <% title = memo.present? ? "#{row[:minor]}（#{memo}）" : row[:minor] %>
+      <li class="py-3 text-sm">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div class="min-w-0">
+            <div class="font-medium text-slate-800"><%= title %></div>
+            <div class="text-xs text-slate-500"><%= row[:major] %> · <%= row[:payment] %></div>
+            <div class="mt-1">
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"><%= recurring_type_label(row[:expense_type]) %></span>
+            </div>
+          </div>
+          <div class="flex shrink-0 items-center sm:pt-0.5">
+            <span class="font-semibold text-rose-600"><%= format_yen(row[:amount]) %></span>
+          </div>
+        </div>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

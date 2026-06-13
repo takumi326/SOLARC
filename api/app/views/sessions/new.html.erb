@@ -1,0 +1,14 @@
+<div class="mx-auto flex min-h-screen w-full max-w-md items-center p-4 sm:p-6">
+  <section class="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <%= image_tag "/solarc-logo.png", alt: "Solarc", class: "mx-auto h-auto w-full max-w-[200px] rounded-lg" %>
+    <h1 class="mt-4 text-xl font-bold text-slate-800">ログイン</h1>
+
+    <% if flash[:alert].present? %>
+      <p class="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"><%= flash[:alert] %></p>
+    <% end %>
+
+    <div class="mt-4">
+      <%= button_to "Googleでログイン", "/auth/google_oauth2", method: :post, data: { turbo: false }, class: "w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 cursor-pointer" %>
+    </div>
+  </section>
+</div>

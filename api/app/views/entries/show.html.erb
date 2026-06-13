@@ -1,0 +1,26 @@
+<div class="mx-auto max-w-2xl space-y-4">
+  <p class="text-sm text-slate-500">
+    <%= link_to @stock.name, stock_path(@stock), class: "text-indigo-600 hover:underline" %>
+    <span> / エントリー詳細</span>
+  </p>
+
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold">エントリー（買い）詳細</h2>
+    <dl class="mt-4 space-y-2 text-sm">
+      <div><dt class="text-slate-500">エントリー理由</dt><dd class="whitespace-pre-wrap"><%= @entry.entry_reason %></dd></div>
+      <div><dt class="text-slate-500">シナリオ</dt><dd class="whitespace-pre-wrap"><%= @entry.scenario.presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">株数</dt><dd><%= @entry.shares || "—" %></dd></div>
+      <div><dt class="text-slate-500">予定価格</dt><dd><%= format_decimal(@entry.expected_price).presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">約定価格</dt><dd><%= format_decimal(@entry.actual_price).presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">約定日</dt><dd><%= format_date_value(@entry.traded_at).presence || "未約定" %></dd></div>
+      <div><dt class="text-slate-500">メモ</dt><dd class="whitespace-pre-wrap"><%= @entry.memo.presence || "—" %></dd></div>
+    </dl>
+    <div class="mt-4 flex flex-wrap justify-between gap-2">
+      <%= button_to "削除", entry_path(@entry), method: :delete, form: { data: { turbo_confirm: "削除しますか？" } }, class: "rounded-lg border border-rose-300 px-3 py-2 text-sm text-rose-700 hover:bg-rose-50 cursor-pointer" %>
+      <div class="flex gap-2">
+        <%= link_to "タイムラインへ", stock_timeline_path_for_record(@entry), class: btn_secondary_classes %>
+        <%= link_to "編集", edit_entry_path(@entry), class: btn_primary_classes %>
+      </div>
+    </div>
+  </section>
+</div>

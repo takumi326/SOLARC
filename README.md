@@ -31,7 +31,7 @@ DBeaver などでローカル DB を見るときは、デフォルトのデー�
 
 ### 初回・DB 作り直し後（Docker）
 
-次で development に Ridgepole を当て、`db:seed` まで実行します（`api_test` 用の Ridgepole も続けて実行）。
+次で development に migration を当て、`db:seed` まで実行します（`api_test` 用の prepare も続けて実行）。
 
 ```bash
 chmod +x scripts/docker-db-bootstrap.sh   # 初回のみ
@@ -64,12 +64,12 @@ docker compose up --build -d
 
 古い compose で名前付きボリューム `web_node_modules` を使っていた環境では、そのボリュームだけが残っているとコンテナ内とホストの `node_modules` がずれることがあります。`docker volume rm` で捨ててから `up` してください。
 
-DB を作り直すときは `docker compose down -v` でボリュームを削除してから `docker compose up --build` してください。初回はテスト用 DB を作成してから ridgepole と seed:
+DB を作り直すときは `docker compose down -v` でボリュームを削除してから `docker compose up --build` してください。初回はテスト用 DB を作成してから migrate と seed:
 
 ```bash
 docker compose run --rm api bash -lc "cd /app/api && RAILS_ENV=test bundle exec rails db:create"
-docker compose run --rm api bash -lc "cd /app/api && bundle exec ridgepole -c config/database.yml -E development --apply -f db/Schemafile && bundle exec rails db:seed"
-docker compose run --rm api bash -lc "cd /app/api && bundle exec ridgepole -c config/database.yml -E test --apply -f db/Schemafile"
+docker compose run --rm api bash -lc "cd /app/api && bundle exec rails db:migrate && bundle exec rails db:seed"
+docker compose run --rm api bash -lc "cd /app/api && bundle exec rails db:test:prepare"
 ```
 
 `api_test` が無いエラーが出たら、上の `rails db:create` を実行するか、`docker compose down -v` でボリュームを消してから `up` し直してください（`docker/postgres-init` で `api_test` が作られます）。
@@ -107,11 +107,7 @@ ALLOWED_EMAILS=foo@example.com,bar@example.com
   - `DEPLOY_PORT` (任意)
   - `DEPLOY_APP_DIR` (サーバー上で `docker compose` を実行するディレクトリ)
 - API 本番では `ALLOWED_HOSTS` / `CORS_ORIGINS`（カンマ区切り）と `SUPABASE_URL` / `ALLOWED_EMAILS` を設定してください。
-<<<<<<< Updated upstream
 - 取込プロンプトの保存先 API は **`GET` / `PATCH /api/preferences/import_prompt`**（フロント既定）。`/api/user_preferences` も同じ処理の別ルートとして残しています。リバースプロキシでパスを個別に許可している場合はどちらか（または `/api/` 一括）を API に流してください。
-- Render Postgres の `DATABASE_URL` は `postgresql://...` 形式をそのまま使えます（Rails の `pg` アダプタ）。
-=======
->>>>>>> Stashed changes
 
 ### 本番 DB（Supabase PostgreSQL）
 
@@ -126,48 +122,38 @@ postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.
 - 接続文字列は Supabase ダッシュボード上部の **Connect** → **Session pooler** からコピーする（Project Settings 内の「Connection string」欄は UI 変更で無い場合がある）。
 - DB パスワードは **Database → Configuration** でリセットできる（既存パスワードは表示されない）。
 
-### 本番スキーマ管理（Ridgepole + Supabase）
+### 本番スキーマ管理（Rails migration + Supabase）
 
-スキーマの正本は `api/db/Schemafile`。ローカル development では Ridgepole がそのまま使える。
+スキーマの正本は `api/db/migrate/` と `api/db/schema.rb`。
 
-**本番（Render + Supabase pooler）では起動時 Ridgepole を使わない。** 次を必ず守る。
+**本番（Render + Supabase pooler）ではデプロイ時に `rails db:migrate` が自動実行される**（`bin/docker-start` / `bin/render-release`）。Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定。
 
-| 項目 | 設定 |
-|---|---|
-| Render 環境変数 | `SKIP_RIDGEPOLE_ON_BOOT=1` |
-| スキーマ変更の適用先 | Supabase **SQL Editor**（左サイドバー）で手動実行 |
-| Render Shell | 無料プランでは使えない前提 |
+#### 既存 Supabase（Ridgepole 時代）への初回切り替え
 
-#### なぜ `SKIP_RIDGEPOLE_ON_BOOT=1` か
+テーブルは既にあるため、初回デプロイ前に Supabase **SQL Editor** で baseline を実行:
 
-- `api/bin/docker-start` はデフォルトで起動時に `ridgepole --apply` を走らせる。
-- Supabase **Session pooler 経由**だと Ridgepole が既存テーブルを正しく読めず、dry-run で全テーブル `create_table` と出る（DB が空だと誤認）。
-- そのまま `--apply` すると `DuplicateTable` 等でデプロイが落ちる。
-- データ参照（Rails / psql）は pooler で問題ない。**スキーマ introspection だけ Ridgepole と相性が悪い。**
-
-#### スキーマを変える手順（本番）
-
-1. `api/db/Schemafile` を編集して PR / マージ
-2. Schemafile の差分に対応する SQL を書き、Supabase **SQL Editor** で実行
-3. `SKIP_RIDGEPOLE_ON_BOOT=1` のまま Render にデプロイ（コード変更のみ）
-
-ローカルで差分を眺めるとき（**本番に `--apply` しない**）:
-
-```bash
-docker compose run --rm \
-  -e RAILS_ENV=production \
-  -e DATABASE_URL="postgresql://postgres.<ref>:<pass>@aws-<n>-<region>.pooler.supabase.com:5432/postgres?sslmode=require" \
-  api bash -lc "bundle install && bundle exec ridgepole -c config/database.yml -E production --apply -f db/Schemafile --dry-run"
+```sql
+INSERT INTO schema_migrations (version)
+VALUES ('20250613000000')
+ON CONFLICT (version) DO NOTHING;
 ```
 
-dry-run で `create_table` が大量に出ても、pooler の誤認の可能性が高い。**SQL Editor で手動適用したうえで無視してよい。**
+（`api/db/supabase/20250613000000_baseline_schema_migrations.sql` と同内容）
+
+その後のデプロイでは未適用 migration のみ実行される（例: `add_watched_to_stocks`）。
+
+#### スキーマを変える手順
+
+1. `rails generate migration ...` で `api/db/migrate/` に追加して PR / マージ
+2. ローカルで `rails db:migrate` → `schema.rb` 更新をコミット
+3. Render にデプロイ（`db:migrate` 自動実行）
 
 #### データ移行（Render Postgres → Supabase）のメモ
 
 初回移行時のみ。通常運用では不要。
 
 1. Render Postgres から `pg_dump`（外部 URL、`sslmode=require`）
-2. Supabase に Ridgepole または SQL でスキーマ作成
+2. Supabase に migration または SQL でスキーマ作成
 3. `pg_restore --data-only` は FK 順のため失敗しやすい。次のどちらか:
    - `pg_restore` 前に SQL を `restore_data.sql` に落とし、psql で `SET session_replication_role = replica;` してから `\i`
    - 親テーブルから順に `pg_restore -t <table>`

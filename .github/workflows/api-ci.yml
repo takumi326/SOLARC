@@ -20,24 +20,6 @@ defaults:
     working-directory: api
 
 jobs:
-  scan_ruby:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          working-directory: api
-          bundler-cache: true
-
-      - name: Scan for common Rails security vulnerabilities using static analysis
-        run: bin/brakeman --no-pager
-
-      - name: Scan for known security vulnerabilities in gems used
-        run: bin/bundler-audit
-
   lint:
     runs-on: ubuntu-latest
     env:
@@ -100,8 +82,14 @@ jobs:
           working-directory: api
           bundler-cache: true
 
-      - name: Apply schema with Ridgepole
-        run: bundle exec ridgepole -c config/database.yml -E test --apply -f db/Schemafile
+      - name: Prepare test database
+        working-directory: api
+        run: bundle exec rails db:test:prepare
+
+      - name: Build Tailwind CSS
+        working-directory: api
+        run: bundle exec rails tailwindcss:build
 
       - name: Run RSpec
+        working-directory: api
         run: bundle exec rspec

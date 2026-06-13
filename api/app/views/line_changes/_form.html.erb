@@ -1,0 +1,47 @@
+<% record = local_assigns.fetch(:record) %>
+<% stock = local_assigns.fetch(:stock) %>
+<% trade_type = local_assigns.fetch(:trade_type) %>
+<% judgment_type = local_assigns.fetch(:judgment_type) %>
+<% ai_script_id = local_assigns.fetch(:ai_script_id) %>
+<% ai_scripts = local_assigns[:ai_scripts] %>
+<% submit_label = local_assigns.fetch(:submit_label, "保存") %>
+<% form_url = local_assigns.fetch(:form_url) %>
+<% form_method = local_assigns.fetch(:form_method, :post) %>
+
+<%= form_with model: record, url: form_url, method: form_method, class: "space-y-3 text-sm" do |form| %>
+  <%= form.hidden_field :stock_id, value: stock.id %>
+  <%= form.hidden_field :trade_type, value: trade_type %>
+  <%= form.hidden_field :judgment_type, value: judgment_type %>
+  <% if judgment_type == "ai" %>
+    <% if ai_scripts.blank? %>
+      <p class="text-rose-600">AI スクリプトを先に登録してください。</p>
+    <% else %>
+      <label class="block">
+        <span class="text-slate-700">AI スクリプト</span>
+        <%= form.collection_select :ai_script_id, ai_scripts, :id, :version_name, { selected: ai_script_id, include_blank: "選択してください" }, class: "mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5", required: true %>
+      </label>
+    <% end %>
+  <% end %>
+
+  <label class="block">
+    <span class="text-slate-700">変更日</span>
+    <%= form.date_field :changed_on, required: true, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+  </label>
+  <label class="block">
+    <span class="text-slate-700">損切</span>
+    <%= form.text_field :stop_loss, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+  </label>
+  <label class="block">
+    <span class="text-slate-700">利確</span>
+    <%= form.text_field :target_price, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+  </label>
+  <label class="block">
+    <span class="text-slate-700">理由</span>
+    <%= form.text_area :reason, rows: 4, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+  </label>
+
+  <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+    <%= link_to "キャンセル", stock_timeline_path_for(stock, trade_type: trade_type, judgment_type: judgment_type, ai_script_id: ai_script_id), class: btn_secondary_classes %>
+    <%= form.submit submit_label, class: btn_primary_classes %>
+  </div>
+<% end %>

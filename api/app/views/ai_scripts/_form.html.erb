@@ -1,0 +1,14 @@
+<%= form_with model: @script, url: @script.persisted? ? ai_script_path(@script) : ai_scripts_path, class: "mt-4 space-y-4" do |form| %>
+  <label class="block text-sm">
+    <span class="text-slate-700">バージョン名</span>
+    <%= form.text_field :version_name, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+  </label>
+  <label class="block text-sm">
+    <span class="text-slate-700">プロンプト</span>
+    <%= form.text_area :prompt, rows: 16, spellcheck: false, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed" %>
+  </label>
+  <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+    <%= link_to "キャンセル", cancel_path, class: btn_secondary_classes %>
+    <%= form.submit "保存", class: btn_primary_classes %>
+  </div>
+<% end %>

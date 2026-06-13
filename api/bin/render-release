@@ -8,4 +8,4 @@
 #   bundle exec rails db:seed
 set -euo pipefail
 cd "$(dirname "$0")/.."
-exec bundle exec ridgepole -c config/database.yml -E production --apply -f db/Schemafile
+exec bundle exec rails db:migrate

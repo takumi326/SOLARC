@@ -9,7 +9,7 @@ module Api
       if params[:q].present?
         scope = scope.search_by_term(params[:q])
       elsif params[:scope].to_s != "all"
-        scope = scope.with_real_holdings
+        scope = scope.listable
       end
       render json: { data: scope.map { |s| stock_list_json(s) } }
     end
@@ -30,18 +30,14 @@ module Api
       trade_type = params.require(:trade_type)
       judgment_type = params.require(:judgment_type)
       ai_script_id = parse_optional_id(params[:ai_script_id])
-      rows = build_timeline_rows(
+      result = StockTimelineBuilder.build(
         stock: @stock,
         trade_type: trade_type,
         judgment_type: judgment_type,
         ai_script_id: ai_script_id
       )
-      line = current_line_for_timeline(
-        stock: @stock,
-        trade_type: trade_type,
-        judgment_type: judgment_type,
-        ai_script_id: ai_script_id
-      )
+      rows = result[:rows].map { |row| trade_event_json(row.kind, row.record, row.sort_on) }
+      line = result[:current_line]
       render json: { data: { rows: rows, current_line: line ? line_change_payload(line) : nil } }
     end
 
@@ -104,51 +100,6 @@ module Api
         industry_id: stock.industry_id,
         updated_at: stock.updated_at&.iso8601
       )
-    end
-
-    def current_line_for_timeline(stock:, trade_type:, judgment_type:, ai_script_id:)
-      if judgment_type.to_s == "ai" && ai_script_id.present?
-        stock.current_line(trade_type: trade_type, judgment_type: judgment_type, ai_script_id: ai_script_id)
-      else
-        stock.current_line(trade_type: trade_type, judgment_type: judgment_type)
-      end
-    end
-
-    def build_timeline_rows(stock:, trade_type:, judgment_type:, ai_script_id:)
-      es = stock.entries.where(trade_type: trade_type, judgment_type: judgment_type)
-      xs = stock.stock_exits.where(trade_type: trade_type, judgment_type: judgment_type)
-      ls = stock.line_changes.where(trade_type: trade_type, judgment_type: judgment_type)
-      if judgment_type.to_s == "ai" && ai_script_id.present?
-        es = es.where(ai_script_id: ai_script_id)
-        xs = xs.where(ai_script_id: ai_script_id)
-        ls = ls.where(ai_script_id: ai_script_id)
-      elsif judgment_type.to_s == "human"
-        es = es.where(ai_script_id: nil)
-        xs = xs.where(ai_script_id: nil)
-        ls = ls.where(ai_script_id: nil)
-      end
-
-      rows = []
-      es.find_each do |e|
-        rows << trade_event_json("entry", e, sort_date_for_entry(e))
-      end
-      xs.find_each do |x|
-        rows << trade_event_json("exit", x, sort_date_for_exit(x))
-      end
-      ls.find_each do |l|
-        rows << trade_event_json("line_change", l, l.changed_on.to_s)
-      end
-      rows.sort_by! { |r| [ r[:sort_on].to_s, r[:id].to_i ] }
-      rows.reverse!
-      rows
-    end
-
-    def sort_date_for_entry(e)
-      (e.traded_at || e.created_at.to_date).to_s
-    end
-
-    def sort_date_for_exit(x)
-      (x.traded_at || x.created_at.to_date).to_s
     end
 
     def trade_event_json(kind, record, sort_on)

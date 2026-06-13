@@ -1,0 +1,21 @@
+<div class="space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="mb-4 text-xl font-bold">支出・収入</h2>
+    <nav class="flex flex-wrap gap-2">
+      <% { "expenses" => "支出", "incomes" => "収入", "categories" => "カテゴリ", "payments" => "支払方法" }.each do |id, label| %>
+        <%= link_to label, finance_masters_path(tab: id), class: @tab == id ? "rounded-full bg-indigo-600 px-3 py-1.5 text-sm text-white" : "rounded-full bg-slate-100 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200" %>
+      <% end %>
+    </nav>
+  </section>
+
+  <% case @tab %>
+  <% when "categories" %>
+    <%= render "finance/masters/categories_tab" %>
+  <% when "payments" %>
+    <%= render "finance/masters/payments_tab" %>
+  <% when "expenses" %>
+    <%= render "finance/masters/expenses_tab" %>
+  <% when "incomes" %>
+    <%= render "finance/masters/incomes_tab" %>
+  <% end %>
+</div>
