@@ -84,9 +84,22 @@ SECRET_KEY_BASE=...
 
 - 想定構成: **App=Render**（Rails HTML） / **DB=Supabase PostgreSQL**
 - 本番 URL 例: `https://solarc.onrender.com`
-- `main` への push で `.github/workflows/cd.yml` が Docker イメージを GHCR に push します。
+- `main` への push で `.github/workflows/cd.yml` が Docker イメージを GHCR に push します（`ghcr.io/<owner>/SOLARC/solarc:latest`）。
 - Render 側は GitHub 連携または GHCR イメージでデプロイ。Pre-Deploy Command は `bash bin/render-release`。
-- API 本番では `ALLOWED_HOSTS` / `GOOGLE_CLIENT_*` / `ALLOWED_EMAILS` / `DATABASE_URL` / `SECRET_KEY_BASE` を設定してください。
+- 本番では `ALLOWED_HOSTS` / `GOOGLE_CLIENT_*` / `ALLOWED_EMAILS` / `DATABASE_URL` / `SECRET_KEY_BASE` を設定してください。
+
+#### Render ダッシュボード（PR #88 マージ後に必須）
+
+`api/` を廃止したため、**Root Directory に `api` を入れたままだとデプロイが失敗**します（`Root directory "api" does not exist`）。
+
+1. [Render](https://dashboard.render.com) → サービス `solarc` → **Settings**
+2. **Root Directory** を **空** にする（`.` ではなく未入力）
+3. **Dockerfile Path** を `Dockerfile`（リポジトリ直下）にする
+4. **Pre-Deploy Command** を `bash bin/render-release` にする
+5. GHCR イメージデプロイの場合: イメージを `ghcr.io/takumi326/SOLARC/solarc:latest` に更新（旧 `.../api:latest` は使わない）
+6. **Manual Deploy** → Deploy latest commit
+
+リポジトリ直下の `render.yaml` が Blueprint 用の正しいパス設定の参考です。
 
 ### 本番 DB（Supabase PostgreSQL）
 
