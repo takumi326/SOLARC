@@ -69,37 +69,47 @@ docker compose run --rm app bash -lc "bundle exec rails db:test:prepare"
 - 本番: **Google OAuth**（OmniAuth）+ Rails セッション。`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` が必要。
 - ローカル development: 認証スキップ（そのまま画面利用可）。
 
-Render 本番の主な環境変数:
+Render 本番の環境変数（必須）:
 
 ```bash
+RAILS_ENV=production
+DATABASE_URL=postgresql://...@...pooler.supabase.com:5432/postgres?sslmode=require
+SECRET_KEY_BASE=...
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 ALLOWED_HOSTS=solarc.onrender.com
 ALLOWED_EMAILS=foo@example.com
-DATABASE_URL=postgresql://...@...pooler.supabase.com:5432/postgres?sslmode=require
-SECRET_KEY_BASE=...
+WEB_CONCURRENCY=0   # Render Free 推奨（Puma を single mode で起動）
 ```
+
+`CORS_ORIGINS` / `SUPABASE_URL` は **不要**（Rails HTML は同一オリジン。DB 接続は `DATABASE_URL` のみ）。
 
 ## Production / CD
 
 - 想定構成: **App=Render**（Rails HTML） / **DB=Supabase PostgreSQL**
-- 本番 URL 例: `https://solarc.onrender.com`
-- `main` への push で `.github/workflows/cd.yml` が Docker イメージを GHCR に push します（`ghcr.io/<owner>/SOLARC/solarc:latest`）。
-- Render 側は GitHub 連携でデプロイ。**Free プランは Pre-Deploy 不可**のため、起動時に `bin/docker-start` が `db:migrate` を実行する。
-- 本番では `ALLOWED_HOSTS` / `GOOGLE_CLIENT_*` / `ALLOWED_EMAILS` / `DATABASE_URL` / `SECRET_KEY_BASE` を設定してください。
+- 本番 URL: `https://solarc.onrender.com`
+- `main` への push で `.github/workflows/cd.yml` が Docker イメージを GHCR に push（`ghcr.io/<owner>/SOLARC/solarc:latest`）
+- Render は GitHub 連携でデプロイ（リポジトリ直下の `Dockerfile`）
 
-#### Render ダッシュボード（PR #88 マージ後に必須）
+### 起動フロー（`bin/docker-start`）
 
-`api/` を廃止したため、**Root Directory に `api` を入れたままだとデプロイが失敗**します（`Root directory "api" does not exist`）。
+1. `rails db:migrate`（Render Free は Pre-Deploy 不可のため起動時に実行）
+2. `puma` を `$PORT` で起動
+
+有料プランで Pre-Deploy に `bash bin/render-release` を設定してもよい（二重実行は no-op）。
+
+### Render ダッシュボード設定
+
+`api/` 廃止後は **Root Directory を空** にすること（`api` のままだと `Root directory "api" does not exist` で失敗）。
 
 1. [Render](https://dashboard.render.com) → サービス `solarc` → **Settings**
-2. **Root Directory** を **空** にする（`.` ではなく未入力）
-3. **Dockerfile Path** を `Dockerfile`（リポジトリ直下）にする
-4. **Pre-Deploy Command** は **空のまま**（Free プランでは設定不可。migration は起動時に自動実行）
-5. GHCR イメージデプロイの場合: イメージを `ghcr.io/takumi326/SOLARC/solarc:latest` に更新（旧 `.../api:latest` は使わない）
+2. **Root Directory** … **空**（`.` ではなく未入力）
+3. **Dockerfile Path** … `Dockerfile`
+4. **Pre-Deploy Command** … **空**（Free プランでは不可）
+5. **Environment** … 上記の必須変数を設定（不要な `CORS_ORIGINS` / `SUPABASE_URL` は削除）
 6. **Manual Deploy** → Deploy latest commit
 
-リポジトリ直下の `render.yaml` が Blueprint 用の正しいパス設定の参考です。
+`render.yaml` が Blueprint 用の参考設定です。
 
 ### 本番 DB（Supabase PostgreSQL）
 
@@ -118,19 +128,21 @@ postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.
 
 スキーマの正本は `db/migrate/` と `db/schema.rb`。
 
-**本番（Render + Supabase pooler）ではコンテナ起動時に `rails db:migrate` が自動実行される**（`bin/docker-start`）。Render Free は Pre-Deploy 不可のためこの方式。Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定。
+**本番ではコンテナ起動時に `rails db:migrate` が自動実行される**（`bin/docker-start`）。Session pooler 経由でも migration は introspection 不要のため安定。
 
-有料プランで Pre-Deploy に `bash bin/render-release` を設定してもよい（二重実行は no-op）。
-
-#### Render 本番の主な環境変数
+#### Render 本番の環境変数
 
 | 変数 | 用途 |
 |---|---|
-| `DATABASE_URL` | Supabase Session pooler |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Rails HTML の Google ログイン |
-| `ALLOWED_HOSTS` | 例: `solarc.onrender.com` |
-| `ALLOWED_EMAILS` | ログイン許可メール |
+| `RAILS_ENV` | `production` |
+| `DATABASE_URL` | Supabase Session pooler（`?sslmode=require`） |
 | `SECRET_KEY_BASE` | セッション署名 |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google ログイン |
+| `ALLOWED_HOSTS` | 例: `solarc.onrender.com` |
+| `ALLOWED_EMAILS` | ログイン許可メール（カンマ区切り） |
+| `WEB_CONCURRENCY` | `0` 推奨（Free プランで Puma single mode） |
+
+不要: `CORS_ORIGINS`（同一オリジン HTML）、`SUPABASE_URL`（アプリ未使用）。
 
 #### 既存 Supabase（Ridgepole 時代）への初回切り替え
 
