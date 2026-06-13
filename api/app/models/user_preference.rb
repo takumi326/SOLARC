@@ -1,6 +1,19 @@
 class UserPreference < ApplicationRecord
   validates :owner_key, presence: true, uniqueness: true, length: { maximum: 255 }
-  validates :import_claude_prompt_template, length: { maximum: 50_000 }, allow_nil: true
+  validates :import_claude_prompt_template, length: { maximum: 50_000 }, allow_nil: true,
+            if: -> { self.class.column_names.include?("import_claude_prompt_template") }
+
+  def import_claude_prompt_template
+    return nil unless self.class.column_names.include?("import_claude_prompt_template")
+
+    self[:import_claude_prompt_template]
+  end
+
+  def import_claude_prompt_template=(value)
+    return unless self.class.column_names.include?("import_claude_prompt_template")
+
+    self[:import_claude_prompt_template] = value
+  end
 
   # migration 未適用の DB では列が無く、未定義属性のバリデーションで落ちるのを防ぐ
   validates :stock_daily_hypothesis_template, length: { maximum: 500_000 }, allow_nil: true,

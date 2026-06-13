@@ -7,40 +7,42 @@ class FinanceImportsController < ApplicationController
 
   def show
     load_import_context
+    draft = import_draft
     if params[:reset].present?
-      clear_import_session
+      clear_import_draft
       @phase = "edit"
       @raw_json = ""
-    elsif session[:finance_import_phase] == "preview"
+    elsif draft.preview?
       @phase = "preview"
-      load_preview_from_session
+      load_preview_from_draft(draft)
     else
       @phase = "edit"
-      @raw_json = session[:finance_import_raw_json].to_s
+      @raw_json = draft.raw_json.to_s
     end
   end
 
   def create
     load_import_context
     @raw_json = params[:raw_json].to_s
-    session[:finance_import_raw_json] = @raw_json
+    draft = import_draft
 
     begin
       @pending_rows = FinanceExpenseImportParser.new(raw_json: @raw_json, expense_minors: @expense_minors).call
       if @pending_rows.empty?
+        persist_edit_draft(draft, @raw_json)
         flash.now[:alert] = "取り込む行がありません"
         @phase = "edit"
         return render :show, status: :unprocessable_entity
       end
 
-      store_preview_session(@pending_rows)
+      store_preview_draft(draft, @pending_rows, raw_json: @raw_json)
       @compare_month_input = min_month_label(@pending_rows)
       @selected_line_numbers = @pending_rows.map(&:line_number)
       load_preview_tables
       @phase = "preview"
-      session[:finance_import_phase] = "preview"
       render :show
     rescue FinanceExpenseImportParser::ParseError => e
+      persist_edit_draft(draft, @raw_json)
       flash.now[:alert] = e.message
       @phase = "edit"
       render :show, status: :unprocessable_entity
@@ -49,7 +51,8 @@ class FinanceImportsController < ApplicationController
 
   def commit
     load_import_context
-    pending_rows = load_pending_rows_from_session
+    draft = import_draft
+    pending_rows = load_pending_rows_from_draft(draft)
     if pending_rows.empty?
       redirect_to finance_import_path, alert: "プレビューが期限切れです。JSONを再度入力してください。"
       return
@@ -60,7 +63,7 @@ class FinanceImportsController < ApplicationController
     if rows_to_import.empty?
       @phase = "preview"
       @pending_rows = pending_rows
-      @compare_month_input = params[:compare_month].presence || min_month_label(pending_rows)
+      @compare_month_input = params[:compare_month].presence || draft.compare_month.presence || min_month_label(pending_rows)
       @selected_line_numbers = selected
       load_preview_tables
       flash.now[:alert] = "取り込む行を1件以上選んでください"
@@ -73,7 +76,7 @@ class FinanceImportsController < ApplicationController
     end
 
     result = FinanceExpenseImportService.new(rows: rows_to_import, payment_method: @fixed_payment_method).call
-    clear_import_session
+    clear_import_draft
     redirect_to finance_summary_path, notice: "#{result.imported_count}件を取り込みました。"
   rescue StandardError => e
     redirect_to finance_import_path, alert: e.message
@@ -99,11 +102,17 @@ class FinanceImportsController < ApplicationController
     )
   end
 
-  def load_preview_from_session
-    @pending_rows = load_pending_rows_from_session
-    @compare_month_input = params[:compare_month].presence || session[:finance_import_compare_month].presence || min_month_label(@pending_rows)
-    session[:finance_import_compare_month] = @compare_month_input
-    @selected_line_numbers = Array(params[:line_numbers]).presence || session[:finance_import_selected_lines] || @pending_rows.map(&:line_number)
+  def import_draft
+    @import_draft ||= FinanceImportDraft.find_or_initialize_by(owner_key: preference_owner_key)
+  end
+
+  def load_preview_from_draft(draft)
+    @pending_rows = load_pending_rows_from_draft(draft)
+    @compare_month_input = params[:compare_month].presence || draft.compare_month.presence || min_month_label(@pending_rows)
+    if draft.compare_month != @compare_month_input
+      draft.update!(compare_month: @compare_month_input)
+    end
+    @selected_line_numbers = Array(params[:line_numbers]).presence || draft.selected_lines.presence || @pending_rows.map(&:line_number)
     load_preview_tables
   end
 
@@ -120,8 +129,22 @@ class FinanceImportsController < ApplicationController
     end
   end
 
-  def store_preview_session(rows)
-    session[:finance_import_pending] = rows.map do |row|
+  def persist_edit_draft(draft, raw_json)
+    draft.update!(phase: "edit", raw_json: raw_json, pending_rows: [], selected_lines: [], compare_month: nil)
+  end
+
+  def store_preview_draft(draft, rows, raw_json:)
+    draft.update!(
+      phase: "preview",
+      raw_json: raw_json,
+      pending_rows: serialize_rows(rows),
+      selected_lines: rows.map(&:line_number),
+      compare_month: min_month_label(rows)
+    )
+  end
+
+  def serialize_rows(rows)
+    rows.map do |row|
       {
         "line_number" => row.line_number,
         "month_date" => row.month_date.to_s,
@@ -132,17 +155,20 @@ class FinanceImportsController < ApplicationController
         "minor_category_id" => row.minor_category_id
       }
     end
-    session[:finance_import_selected_lines] = rows.map(&:line_number)
-    session[:finance_import_compare_month] = min_month_label(rows)
   end
 
-  def load_pending_rows_from_session
-    Array(session[:finance_import_pending]).map do |hash|
+  def load_pending_rows_from_draft(draft)
+    minor_by_id = @expense_minors.index_by(&:id)
+    Array(draft.pending_rows).filter_map do |hash|
+      minor = minor_by_id[hash["minor_category_id"]]
+      next unless minor
+
+      month_date = Date.parse(hash["month_date"])
       FinanceExpenseImportParser::ParsedRow.new(
         line_number: hash["line_number"],
-        month_date: Date.parse(hash["month_date"]),
-        month_label: hash["month_label"],
-        category_path: hash["category_path"],
+        month_date: month_date,
+        month_label: hash["month_label"].presence || month_date.strftime("%Y-%m"),
+        category_path: hash["category_path"].presence || "#{minor.major_category.name} / #{minor.name}",
         amount: hash["amount"],
         memo: hash["memo"],
         minor_category_id: hash["minor_category_id"]
@@ -150,12 +176,9 @@ class FinanceImportsController < ApplicationController
     end
   end
 
-  def clear_import_session
-    session.delete(:finance_import_phase)
-    session.delete(:finance_import_raw_json)
-    session.delete(:finance_import_pending)
-    session.delete(:finance_import_selected_lines)
-    session.delete(:finance_import_compare_month)
+  def clear_import_draft
+    FinanceImportDraft.find_by(owner_key: preference_owner_key)&.destroy
+    @import_draft = nil
   end
 
   def min_month_label(rows)
