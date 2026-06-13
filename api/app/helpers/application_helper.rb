@@ -38,12 +38,12 @@ module ApplicationHelper
   def btn_classes(variant = :primary, extra: nil)
     base = "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium"
     classes = case variant.to_sym
-              when :primary then "#{base} bg-indigo-600 text-white hover:bg-indigo-500"
-              when :secondary then "#{base} border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
-              when :danger then "#{base} border border-rose-300 text-rose-700 hover:bg-rose-50"
-              when :link then "#{base} border border-indigo-300 text-indigo-700 hover:bg-indigo-50"
-              else "#{base} border border-slate-300 text-slate-700 hover:bg-slate-50"
-              end
+    when :primary then "#{base} bg-indigo-600 text-white hover:bg-indigo-500"
+    when :secondary then "#{base} border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+    when :danger then "#{base} border border-rose-300 text-rose-700 hover:bg-rose-50"
+    when :link then "#{base} border border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+    else "#{base} border border-slate-300 text-slate-700 hover:bg-slate-50"
+    end
     extra.present? ? "#{classes} #{extra}" : classes
   end
 
