@@ -14,7 +14,7 @@ services:
       - key: RAILS_ENV
         value: production
       - key: ALLOWED_HOSTS
-        value: solarc.onrender.com
+        value: solarc.onrender.com,solarc-1.onrender.com
       - key: DATABASE_URL
         sync: false
       - key: SECRET_KEY_BASE

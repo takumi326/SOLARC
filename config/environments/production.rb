@@ -77,6 +77,10 @@ Rails.application.configure do
   #   "example.com",     # Allow requests from example.com
   #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
   # ]
+  if (render_host = ENV["RENDER_EXTERNAL_HOSTNAME"]).present?
+    config.hosts << render_host
+  end
+
   if ENV["ALLOWED_HOSTS"].present?
     ENV.fetch("ALLOWED_HOSTS").split(",").map(&:strip).reject(&:blank?).each do |host|
       config.hosts << host
