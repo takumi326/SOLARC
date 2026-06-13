@@ -25,7 +25,7 @@ class FinanceYearSummaryBuilder
   def call
     fiscal_months = fiscal_month_starts(@anchor_month)
     fiscal_actuals_by_month = build_fiscal_actuals_index(fiscal_months)
-    forecasts_by_key = build_forecasts_index
+    forecasts_by_key = build_forecasts_index(fiscal_months)
 
     rows = fiscal_months.each_with_object([]) do |m, acc|
       act = fiscal_actuals_by_month[m]
@@ -77,60 +77,54 @@ class FinanceYearSummaryBuilder
 
   private
 
-  def build_forecasts_index
-    Forecast.all.each_with_object({}) do |forecast, index|
+  def build_forecasts_index(fiscal_months)
+    Forecast.where(month: fiscal_months).each_with_object({}) do |forecast, index|
       key = [ forecast.kind, forecast.month.beginning_of_month ]
       index[key] = forecast.amount.to_i
     end
   end
 
   def build_fiscal_actuals_index(fiscal_months)
-    fiscal_months.index_with { |m| fiscal_actual_row(m) }
-  end
+    months = fiscal_months.map(&:beginning_of_month)
+    balances = MonthlyBalance.where(month: months).index_by(&:month)
 
-  def fiscal_actual_row(month)
-    m0 = month.beginning_of_month
-    mb = MonthlyBalance.find_by(month: m0)
-    {
-      month: m0,
-      has_income_actual: income_ledger_exists?(m0),
-      has_expense_actual: expense_ledger_exists?(m0),
-      has_one_time_expense_actual: one_time_expense_ledger_exists?(m0),
-      income_actual: actual_income_total(m0),
-      expense_actual: actual_expense_total(m0),
-      has_monthly_balance: mb.present?,
-      monthly_balance_amount: mb&.amount
-    }
+    income_totals = IncomeTransaction
+      .joins(:ledger_transaction)
+      .where(transactions: { month: months })
+      .group("transactions.month")
+      .sum("transactions.amount")
+
+    expense_totals = ExpenseTransaction
+      .joins(:ledger_transaction)
+      .where(transactions: { month: months })
+      .group("transactions.month")
+      .sum("transactions.amount")
+
+    one_time_months = ExpenseTransaction
+      .joins(:ledger_transaction, :expense)
+      .merge(Expense.expense_type_one_time)
+      .where(transactions: { month: months })
+      .distinct
+      .pluck("transactions.month")
+      .to_set
+
+    fiscal_months.index_with do |month|
+      m0 = month.beginning_of_month
+      mb = balances[m0]
+
+      {
+        month: m0,
+        has_income_actual: income_totals.key?(m0),
+        has_one_time_expense_actual: one_time_months.include?(m0),
+        income_actual: income_totals[m0].to_d.to_i,
+        expense_actual: expense_totals[m0].to_d.abs.to_i,
+        has_monthly_balance: mb.present?,
+        monthly_balance_amount: mb&.amount
+      }
+    end
   end
 
   def format_row_month(date)
     "#{date.year}/#{format('%02d', date.month)}"
-  end
-
-  def income_ledger_exists?(month)
-    IncomeTransaction.joins(:ledger_transaction).exists?(transactions: { month: month })
-  end
-
-  def expense_ledger_exists?(month)
-    ExpenseTransaction.joins(:ledger_transaction).exists?(transactions: { month: month })
-  end
-
-  def one_time_expense_ledger_exists?(month)
-    ExpenseTransaction
-      .joins(:ledger_transaction, :expense)
-      .merge(Expense.expense_type_one_time)
-      .exists?(transactions: { month: month })
-  end
-
-  def actual_income_total(month)
-    IncomeTransaction.joins(:ledger_transaction)
-                     .where(transactions: { month: month })
-                     .sum("transactions.amount").to_d.to_i
-  end
-
-  def actual_expense_total(month)
-    ExpenseTransaction.joins(:ledger_transaction)
-                      .where(transactions: { month: month })
-                      .sum("transactions.amount").to_d.abs.to_i
   end
 end

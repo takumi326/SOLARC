@@ -11,7 +11,7 @@ class DashboardSummaryBuilder
       expense_by_payment: expense_by_payment,
       expense_by_category_groups: expense_by_category_groups,
       expense_line_items: expense_line_items,
-      monthly_balance: MonthlyBalance.find_by(month: @month)&.amount || 0
+      monthly_balance: monthly_balance_amount
     }
   end
 
@@ -19,8 +19,12 @@ class DashboardSummaryBuilder
 
   attr_reader :month
 
+  def monthly_balance_amount
+    @monthly_balance_amount ||= MonthlyBalance.find_by(month: month)&.amount || 0
+  end
+
   def expense_rows
-    ExpenseTransaction
+    @expense_rows ||= ExpenseTransaction
       .joins(:ledger_transaction, expense: [ :payment_method, { minor_category: :major_category } ])
       .where(transactions: { month: month })
   end

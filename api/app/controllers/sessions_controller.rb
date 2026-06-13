@@ -22,6 +22,11 @@ class SessionsController < ApplicationController
     redirect_to root_path, notice: "ログインしました。"
   end
 
+  def failure
+    message = params[:message].presence || "Google ログインに失敗しました。"
+    redirect_to login_path, alert: message
+  end
+
   def destroy
     session.delete(:user_email)
     redirect_to login_path, notice: "サインアウトしました。"

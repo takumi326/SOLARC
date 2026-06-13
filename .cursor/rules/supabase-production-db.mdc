@@ -23,7 +23,7 @@ alwaysApply: true
 
 ## 本番スキーマ適用
 
-- デプロイ時: `bin/docker-start` / `bin/render-release` で **`rails db:migrate`**
+- デプロイ時: Render **Pre-Deploy Command** `bash bin/render-release` で **`rails db:migrate`**
 - Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定
 
 ### 既存 Supabase（Ridgepole 時代）の初回のみ

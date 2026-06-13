@@ -14,7 +14,7 @@ RUN bundle install
 
 COPY . .
 
-RUN SECRET_KEY_BASE=dummy bundle exec rails tailwindcss:build
+RUN SECRET_KEY_BASE=dummy bundle exec rails assets:precompile
 
 RUN chmod +x bin/docker-start bin/render-release
 

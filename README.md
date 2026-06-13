@@ -126,7 +126,19 @@ postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.
 
 スキーマの正本は `api/db/migrate/` と `api/db/schema.rb`。
 
-**本番（Render + Supabase pooler）ではデプロイ時に `rails db:migrate` が自動実行される**（`bin/docker-start` / `bin/render-release`）。Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定。
+**本番（Render + Supabase pooler）ではデプロイ時に `rails db:migrate` が自動実行される**（Render **Pre-Deploy Command**: `bash bin/render-release`）。Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定。
+
+Render ダッシュボードで **Pre-Deploy Command** に `bash bin/render-release` が未設定だと、起動時 migration は走らない（`bin/docker-start` では migrate しない）。
+
+#### Render 本番の主な環境変数
+
+| 変数 | 用途 |
+|---|---|
+| `DATABASE_URL` | Supabase Session pooler |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Rails HTML の Google ログイン |
+| `ALLOWED_HOSTS` | 例: `solarc.onrender.com` |
+| `ALLOWED_EMAILS` | ログイン許可メール |
+| `SECRET_KEY_BASE` | セッション署名 |
 
 #### 既存 Supabase（Ridgepole 時代）への初回切り替え
 
