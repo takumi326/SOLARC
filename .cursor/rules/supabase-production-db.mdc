@@ -8,7 +8,7 @@ alwaysApply: true
 ## 構成
 
 - Web: Vercel / API: Render / DB + Auth: Supabase（同一プロジェクト）
-- スキーマ正本: `api/db/Schemafile`（Ridgepole。`rails db:migrate` は使わない）
+- スキーマ正本: `api/db/migrate/*.rb` + `api/db/schema.rb`
 - ローカル DB: Docker Compose の PostgreSQL（development / test）
 
 ## Render API の必須環境変数
@@ -16,30 +16,39 @@ alwaysApply: true
 | 変数 | 値 |
 |---|---|
 | `DATABASE_URL` | Supabase **Session pooler** URI（`pooler.supabase.com:5432`）。`?sslmode=require` |
-| `SKIP_RIDGEPOLE_ON_BOOT` | **`1`**（本番では起動時 Ridgepole を無効化） |
 | `SUPABASE_URL` | Vercel の `VITE_SUPABASE_URL` と同じプロジェクト |
 | `ALLOWED_EMAILS` | ログイン許可メール（カンマ区切り） |
 
 **`DATABASE_URL` に Direct（`db.<ref>.supabase.co`）を使わない。** IPv6 のため Render / Docker から `Network is unreachable` になりやすい。
 
-## 本番で起動時 Ridgepole を使わない理由
+## 本番スキーマ適用
 
-- `api/bin/docker-start` は `SKIP_RIDGEPOLE_ON_BOOT` が無いと production で `ridgepole --apply` を実行する。
-- Supabase Session pooler 経由では Ridgepole が既存スキーマを正しく introspect できず、dry-run が全テーブル `create_table` になる。
-- そのまま apply すると `DuplicateTable` 等でデプロイ失敗する。
-- Render 無料プランに Shell がないため、本番スキーマは **Supabase SQL Editor** で手動適用する。
+- デプロイ時: `bin/docker-start` / `bin/render-release` で **`rails db:migrate`**
+- Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定
+
+### 既存 Supabase（Ridgepole 時代）の初回のみ
+
+テーブルは既にあるため、初回 migration をスキップする baseline を SQL Editor で実行:
+
+```sql
+-- api/db/supabase/20250613000000_baseline_schema_migrations.sql
+INSERT INTO schema_migrations (version)
+VALUES ('20250613000000')
+ON CONFLICT (version) DO NOTHING;
+```
+
+その後のデプロイでは未適用 migration のみ実行される。
 
 ## スキーマ変更の手順（エージェント向け）
 
-1. `api/db/Schemafile` を編集（PR）
-2. 差分に対応する SQL を Supabase SQL Editor 用に提示する（ユーザーが Run）
-3. `SKIP_RIDGEPOLE_ON_BOOT=1` は維持したままデプロイ
-4. **本番 Supabase に `ridgepole --apply` を勧めない**（pooler 経由は非推奨）
+1. `rails generate migration ...` で `api/db/migrate/` に追加（PR）
+2. ローカルで `rails db:migrate` → `schema.rb` 更新をコミット
+3. Render デプロイ（`db:migrate` 自動実行）
 
-ローカル development では従来どおり:
+ローカル development:
 
 ```bash
-bundle exec ridgepole -c config/database.yml -E development --apply -f db/Schemafile
+bundle exec rails db:migrate
 ```
 
 ## Supabase ダッシュボードの場所

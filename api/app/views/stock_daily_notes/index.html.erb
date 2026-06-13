@@ -1,0 +1,75 @@
+<div class="space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <h2 class="text-xl font-bold text-slate-900">毎日の記録</h2>
+      <%= link_to "プロンプト編集", edit_stock_daily_prompts_path, class: stock_daily_action_button_class %>
+    </div>
+    <div class="space-y-2">
+      <% StockDailyNotesHelper::STOCK_DAILY_WORKFLOW_GROUPS.each do |group| %>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="min-w-[5.5rem] shrink-0 text-xs font-medium text-slate-600">
+            <%= StockDailyPromptBuilder::FIELD_LABELS[group[:field]] %>
+          </span>
+          <%= copy_stock_daily_prompt_button(field: group[:field], notes: @notes, prompts: @prompts) %>
+          <% group[:links].each do |link_key| %>
+            <% link = StockDailyNotesHelper::STOCK_DAILY_EXTERNAL_LINKS.fetch(link_key) %>
+            <%= link_to link[:label], link[:href], target: "_blank", rel: "noopener noreferrer", class: stock_daily_external_link_class %>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </section>
+
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="mb-3 flex flex-row flex-wrap items-center justify-between gap-x-3 gap-y-2">
+      <h3 class="min-w-0 text-base font-semibold text-slate-800 sm:text-lg">保存済み記録</h3>
+      <%= link_to "作成", new_stock_daily_note_path, class: "inline-flex h-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white hover:bg-indigo-500" %>
+    </div>
+
+    <% if @notes.empty? %>
+      <p class="text-sm text-slate-500">まだ記録がありません。</p>
+    <% else %>
+      <div class="overflow-x-auto rounded-lg border border-slate-200">
+        <table class="w-full min-w-0 border-collapse text-sm">
+          <thead class="bg-slate-50 text-xs text-slate-500">
+            <tr>
+              <th class="border-b border-slate-200 px-2 py-2 text-left font-semibold whitespace-nowrap sm:px-3">日付</th>
+              <th class="border-b border-slate-200 px-2 py-2 text-center font-semibold sm:px-3">仮説</th>
+              <th class="border-b border-slate-200 px-2 py-2 text-center font-semibold sm:px-3">結果</th>
+              <th class="border-b border-slate-200 px-2 py-2 text-center font-semibold sm:px-3">セクター調べ</th>
+              <th class="border-b border-slate-200 px-2 py-2 text-center font-semibold whitespace-nowrap sm:px-3">詳細</th>
+              <th class="border-b border-slate-200 px-2 py-2 text-center font-semibold whitespace-nowrap sm:px-3">削除</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <% @notes.each do |note| %>
+              <tr>
+                <td class="align-top px-2 py-2.5 font-medium whitespace-nowrap text-slate-800 sm:align-middle sm:px-3 sm:py-3">
+                  <%= note.recorded_on.iso8601 %>
+                </td>
+                <% %w[hypothesis result sector].each do |field| %>
+                  <% body = stock_field_value(note, field) %>
+                  <% filled = stock_daily_field_filled?(body) %>
+                  <td class="w-28 min-w-28 border-b border-slate-100 px-1 py-2.5 align-top sm:w-32 sm:min-w-32 sm:py-3 sm:align-middle">
+                    <div class="mx-auto flex max-w-full flex-nowrap items-center justify-center gap-1.5">
+                      <span class="shrink-0 text-base font-semibold tabular-nums leading-none <%= filled ? 'text-emerald-600' : 'text-slate-400' %>" title="<%= filled ? "#{StockDailyPromptBuilder::FIELD_LABELS[field]}あり" : "#{StockDailyPromptBuilder::FIELD_LABELS[field]}なし" %>">
+                        <%= filled ? "○" : "×" %>
+                      </span>
+                      <%= link_to "編集", edit_stock_daily_note_path(date: note.recorded_on.iso8601, field: field), class: "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-slate-300 px-2 text-xs text-slate-700 hover:bg-slate-50 sm:h-auto sm:py-1" %>
+                    </div>
+                  </td>
+                <% end %>
+                <td class="border-b border-slate-100 px-2 py-2.5 text-center align-top sm:px-3 sm:py-3 sm:align-middle">
+                  <%= link_to "詳細", stock_daily_note_detail_path(date: note.recorded_on.iso8601), class: "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-indigo-200 bg-white px-2.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 sm:h-auto sm:py-1.5" %>
+                </td>
+                <td class="border-b border-slate-100 px-2 py-2.5 text-center align-top sm:px-3 sm:py-3 sm:align-middle">
+                  <%= button_to "削除", destroy_stock_daily_note_path(note), method: :delete, form: { data: { turbo_confirm: "#{StockDailyPromptBuilder.format_record_date_jp(note.recorded_on.iso8601)}の記録を削除しますか？\n仮説・結果・セクター調べがすべて消えます。" } }, class: "inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-md border border-rose-200 bg-white px-2.5 text-xs font-medium text-rose-700 hover:bg-rose-50 sm:h-auto sm:py-1.5 cursor-pointer" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+</div>

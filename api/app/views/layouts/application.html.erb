@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <title>Solarc</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= favicon_link_tag "/favicon.png", type: "image/png" %>
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "clipboard", defer: true %>
+  </head>
+  <body class="bg-slate-50 text-slate-800">
+    <div class="mx-auto min-h-screen w-full max-w-7xl p-4 sm:p-6">
+      <div class="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
+        <aside class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:overflow-y-auto">
+          <nav class="space-y-4">
+            <div>
+              <p class="mb-1 px-2 text-xs font-semibold tracking-wide text-slate-400">収支管理</p>
+              <div class="space-y-1">
+                <%= nav_link "今年度サマリ", root_path, also_active: finance_summary_path %>
+                <%= nav_link "支出・収入", finance_masters_path %>
+                <%= nav_link "設定", finance_settings_path %>
+              </div>
+            </div>
+            <div>
+              <p class="mb-1 px-2 text-xs font-semibold tracking-wide text-slate-400">株管理</p>
+              <div class="space-y-1">
+                <%= nav_link "毎日の記録", stock_daily_notes_path %>
+                <%= nav_link "株一覧", stocks_path %>
+                <%= nav_link "実取引一覧", stock_trades_path(mode: "real") %>
+                <%= nav_link "仮想取引（人間）", stock_trades_path(mode: "virtual-human") %>
+                <%= nav_link "仮想取引（AI）", stock_trades_path(mode: "virtual-ai") %>
+                <%= nav_link "AI スクリプト", ai_scripts_path %>
+              </div>
+            </div>
+          </nav>
+        </aside>
+
+        <section class="min-w-0">
+          <% if flash[:notice].present? %>
+            <p class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><%= flash[:notice] %></p>
+          <% end %>
+          <% if flash[:alert].present? %>
+            <p class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"><%= flash[:alert] %></p>
+          <% end %>
+          <%= yield %>
+        </section>
+      </div>
+    </div>
+    <div id="js-copy-toast" class="pointer-events-none fixed inset-x-0 bottom-6 z-50 hidden justify-center px-4 opacity-0 transition-opacity duration-200" aria-live="polite">
+      <p id="js-copy-toast-message" class="pointer-events-auto rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-medium text-emerald-800 shadow-lg ring-1 ring-black/5"></p>
+    </div>
+  </body>
+</html>

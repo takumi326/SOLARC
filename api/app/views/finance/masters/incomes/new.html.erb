@@ -1,0 +1,16 @@
+<div class="space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold"><%= @income.new_record? ? "収入を追加" : "収入を編集" %></h2>
+    <%= form_with model: @income, url: @income.persisted? ? finance_masters_income_path(@income) : finance_masters_incomes_path, class: "mt-4 space-y-3" do |form| %>
+      <label class="block text-sm">カテゴリ <%= form.collection_select :minor_category_id, @income_minors, :id, ->(m) { "#{m.major_category.name} / #{m.name}" }, {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %></label>
+      <label class="block text-sm">種別 <%= form.select :income_type, [["単発", "one_time"], ["定期", "recurring"]], {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %></label>
+      <label class="block text-sm">金額 <%= form.number_field :amount, min: 0, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %></label>
+      <label class="block text-sm">開始月 <%= form.month_field :start_month, value: format_month_input(@income.start_month || Date.current), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %></label>
+      <label class="block text-sm">終了月 <%= form.month_field :end_month, value: (@income.end_month ? format_month_input(@income.end_month) : nil), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %></label>
+      <div class="flex gap-2">
+        <%= link_to "キャンセル", finance_masters_path(tab: "incomes"), class: btn_classes(:secondary) %>
+        <%= form.submit "保存", class: btn_classes(:primary, extra: "cursor-pointer") %>
+      </div>
+    <% end %>
+  </section>
+</div>

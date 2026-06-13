@@ -1,0 +1,18 @@
+<%= form_with model: @note, url: @note.persisted? ? stock_stock_note_path(@stock, @note) : stock_stock_notes_path(@stock), class: "mt-4 space-y-4" do |form| %>
+  <label class="block text-sm">
+    <span class="text-slate-700">日付</span>
+    <%= form.date_field :noted_on, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+  </label>
+  <label class="block text-sm">
+    <span class="text-slate-700">タイトル</span>
+    <%= form.text_field :title, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+  </label>
+  <label class="block text-sm">
+    <span class="text-slate-700">メモ</span>
+    <%= form.text_area :note, rows: 10, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+  </label>
+  <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+    <%= link_to "キャンセル", cancel_path, class: btn_secondary_classes %>
+    <%= form.submit "保存", class: btn_primary_classes %>
+  </div>
+<% end %>

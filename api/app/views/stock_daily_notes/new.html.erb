@@ -1,0 +1,20 @@
+<div class="mx-auto max-w-2xl space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold">記録を作成</h2>
+  </section>
+
+  <%= form_with url: stock_daily_notes_path, class: "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4" do |form| %>
+    <label class="block text-sm text-slate-700">
+      記録日
+      <%= date_field_tag "stock_daily_note[recorded_on]", @date.iso8601, class: "mt-1 block w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+    </label>
+    <label class="block text-sm text-slate-700">
+      仮説（マークダウン）
+      <%= text_area_tag "stock_daily_note[hypothesis]", @note.hypothesis, rows: 12, spellcheck: false, placeholder: "この日の仮説（マークダウン可）", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm leading-relaxed" %>
+    </label>
+    <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+      <%= link_to "キャンセル", stock_daily_notes_path, class: "rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50" %>
+      <%= form.submit "保存", class: "rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 cursor-pointer" %>
+    </div>
+  <% end %>
+</div>

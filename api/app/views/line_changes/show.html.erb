@@ -1,0 +1,23 @@
+<div class="mx-auto max-w-2xl space-y-4">
+  <p class="text-sm text-slate-500">
+    <%= link_to @stock.name, stock_path(@stock), class: "text-indigo-600 hover:underline" %>
+    <span> / ライン変更詳細</span>
+  </p>
+
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold">ライン変更詳細</h2>
+    <dl class="mt-4 space-y-2 text-sm">
+      <div><dt class="text-slate-500">変更日</dt><dd><%= format_date_value(@line_change.changed_on) %></dd></div>
+      <div><dt class="text-slate-500">損切</dt><dd><%= format_decimal(@line_change.stop_loss).presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">利確</dt><dd><%= format_decimal(@line_change.target_price).presence || "—" %></dd></div>
+      <div><dt class="text-slate-500">理由</dt><dd class="whitespace-pre-wrap"><%= @line_change.reason.presence || "—" %></dd></div>
+    </dl>
+    <div class="mt-4 flex flex-wrap justify-between gap-2">
+      <%= button_to "削除", line_change_path(@line_change), method: :delete, form: { data: { turbo_confirm: "削除しますか？" } }, class: "rounded-lg border border-rose-300 px-3 py-2 text-sm text-rose-700 hover:bg-rose-50 cursor-pointer" %>
+      <div class="flex gap-2">
+        <%= link_to "タイムラインへ", stock_timeline_path_for_record(@line_change), class: btn_secondary_classes %>
+        <%= link_to "編集", edit_line_change_path(@line_change), class: btn_primary_classes %>
+      </div>
+    </div>
+  </section>
+</div>

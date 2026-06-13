@@ -100,8 +100,10 @@ jobs:
           working-directory: api
           bundler-cache: true
 
-      - name: Apply schema with Ridgepole
-        run: bundle exec ridgepole -c config/database.yml -E test --apply -f db/Schemafile
+      - name: Prepare test database
+        working-directory: api
+        run: bundle exec rails db:test:prepare
 
       - name: Run RSpec
+        working-directory: api
         run: bundle exec rspec

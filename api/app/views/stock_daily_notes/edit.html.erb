@@ -1,0 +1,24 @@
+<div class="mx-auto max-w-3xl space-y-4">
+  <p class="text-sm text-slate-500">
+    <%= link_to "毎日の記録", stock_daily_notes_path, class: "text-indigo-600 hover:underline" %>
+    <span> / <%= StockDailyPromptBuilder::FIELD_LABELS[@field] %>を編集</span>
+  </p>
+
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold"><%= StockDailyPromptBuilder::FIELD_LABELS[@field] %>を編集</h2>
+    <p class="mt-2 text-sm text-slate-700">
+      記録日: <span class="font-medium"><%= StockDailyPromptBuilder.format_record_date_jp(@date.iso8601) %></span>
+    </p>
+    <p class="mt-1 text-xs text-slate-500">マークダウンで入力してください。</p>
+  </section>
+
+  <%= form_with url: stock_daily_note_path, method: :patch, class: "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4" do |form| %>
+    <%= hidden_field_tag "stock_daily_note[recorded_on]", @date.iso8601 %>
+    <%= hidden_field_tag :field, @field %>
+    <%= text_area_tag "stock_daily_note[body]", stock_field_value(@note, @field), rows: 18, spellcheck: false, class: "w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm leading-relaxed" %>
+    <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+      <%= link_to "キャンセル", stock_daily_notes_path, class: "rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50" %>
+      <%= form.submit "保存", class: "rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 cursor-pointer" %>
+    </div>
+  <% end %>
+</div>

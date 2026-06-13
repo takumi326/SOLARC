@@ -1,0 +1,25 @@
+<% if groups.empty? %>
+  <p class="text-sm text-slate-500">データがありません</p>
+<% else %>
+  <ul class="space-y-2">
+    <% groups.each do |group| %>
+      <% total = group[:minors].sum { |m| m[:amount].to_d } %>
+      <li class="rounded-lg border border-slate-200">
+        <details open class="group">
+          <summary class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm">
+            <span class="font-medium"><%= group[:major] %></span>
+            <span class="font-semibold text-rose-600"><%= format_yen(total) %></span>
+          </summary>
+          <ul class="border-t border-slate-100">
+            <% group[:minors].each do |minor| %>
+              <li class="flex items-center justify-between px-3 py-2 text-sm">
+                <span class="text-slate-700"><%= minor[:label] %></span>
+                <span class="font-semibold text-rose-600"><%= format_yen(minor[:amount]) %></span>
+              </li>
+            <% end %>
+          </ul>
+        </details>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

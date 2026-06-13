@@ -14,6 +14,16 @@ class Stock < ApplicationRecord
 
   scope :ordered, -> { order(:code) }
 
+  scope :with_entries, lambda {
+    where(id: Entry.select(:stock_id).distinct)
+  }
+
+  scope :watched, -> { where(watched: true) }
+
+  scope :listable, lambda {
+    where(watched: true).or(where(id: Entry.select(:stock_id).distinct))
+  }
+
   scope :with_real_holdings, lambda {
     where(<<-SQL.squish)
       id IN (

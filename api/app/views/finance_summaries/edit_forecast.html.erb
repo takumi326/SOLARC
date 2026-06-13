@@ -1,0 +1,22 @@
+<div class="space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold"><%= format_month_label(@month) %>の<%= @kind == "income" ? "収入" : "支出" %>予測を編集</h2>
+    <p class="mt-1 text-xs text-slate-500">同じ月・種別の予測は上書きされます。</p>
+
+    <%= form_with url: finance_forecast_path, method: :patch, class: "mt-4 space-y-3" do %>
+      <input type="hidden" name="forecast[kind]" value="<%= @kind %>" />
+      <input type="hidden" name="forecast[month]" value="<%= @month %>" />
+      <label class="block text-sm">
+        <span class="text-slate-600">金額</span>
+        <div class="mt-1 flex items-center gap-2">
+          <span class="text-slate-500">¥</span>
+          <input type="number" name="forecast[amount]" min="0" step="1" value="<%= @forecast.amount.to_i %>" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" required />
+        </div>
+      </label>
+      <div class="flex gap-2">
+        <%= link_to "キャンセル", finance_summary_path(month: @return_month), class: btn_classes(:secondary) %>
+        <button type="submit" class="<%= btn_classes(:primary) %> cursor-pointer">保存</button>
+      </div>
+    <% end %>
+  </section>
+</div>

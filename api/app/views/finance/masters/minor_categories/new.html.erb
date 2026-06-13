@@ -1,0 +1,13 @@
+<div class="space-y-4">
+  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <h2 class="text-xl font-bold"><%= @minor_category.new_record? ? "小カテゴリを追加" : "小カテゴリを編集" %></h2>
+    <%= form_with model: @minor_category, url: @minor_category.persisted? ? finance_masters_minor_category_path(@minor_category) : finance_masters_minor_categories_path, class: "mt-4 space-y-3" do |form| %>
+      <label class="block text-sm">大カテゴリ <%= form.collection_select :major_category_id, @majors, :id, :name, {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %></label>
+      <label class="block text-sm">名前 <%= form.text_field :name, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %></label>
+      <div class="flex gap-2">
+        <%= link_to "キャンセル", finance_masters_path(tab: "categories"), class: btn_classes(:secondary) %>
+        <%= form.submit "保存", class: btn_classes(:primary, extra: "cursor-pointer") %>
+      </div>
+    <% end %>
+  </section>
+</div>

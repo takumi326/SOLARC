@@ -1,0 +1,12 @@
+<% if items.empty? %>
+  <p class="text-sm text-slate-500">データがありません</p>
+<% else %>
+  <ul class="divide-y divide-slate-100">
+    <% items.each do |item| %>
+      <li class="flex items-center justify-between py-2 text-sm">
+        <span><%= item[:label] %></span>
+        <span class="font-semibold <%= accent %>"><%= format_yen(item[:amount]) %></span>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
