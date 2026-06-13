@@ -109,11 +109,13 @@ class FinanceImportsController < ApplicationController
   end
 
   def import_draft
-    @import_draft ||= if draft_storage_available?
-                        FinanceImportDraft.find_or_initialize_by(owner_key: preference_owner_key)
-                      else
-                        FinanceImportDraft.in_memory_for(preference_owner_key)
-                      end
+    return @import_draft if @import_draft
+
+    @import_draft = if draft_storage_available?
+      FinanceImportDraft.find_or_initialize_by(owner_key: preference_owner_key)
+    else
+      FinanceImportDraft.in_memory_for(preference_owner_key)
+    end
   end
 
   def load_preview_from_draft(draft)
