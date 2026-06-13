@@ -85,7 +85,7 @@ SECRET_KEY_BASE=...
 - 想定構成: **App=Render**（Rails HTML） / **DB=Supabase PostgreSQL**
 - 本番 URL 例: `https://solarc.onrender.com`
 - `main` への push で `.github/workflows/cd.yml` が Docker イメージを GHCR に push します（`ghcr.io/<owner>/SOLARC/solarc:latest`）。
-- Render 側は GitHub 連携または GHCR イメージでデプロイ。Pre-Deploy Command は `bash bin/render-release`。
+- Render 側は GitHub 連携でデプロイ。**Free プランは Pre-Deploy 不可**のため、起動時に `bin/docker-start` が `db:migrate` を実行する。
 - 本番では `ALLOWED_HOSTS` / `GOOGLE_CLIENT_*` / `ALLOWED_EMAILS` / `DATABASE_URL` / `SECRET_KEY_BASE` を設定してください。
 
 #### Render ダッシュボード（PR #88 マージ後に必須）
@@ -95,7 +95,7 @@ SECRET_KEY_BASE=...
 1. [Render](https://dashboard.render.com) → サービス `solarc` → **Settings**
 2. **Root Directory** を **空** にする（`.` ではなく未入力）
 3. **Dockerfile Path** を `Dockerfile`（リポジトリ直下）にする
-4. **Pre-Deploy Command** を `bash bin/render-release` にする
+4. **Pre-Deploy Command** は **空のまま**（Free プランでは設定不可。migration は起動時に自動実行）
 5. GHCR イメージデプロイの場合: イメージを `ghcr.io/takumi326/SOLARC/solarc:latest` に更新（旧 `.../api:latest` は使わない）
 6. **Manual Deploy** → Deploy latest commit
 
@@ -118,9 +118,9 @@ postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.
 
 スキーマの正本は `db/migrate/` と `db/schema.rb`。
 
-**本番（Render + Supabase pooler）ではデプロイ時に `rails db:migrate` が自動実行される**（Render **Pre-Deploy Command**: `bash bin/render-release`）。Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定。
+**本番（Render + Supabase pooler）ではコンテナ起動時に `rails db:migrate` が自動実行される**（`bin/docker-start`）。Render Free は Pre-Deploy 不可のためこの方式。Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定。
 
-Render ダッシュボードで **Pre-Deploy Command** に `bash bin/render-release` が未設定だと、起動時 migration は走らない（`bin/docker-start` では migrate しない）。
+有料プランで Pre-Deploy に `bash bin/render-release` を設定してもよい（二重実行は no-op）。
 
 #### Render 本番の主な環境変数
 

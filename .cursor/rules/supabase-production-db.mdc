@@ -22,7 +22,8 @@ alwaysApply: true
 
 ## 本番スキーマ適用
 
-- デプロイ時: Render **Pre-Deploy Command** `bash bin/render-release` で **`rails db:migrate`**
+- **Free プラン**: コンテナ起動時に `bin/docker-start` が **`rails db:migrate`**（Pre-Deploy は有料のみで使えない）
+- **有料プラン**: 任意で Pre-Deploy に `bash bin/render-release` を設定可能（未設定でも `docker-start` が migrate する）
 - Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定
 
 ### 既存 Supabase（Ridgepole 時代）の初回のみ
