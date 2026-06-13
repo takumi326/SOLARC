@@ -101,13 +101,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_110304) do
 
   create_table "finance_import_drafts", force: :cascade do |t|
     t.string "compare_month"
-    t.datetime "created_at", null: false
+    t.datetime "created_at", default: -> { "now()" }, null: false
     t.string "owner_key", null: false
     t.jsonb "pending_rows", default: [], null: false
     t.string "phase", default: "edit", null: false
     t.text "raw_json"
     t.jsonb "selected_lines", default: [], null: false
-    t.datetime "updated_at", null: false
+    t.datetime "updated_at", default: -> { "now()" }, null: false
     t.index ["owner_key"], name: "index_finance_import_drafts_on_owner_key", unique: true
   end
 

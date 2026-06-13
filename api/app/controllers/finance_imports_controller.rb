@@ -35,6 +35,12 @@ class FinanceImportsController < ApplicationController
         return render :show, status: :unprocessable_entity
       end
 
+      unless draft_storage_available?
+        flash.now[:alert] = draft_storage_unavailable_message
+        @phase = "edit"
+        return render :show, status: :service_unavailable
+      end
+
       store_preview_draft(draft, @pending_rows, raw_json: @raw_json)
       @compare_month_input = min_month_label(@pending_rows)
       @selected_line_numbers = @pending_rows.map(&:line_number)
@@ -103,13 +109,17 @@ class FinanceImportsController < ApplicationController
   end
 
   def import_draft
-    @import_draft ||= FinanceImportDraft.find_or_initialize_by(owner_key: preference_owner_key)
+    @import_draft ||= if draft_storage_available?
+                        FinanceImportDraft.find_or_initialize_by(owner_key: preference_owner_key)
+                      else
+                        FinanceImportDraft.in_memory_for(preference_owner_key)
+                      end
   end
 
   def load_preview_from_draft(draft)
     @pending_rows = load_pending_rows_from_draft(draft)
     @compare_month_input = params[:compare_month].presence || draft.compare_month.presence || min_month_label(@pending_rows)
-    if draft.compare_month != @compare_month_input
+    if draft.compare_month != @compare_month_input && draft.persisted?
       draft.update!(compare_month: @compare_month_input)
     end
     @selected_line_numbers = Array(params[:line_numbers]).presence || draft.selected_lines.presence || @pending_rows.map(&:line_number)
@@ -130,7 +140,10 @@ class FinanceImportsController < ApplicationController
   end
 
   def persist_edit_draft(draft, raw_json)
-    draft.update!(phase: "edit", raw_json: raw_json, pending_rows: [], selected_lines: [], compare_month: nil)
+    draft.assign_attributes(phase: "edit", raw_json: raw_json, pending_rows: [], selected_lines: [], compare_month: nil)
+    return unless draft_storage_available?
+
+    draft.save!
   end
 
   def store_preview_draft(draft, rows, raw_json:)
@@ -177,8 +190,18 @@ class FinanceImportsController < ApplicationController
   end
 
   def clear_import_draft
+    return unless draft_storage_available?
+
     FinanceImportDraft.find_by(owner_key: preference_owner_key)&.destroy
     @import_draft = nil
+  end
+
+  def draft_storage_available?
+    FinanceImportDraft.storage_available?
+  end
+
+  def draft_storage_unavailable_message
+    "取込機能の DB 更新が未完了です。Render のデプロイ完了後、数分待ってから再度お試しください。"
   end
 
   def min_month_label(rows)
