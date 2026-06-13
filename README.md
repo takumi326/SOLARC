@@ -12,6 +12,14 @@
 - 本番 UI は Render 上の Rails HTML（`https://solarc.onrender.com`）
 - 旧 React フロント（`web/`）と Vercel デプロイは廃止
 
+### Vercel 連携の解除（PR マージ後に1回）
+
+リポジトリ直下の `vercel.json` で Git 連携デプロイは無効化済み。PR に **Vercel** チェックが残る場合はダッシュボード側で外す:
+
+1. [Vercel](https://vercel.com) → プロジェクト `solarc` → **Settings** → **Delete Project**（または Pause）
+2. GitHub → リポジトリ **Settings** → **Integrations** → **Vercel** → **Configure** → このリポジトリの連携を解除
+3. （任意）**Settings** → **Branches** → 必須チェックから **Vercel** を外し **API CI** のみにする
+
 ## Docker Development
 
 Start all services:
