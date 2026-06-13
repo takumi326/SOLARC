@@ -4,14 +4,19 @@
 <% by_major = incomes.group_by { |i| minors[i.minor_category_id]&.major_category&.name || "—" }.sort_by { |name, _| name } %>
 
 <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-  <div class="mb-3 flex items-center justify-between">
+  <div class="mb-3">
     <h3 class="text-lg font-semibold">収入</h3>
-    <%= link_to "＋ 実績を追加", new_finance_masters_income_path(income_type: filter), class: btn_classes(:primary) %>
   </div>
 
-  <div class="mb-3 inline-flex rounded-full bg-slate-100 p-0.5 text-xs">
-    <%= link_to "単発", finance_masters_path(tab: "incomes", filter: "one_time"), class: breakdown_tab_class(filter == "one_time") %>
-    <%= link_to "定期", finance_masters_path(tab: "incomes", filter: "recurring"), class: breakdown_tab_class(filter == "recurring") %>
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div class="inline-flex rounded-full bg-slate-100 p-0.5 text-xs">
+      <%= link_to "単発", finance_masters_path(tab: "incomes", filter: "one_time"), class: breakdown_tab_class(filter == "one_time") %>
+      <%= link_to "定期", finance_masters_path(tab: "incomes", filter: "recurring"), class: breakdown_tab_class(filter == "recurring") %>
+    </div>
+    <div class="flex gap-2">
+      <%= link_to "＋ 単発", new_finance_masters_income_path(income_type: "one_time"), class: btn_classes(filter == "one_time" ? :primary : :secondary) %>
+      <%= link_to "＋ 定期", new_finance_masters_income_path(income_type: "recurring"), class: btn_classes(filter == "recurring" ? :primary : :secondary) %>
+    </div>
   </div>
 
   <% if incomes.empty? %>

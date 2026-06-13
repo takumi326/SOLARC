@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## 構成
 
-- Web: Vercel / API: Render / DB + Auth: Supabase（同一プロジェクト）
+- App: Render（Rails HTML） / DB + Auth: Supabase（同一プロジェクト）
 - スキーマ正本: `api/db/migrate/*.rb` + `api/db/schema.rb`
 - ローカル DB: Docker Compose の PostgreSQL（development / test）
 
@@ -16,7 +16,7 @@ alwaysApply: true
 | 変数 | 値 |
 |---|---|
 | `DATABASE_URL` | Supabase **Session pooler** URI（`pooler.supabase.com:5432`）。`?sslmode=require` |
-| `SUPABASE_URL` | Vercel の `VITE_SUPABASE_URL` と同じプロジェクト |
+| `SUPABASE_URL` | `/api/*` の JWT 検証用（HTML ログインのみなら未使用可） |
 | `ALLOWED_EMAILS` | ログイン許可メール（カンマ区切り） |
 
 **`DATABASE_URL` に Direct（`db.<ref>.supabase.co`）を使わない。** IPv6 のため Render / Docker から `Network is unreachable` になりやすい。

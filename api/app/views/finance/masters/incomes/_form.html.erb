@@ -1,0 +1,46 @@
+<%= form_with model: @income, url: @income.persisted? ? finance_masters_income_path(@income) : finance_masters_incomes_path, class: "mt-4 space-y-3" do |form| %>
+  <label class="block text-sm">
+    カテゴリ
+    <%= form.collection_select :minor_category_id, @income_minors, :id, ->(m) { "#{m.major_category.name} / #{m.name}" }, {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+  </label>
+
+  <div class="block text-sm">
+    <% if @income.persisted? %>
+      <span class="text-slate-600">種別</span>
+      <%= master_type_tabs(
+        current: @income.income_type,
+        one_time_path: edit_finance_masters_income_path(@income, income_type: "one_time"),
+        recurring_path: edit_finance_masters_income_path(@income, income_type: "recurring")
+      ) %>
+    <% end %>
+    <%= form.hidden_field :income_type %>
+  </div>
+
+  <label class="block text-sm">
+    金額
+    <%= form.number_field :amount, min: 0, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %>
+  </label>
+
+  <% if @income.income_type_one_time? %>
+    <label class="block text-sm">
+      入金月
+      <%= form.month_field :start_month, value: format_month_input(@income.start_month || Date.current), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %>
+    </label>
+  <% else %>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="block text-sm">
+        開始月
+        <%= form.month_field :start_month, value: format_month_input(@income.start_month || Date.current), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %>
+      </label>
+      <label class="block text-sm">
+        終了月（任意）
+        <%= form.month_field :end_month, value: (@income.end_month ? format_month_input(@income.end_month) : nil), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+      </label>
+    </div>
+  <% end %>
+
+  <div class="flex gap-2">
+    <%= link_to "キャンセル", finance_masters_path(tab: "incomes", filter: @income.income_type), class: btn_classes(:secondary) %>
+    <%= form.submit "保存", class: btn_classes(:primary, extra: "cursor-pointer") %>
+  </div>
+<% end %>

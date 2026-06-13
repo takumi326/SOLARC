@@ -6,7 +6,7 @@ module Finance
       include FinanceMonthParams
 
       def new
-        @expense = Expense.new(expense_type: params[:expense_type].presence_in(%w[one_time recurring]) || "one_time")
+        @expense = Expense.new(expense_type: preview_expense_type || "one_time")
         load_form_options
       end
 
@@ -14,9 +14,7 @@ module Finance
         @expense = Expense.new(expense_params)
         load_form_options
         if @expense.save
-          if @expense.expense_type_one_time?
-            MonthlyActualsSyncService.new(month: @expense.start_month, expense_scope: :one_time).call
-          end
+          sync_one_time_actuals(@expense)
           redirect_to finance_masters_path(tab: "expenses", filter: @expense.expense_type), notice: "支出を追加しました。"
         else
           flash.now[:alert] = @expense.errors.full_messages.join(" ")
@@ -26,13 +24,16 @@ module Finance
 
       def edit
         @expense = Expense.find(params[:id])
+        apply_expense_type_preview(@expense)
         load_form_options
       end
 
       def update
         @expense = Expense.find(params[:id])
+        previous_start_month = @expense.start_month
         load_form_options
         if @expense.update(expense_params)
+          sync_one_time_actuals(@expense, also_for_month: previous_start_month)
           redirect_to finance_masters_path(tab: "expenses", filter: @expense.expense_type), notice: "支出を更新しました。"
         else
           flash.now[:alert] = @expense.errors.full_messages.join(" ")
@@ -48,6 +49,23 @@ module Finance
       end
 
       private
+
+      def preview_expense_type
+        params[:expense_type].presence_in(%w[one_time recurring])
+      end
+
+      def apply_expense_type_preview(expense)
+        preview = preview_expense_type
+        expense.expense_type = preview if preview
+      end
+
+      def sync_one_time_actuals(expense, also_for_month: nil)
+        return unless expense.expense_type_one_time?
+
+        [ expense.start_month, also_for_month ].compact.uniq.each do |month|
+          MonthlyActualsSyncService.new(month: month, expense_scope: :one_time).call
+        end
+      end
 
       def load_form_options
         @expense_minors = MinorCategory.joins(:major_category)
