@@ -1,0 +1,27 @@
+# Render Blueprint（リポジトリ直下 = Rails ルート。Root Directory に api は不要）
+# 既存サービスはダッシュボードで Root Directory を空にし、Dockerfile を ./Dockerfile に合わせる。
+services:
+  - type: web
+    name: solarc
+    runtime: docker
+    plan: free
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    preDeployCommand: bash bin/render-release
+    healthCheckPath: /up
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: ALLOWED_HOSTS
+        value: solarc.onrender.com
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: ALLOWED_EMAILS
+        sync: false
