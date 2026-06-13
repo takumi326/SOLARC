@@ -4,8 +4,8 @@
 ## Project Structure
 
 - `ignore/`: planning/design source docs (not tracked in git)
-- `docs/`: consolidated decisions for implementation
-- `api/`: Rails アプリ（HTML UI + JSON API）
+- `docs/`: ローカル用メモ（git 管理外）
+- リポジトリ直下: Rails アプリ（HTML UI）
 
 ## Current Status
 
@@ -18,7 +18,7 @@
 
 1. [Vercel](https://vercel.com) → プロジェクト `solarc` → **Settings** → **Delete Project**（または Pause）
 2. GitHub → リポジトリ **Settings** → **Integrations** → **Vercel** → **Configure** → このリポジトリの連携を解除
-3. （任意）**Settings** → **Branches** → 必須チェックから **Vercel** を外し **API CI** のみにする
+3. （任意）**Settings** → **Branches** → 必須チェックから **Vercel** を外し **CI** のみにする
 
 ## Docker Development
 
@@ -33,18 +33,18 @@ Endpoints:
 - App: `http://localhost:3000`
 - DB: `localhost:5432` (PostgreSQL 16)
 
-DBeaver などでローカル DB を見るときは、デフォルトのデータベース名 **`iae_management_development`**（ユーザー `postgres` / パスワード `postgres`）を開いてください。`postgres` という名前の管理用 DB だけを見ているとテーブルが空に見えます。
+DBeaver などでローカル DB を見るときは、デフォルトのデータベース名 **`solarc_development`**（ユーザー `postgres` / パスワード `postgres`）を開いてください。`postgres` という名前の管理用 DB だけを見ているとテーブルが空に見えます。
 
 ### 初回・DB 作り直し後（Docker）
 
-次で development に migration を当て、`db:seed` まで実行します（`api_test` 用の prepare も続けて実行）。
+次で development に migration を当て、`db:seed` まで実行します（`solarc_test` 用の prepare も続けて実行）。
 
 ```bash
-chmod +x scripts/docker-db-bootstrap.sh   # 初回のみ
-./scripts/docker-db-bootstrap.sh
+chmod +x bin/docker-db-bootstrap   # 初回のみ
+bin/docker-db-bootstrap
 ```
 
-手動で行う場合は従来どおり `docker compose run --rm api bash -lc "cd /app/api && ..."`（このファイルの「DB を作り直すとき」節）でも構いません。
+手動で行う場合は `docker compose run --rm app bash -lc "..."`（このファイルの「DB を作り直すとき」節）でも構いません。
 
 `db:seed` は development では **当月分の実績デモ**（取引・月末残高）も入ります。ダッシュで「実」が出るか確認する用途です。テスト環境ではこのブロックは実行されません。
 
@@ -57,18 +57,17 @@ docker compose down
 DB を作り直すときは `docker compose down -v` でボリュームを削除してから `docker compose up --build` してください。初回はテスト用 DB を作成してから migrate と seed:
 
 ```bash
-docker compose run --rm api bash -lc "cd /app/api && RAILS_ENV=test bundle exec rails db:create"
-docker compose run --rm api bash -lc "cd /app/api && bundle exec rails db:migrate && bundle exec rails db:seed"
-docker compose run --rm api bash -lc "cd /app/api && bundle exec rails db:test:prepare"
+docker compose run --rm app bash -lc "RAILS_ENV=test bundle exec rails db:create"
+docker compose run --rm app bash -lc "bundle exec rails db:migrate && bundle exec rails db:seed"
+docker compose run --rm app bash -lc "bundle exec rails db:test:prepare"
 ```
 
-`api_test` が無いエラーが出たら、上の `rails db:create` を実行するか、`docker compose down -v` でボリュームを消してから `up` し直してください（`docker/postgres-init` で `api_test` が作られます）。
+`solarc_test` が無いエラーが出たら、上の `rails db:create` を実行するか、`docker compose down -v` でボリュームを消してから `up` し直してください（`docker/postgres-init` で `solarc_test` が作られます）。
 
 ## Login
 
 - 本番: **Google OAuth**（OmniAuth）+ Rails セッション。`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` が必要。
 - ローカル development: 認証スキップ（そのまま画面利用可）。
-- `/api/*` の JSON API は Supabase JWT 検証に対応（レガシー）。HTML UI からは使わない。
 
 Render 本番の主な環境変数:
 
@@ -79,14 +78,13 @@ ALLOWED_HOSTS=solarc.onrender.com
 ALLOWED_EMAILS=foo@example.com
 DATABASE_URL=postgresql://...@...pooler.supabase.com:5432/postgres?sslmode=require
 SECRET_KEY_BASE=...
-SUPABASE_URL=https://<project-ref>.supabase.co  # /api/* 利用時のみ
 ```
 
 ## Production / CD
 
 - 想定構成: **App=Render**（Rails HTML） / **DB=Supabase PostgreSQL**
 - 本番 URL 例: `https://solarc.onrender.com`
-- `main` への push で `.github/workflows/cd.yml` が API Docker イメージを GHCR に push します。
+- `main` への push で `.github/workflows/cd.yml` が Docker イメージを GHCR に push します。
 - Render 側は GitHub 連携または GHCR イメージでデプロイ。Pre-Deploy Command は `bash bin/render-release`。
 - API 本番では `ALLOWED_HOSTS` / `GOOGLE_CLIENT_*` / `ALLOWED_EMAILS` / `DATABASE_URL` / `SECRET_KEY_BASE` を設定してください。
 
@@ -105,7 +103,7 @@ postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.
 
 ### 本番スキーマ管理（Rails migration + Supabase）
 
-スキーマの正本は `api/db/migrate/` と `api/db/schema.rb`。
+スキーマの正本は `db/migrate/` と `db/schema.rb`。
 
 **本番（Render + Supabase pooler）ではデプロイ時に `rails db:migrate` が自動実行される**（Render **Pre-Deploy Command**: `bash bin/render-release`）。Session pooler 経由でも migration は introspection 不要のため Ridgepole より安定。
 
@@ -131,13 +129,13 @@ VALUES ('20250613000000')
 ON CONFLICT (version) DO NOTHING;
 ```
 
-（`api/db/supabase/20250613000000_baseline_schema_migrations.sql` と同内容）
+（`db/supabase/20250613000000_baseline_schema_migrations.sql` と同内容）
 
 その後のデプロイでは未適用 migration のみ実行される（例: `add_watched_to_stocks`）。
 
 #### スキーマを変える手順
 
-1. `rails generate migration ...` で `api/db/migrate/` に追加して PR / マージ
+1. `rails generate migration ...` で `db/migrate/` に追加して PR / マージ
 2. ローカルで `rails db:migrate` → `schema.rb` 更新をコミット
 3. Render にデプロイ（`db:migrate` 自動実行）
 

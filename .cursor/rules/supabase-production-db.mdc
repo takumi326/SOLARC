@@ -8,7 +8,7 @@ alwaysApply: true
 ## 構成
 
 - App: Render（Rails HTML） / DB + Auth: Supabase（同一プロジェクト）
-- スキーマ正本: `api/db/migrate/*.rb` + `api/db/schema.rb`
+- スキーマ正本: `db/migrate/*.rb` + `db/schema.rb`
 - ローカル DB: Docker Compose の PostgreSQL（development / test）
 
 ## Render API の必須環境変数
@@ -16,7 +16,6 @@ alwaysApply: true
 | 変数 | 値 |
 |---|---|
 | `DATABASE_URL` | Supabase **Session pooler** URI（`pooler.supabase.com:5432`）。`?sslmode=require` |
-| `SUPABASE_URL` | `/api/*` の JWT 検証用（HTML ログインのみなら未使用可） |
 | `ALLOWED_EMAILS` | ログイン許可メール（カンマ区切り） |
 
 **`DATABASE_URL` に Direct（`db.<ref>.supabase.co`）を使わない。** IPv6 のため Render / Docker から `Network is unreachable` になりやすい。
@@ -31,7 +30,7 @@ alwaysApply: true
 テーブルは既にあるため、初回 migration をスキップする baseline を SQL Editor で実行:
 
 ```sql
--- api/db/supabase/20250613000000_baseline_schema_migrations.sql
+-- db/supabase/20250613000000_baseline_schema_migrations.sql
 INSERT INTO schema_migrations (version)
 VALUES ('20250613000000')
 ON CONFLICT (version) DO NOTHING;
@@ -41,7 +40,7 @@ ON CONFLICT (version) DO NOTHING;
 
 ## スキーマ変更の手順（エージェント向け）
 
-1. `rails generate migration ...` で `api/db/migrate/` に追加（PR）
+1. `rails generate migration ...` で `db/migrate/` に追加（PR）
 2. ローカルで `rails db:migrate` → `schema.rb` 更新をコミット
 3. Render デプロイ（`db:migrate` 自動実行）
 

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Render の Pre-Deploy Command（または Blueprint の preDeployCommand）向け:
+#   bash bin/render-release
+#
+# 本番でマスタ・予測の初期データを一度だけ入れたい場合は、デプロイ自動ではなく
+# Render Shell で手動実行してください（毎回 seed すると予測などが上書きされます）:
+#   bundle exec rails db:seed
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec bundle exec rails db:migrate

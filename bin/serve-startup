@@ -1,0 +1,42 @@
+#!/usr/bin/env ruby
+# Minimal static server for Render cold-start / deploy boot screen.
+require "webrick"
+
+CONTENT_TYPES = {
+  ".html" => "text/html; charset=utf-8",
+  ".png" => "image/png",
+  ".ico" => "image/x-icon",
+  ".txt" => "text/plain; charset=utf-8",
+  ".svg" => "image/svg+xml",
+}.freeze
+
+port = (ARGV[0] || ENV.fetch("PORT", 3000)).to_i
+root = File.expand_path("../public", __dir__)
+
+server = WEBrick::HTTPServer.new(
+  Port: port,
+  BindAddress: "0.0.0.0",
+  AccessLog: [],
+  Logger: WEBrick::Log.new($stderr, WEBrick::Log::WARN),
+)
+
+server.mount_proc "/" do |req, res|
+  path = req.path
+  path = "/startup.html" if path == "/" || path == "/index.html"
+
+  file = File.join(root, path.delete_prefix("/"))
+  unless file.start_with?(root) && File.file?(file)
+    res.status = 404
+    res["Content-Type"] = "text/plain; charset=utf-8"
+    res.body = "Not found"
+    next
+  end
+
+  ext = File.extname(file).downcase
+  res["Content-Type"] = CONTENT_TYPES.fetch(ext, "application/octet-stream")
+  res.body = File.binread(file)
+end
+
+%w[INT TERM].each { |sig| trap(sig) { server.shutdown } }
+
+server.start

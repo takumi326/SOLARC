@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# 本番 Docker 起動時: Puma を起動する。
-# DB migration は Render の preDeployCommand（bin/render-release）で実行する。
-set -euo pipefail
-cd "$(dirname "$0")/.."
-
-exec bundle exec puma -C config/puma.rb
