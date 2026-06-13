@@ -16,7 +16,7 @@ COPY . .
 
 RUN SECRET_KEY_BASE=dummy bundle exec rails assets:precompile
 
-RUN chmod +x bin/docker-start bin/render-release bin/serve-startup
+RUN chmod +x bin/docker-start bin/render-release
 
 ENV RAILS_ENV=production
 ENV RACK_ENV=production
