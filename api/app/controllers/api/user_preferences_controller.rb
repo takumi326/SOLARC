@@ -9,13 +9,13 @@ module Api
       row = UserPreference.find_or_initialize_by(owner_key: preference_owner_key)
       submitted_keys = params.require(:user_preference).keys.map(&:to_s)
       attrs = user_preference_params
+      cols = UserPreference.column_names
 
-      if submitted_keys.include?("import_claude_prompt_template")
+      if submitted_keys.include?("import_claude_prompt_template") &&
+         cols.include?("import_claude_prompt_template")
         raw = attrs[:import_claude_prompt_template]
         row.import_claude_prompt_template = raw.nil? ? nil : raw.to_s.presence
       end
-
-      cols = UserPreference.column_names
 
       if submitted_keys.include?("stock_daily_hypothesis_prompt")
         raw = attrs[:stock_daily_hypothesis_prompt]
@@ -60,11 +60,17 @@ module Api
     def serialize(row)
       h = row.attributes
       {
-        import_claude_prompt_template: h["import_claude_prompt_template"],
+        import_claude_prompt_template: import_prompt_template_for_api(h),
         stock_daily_hypothesis_prompt: hypothesis_prompt_for_api(h),
         stock_daily_result_prompt: h["stock_daily_result_prompt"],
         stock_daily_sector_prompt: h["stock_daily_sector_prompt"]
       }
+    end
+
+    def import_prompt_template_for_api(attrs)
+      return nil unless UserPreference.column_names.include?("import_claude_prompt_template")
+
+      attrs["import_claude_prompt_template"]
     end
 
     # 新列のみ / 旧列のみ / 移行途中の DB でも NoMethodError にしない

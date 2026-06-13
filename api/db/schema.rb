@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_06_13_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_13_110304) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -97,6 +97,18 @@ ActiveRecord::Schema[8.1].define(version: 2025_06_13_000001) do
     t.check_constraint "expense_type = ANY (ARRAY[0, 1])", name: "expenses_expense_type_check"
     t.check_constraint "recurring_cycle = ANY (ARRAY[0, 1])", name: "expenses_recurring_cycle_check"
     t.check_constraint "renewal_month IS NULL OR renewal_month >= 1 AND renewal_month <= 12", name: "expenses_renewal_month_check"
+  end
+
+  create_table "finance_import_drafts", force: :cascade do |t|
+    t.string "compare_month"
+    t.datetime "created_at", null: false
+    t.string "owner_key", null: false
+    t.jsonb "pending_rows", default: [], null: false
+    t.string "phase", default: "edit", null: false
+    t.text "raw_json"
+    t.jsonb "selected_lines", default: [], null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_key"], name: "index_finance_import_drafts_on_owner_key", unique: true
   end
 
   create_table "forecast_defaults", force: :cascade do |t|
