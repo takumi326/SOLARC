@@ -5,6 +5,7 @@ Rails.application.routes.draw do
 
   get "login", to: "sessions#new"
   delete "logout", to: "sessions#destroy"
+  get "/auth/failure", to: "sessions#failure"
   match "/auth/:provider/callback", to: "sessions#create", via: [ :get, :post ]
 
   get "finance", to: "finance_summaries#show", as: :finance_summary

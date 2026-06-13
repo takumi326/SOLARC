@@ -6,7 +6,6 @@ class FinanceSummariesController < ApplicationController
   before_action :set_month, only: [ :show, :sync_recurring, :sync_one_time, :expense_breakdown, :monthly_balance ]
 
   def show
-    sync_one_time_actuals_silently
     load_summary_data
   end
 
@@ -125,17 +124,17 @@ class FinanceSummariesController < ApplicationController
     @month_input = month_input_value(@month)
   end
 
-  def sync_one_time_actuals_silently
-    MonthlyActualsSyncService.new(month: @month, expense_scope: :one_time).call
-  rescue StandardError
-    nil
-  end
-
   def load_summary_data
     @year_summary = FinanceYearSummaryBuilder.new(anchor_month: @month).call
     @dashboard = DashboardSummaryBuilder.new(month: @month).call
     @month_end_balance = @dashboard[:monthly_balance]
     @month_end_form_month = params[:month_end].presence || @month_input
-    @month_end_dashboard = DashboardSummaryBuilder.new(month: parse_month_param("#{@month_end_form_month}-01")).call
+    month_end_month = parse_month_param("#{@month_end_form_month}-01")
+    @month_end_dashboard =
+      if month_end_month == @month.beginning_of_month
+        @dashboard
+      else
+        DashboardSummaryBuilder.new(month: month_end_month).call
+      end
   end
 end

@@ -30,8 +30,7 @@ services:
         value: production
       - key: RACK_ENV
         value: production
-      # 以下はダッシュボードの Environment で追加推奨
-      # - SUPABASE_URL（Vercel の VITE_SUPABASE_URL と同一プロジェクト）
+      # - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET（Rails HTML ログイン）
+      # - ALLOWED_HOSTS（例: solarc.onrender.com）
       # - ALLOWED_EMAILS（空なら allowlist なし）
-      # - CORS_ORIGINS（例: https://solarc-beta.vercel.app）
-      # - ALLOWED_HOSTS / RAILS_LOG_LEVEL など
+      # - SUPABASE_URL（/api/* の JWT 検証用。HTML ログインのみなら未使用可）

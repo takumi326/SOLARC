@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# 本番 Docker 起動時: 未適用 migration を当ててから Puma を起動する。
-# Tailwind CSS は Dockerfile ビルド時に生成済み（起動のたびに build しない）。
+# 本番 Docker 起動時: Puma を起動する。
+# DB migration は Render の preDeployCommand（bin/render-release）で実行する。
 set -euo pipefail
 cd "$(dirname "$0")/.."
-
-if [[ "${RAILS_ENV:-}" == "production" && -n "${DATABASE_URL:-}" ]]; then
-  bundle exec rails db:migrate
-fi
 
 exec bundle exec puma -C config/puma.rb
