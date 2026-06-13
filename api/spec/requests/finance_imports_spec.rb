@@ -35,5 +35,14 @@ RSpec.describe "Finance imports", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("実績を取込")
     end
+
+    it "shows import form when finance_import_drafts table is missing" do
+      allow(FinanceImportDraft).to receive(:storage_available?).and_return(false)
+
+      get finance_import_path
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("実績を取込")
+    end
   end
 end
