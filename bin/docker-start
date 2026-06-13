@@ -1,61 +1,15 @@
 #!/usr/bin/env bash
 # Production Docker boot:
 # 1. db:migrate（Render Free は Pre-Deploy 不可のため起動時に実行）
-# 2. Show cute startup page on $PORT immediately (before Rails is ready).
-# 3. Warm-boot Puma on an internal port until /up succeeds.
-# 4. Hand off to Puma on $PORT for normal traffic.
+# 2. Puma を $PORT で起動
 #
 # Paid プランで Pre-Deploy に bin/render-release を設定している場合も、
 # 未適用 migration があればここで当てる（二重実行は db:migrate が no-op）。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PORT="${PORT:-3000}"
-INTERNAL_PORT="${INTERNAL_PORT:-9292}"
-
 echo "==> db:migrate"
 bundle exec rails db:migrate
 
-bin/serve-startup "$PORT" &
-STARTUP_PID=$!
-
-stop_startup() {
-  kill "$STARTUP_PID" 2>/dev/null || true
-  wait "$STARTUP_PID" 2>/dev/null || true
-}
-trap stop_startup EXIT
-
-echo "==> startup page on :${PORT} (pid ${STARTUP_PID})"
-echo "==> warming Rails on :${INTERNAL_PORT}"
-
-bundle exec puma -C config/puma.rb -p "$INTERNAL_PORT" -b "tcp://127.0.0.1" &
-WARM_PID=$!
-
-ready=0
-for _ in $(seq 1 120); do
-  if bundle exec ruby -rnet/http -e "
-    res = Net::HTTP.get_response(URI('http://127.0.0.1:${INTERNAL_PORT}/up'))
-    exit(res.is_a?(Net::HTTPSuccess) ? 0 : 1)
-  " 2>/dev/null; then
-    ready=1
-    break
-  fi
-  if ! kill -0 "$WARM_PID" 2>/dev/null; then
-    echo "==> warm boot failed: puma exited early" >&2
-    exit 1
-  fi
-  sleep 0.5
-done
-
-if [ "$ready" -ne 1 ]; then
-  echo "==> warm boot timed out waiting for /up" >&2
-  exit 1
-fi
-
-kill "$WARM_PID" 2>/dev/null || true
-wait "$WARM_PID" 2>/dev/null || true
-trap - EXIT
-stop_startup
-
-echo "==> Rails ready; starting Puma on :${PORT}"
+echo "==> starting Puma on :${PORT:-3000}"
 exec bundle exec puma -C config/puma.rb
