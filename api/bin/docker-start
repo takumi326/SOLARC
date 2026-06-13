@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # 本番 Docker 起動時: 未適用 migration を当ててから Puma を起動する。
+# Tailwind CSS は Dockerfile ビルド時に生成済み（起動のたびに build しない）。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [[ "${RAILS_ENV:-}" == "production" && -n "${DATABASE_URL:-}" ]]; then
   bundle exec rails db:migrate
 fi
-
-bundle exec rails tailwindcss:build
 
 exec bundle exec puma -C config/puma.rb

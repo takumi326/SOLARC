@@ -14,6 +14,8 @@ RUN bundle install
 
 COPY . .
 
+RUN SECRET_KEY_BASE=dummy bundle exec rails tailwindcss:build
+
 RUN chmod +x bin/docker-start bin/render-release
 
 ENV RAILS_ENV=production
