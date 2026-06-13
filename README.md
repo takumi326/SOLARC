@@ -5,13 +5,12 @@
 
 - `ignore/`: planning/design source docs (not tracked in git)
 - `docs/`: consolidated decisions for implementation
-- `api/`: Rails API (to be implemented)
-- `web/`: React + TypeScript frontend (to be implemented)
+- `api/`: Rails アプリ（HTML UI + JSON API）
 
 ## Current Status
 
-- Design docs were prepared first.
-- Initial implementation decisions and task breakdown are documented in `docs/`.
+- 本番 UI は Render 上の Rails HTML（`https://solarc.onrender.com`）
+- 旧 React フロント（`web/`）と Vercel デプロイは廃止
 
 ## Docker Development
 
@@ -23,8 +22,7 @@ docker compose up --build
 
 Endpoints:
 
-- Web: `http://localhost:5173`
-- API: `http://localhost:3000`
+- App: `http://localhost:3000`
 - DB: `localhost:5432` (PostgreSQL 16)
 
 DBeaver などでローカル DB を見るときは、デフォルトのデータベース名 **`iae_management_development`**（ユーザー `postgres` / パスワード `postgres`）を開いてください。`postgres` という名前の管理用 DB だけを見ているとテーブルが空に見えます。
@@ -48,22 +46,6 @@ Stop:
 docker compose down
 ```
 
-### Web: `node_modules` / Vite の import 解決
-
-Web は `./web/node_modules` を bind マウント上に置き、起動時に `npm ci` で `package-lock.json` と揃えます。依存を変えたら **Web コンテナを再起動**（または `down` → `up`）すれば反映されます。
-
-`Failed to resolve import "@supabase/supabase-js"` が **変わらない**ときは、まず **リポジトリを最新にしてから** 次を順に試してください。
-
-```bash
-git pull origin main
-docker compose down
-docker volume ls | grep web_node_modules   # 残っていれば削除（例: iae-management_web_node_modules）
-docker volume rm <上で見つかった名前>
-docker compose up --build -d
-```
-
-古い compose で名前付きボリューム `web_node_modules` を使っていた環境では、そのボリュームだけが残っているとコンテナ内とホストの `node_modules` がずれることがあります。`docker volume rm` で捨ててから `up` してください。
-
 DB を作り直すときは `docker compose down -v` でボリュームを削除してから `docker compose up --build` してください。初回はテスト用 DB を作成してから migrate と seed:
 
 ```bash
@@ -74,40 +56,31 @@ docker compose run --rm api bash -lc "cd /app/api && bundle exec rails db:test:p
 
 `api_test` が無いエラーが出たら、上の `rails db:create` を実行するか、`docker compose down -v` でボリュームを消してから `up` し直してください（`docker/postgres-init` で `api_test` が作られます）。
 
-## Login (Supabase Auth)
+## Login
 
-- 認証は Supabase Auth (Google provider) を利用します。
-- Web は Supabase で取得した access token を `Authorization: Bearer ...` として API に送信します。
-- API は Supabase の JWKS（公開鍵）で JWT を検証し、`ALLOWED_EMAILS` が設定されている場合は allowlist チェックを行います。
-- ローカル開発では `development` 環境のため API 側認証をスキップします（開発速度優先）。
+- 本番: **Google OAuth**（OmniAuth）+ Rails セッション。`GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` が必要。
+- ローカル development: 認証スキップ（そのまま画面利用可）。
+- `/api/*` の JSON API は Supabase JWT 検証に対応（レガシー）。HTML UI からは使わない。
 
-必要な環境変数:
+Render 本番の主な環境変数:
 
 ```bash
-# Web
-VITE_SUPABASE_URL=https://<project-ref>.supabase.co
-VITE_SUPABASE_ANON_KEY=<supabase-anon-key>
-# Web と API が別オリジンのとき必須（Vite のビルド時に埋め込まれる）。未設定だと /api/* が静的ホストに飛び 404 になる。
-VITE_API_BASE_URL=https://<your-api-host>
-
-# API
-SUPABASE_URL=https://<project-ref>.supabase.co
-ALLOWED_EMAILS=foo@example.com,bar@example.com
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+ALLOWED_HOSTS=solarc.onrender.com
+ALLOWED_EMAILS=foo@example.com
+DATABASE_URL=postgresql://...@...pooler.supabase.com:5432/postgres?sslmode=require
+SECRET_KEY_BASE=...
+SUPABASE_URL=https://<project-ref>.supabase.co  # /api/* 利用時のみ
 ```
 
 ## Production / CD
 
-- 想定構成: Web=Vercel / API=Render / Auth=Supabase
-- **Web を API と別ドメインで配信する場合**、`docker compose` のローカル用 `VITE_API_BASE_URL` と同様に、本番のフロントビルド（Vercel の Environment Variables など）に **`VITE_API_BASE_URL`** を必ず入れてください（API のオリジンのみ、パスなし・末尾 `/` なし）。これが無いとブラウザは `https://<web>/api/...` にリクエストし、静的ホスト側が **404** を返します。同一ドメインでリバースプロキシが `/api` を API に流す構成なら空のままでよいです。
-- `main` への push で `.github/workflows/cd.yml` が実行され、API/Web の Docker イメージを GHCR (`ghcr.io/<owner>/<repo>`) に push します。
-- デプロイを自動化する場合は、次の GitHub Secrets を設定してください。
-  - `DEPLOY_HOST`
-  - `DEPLOY_USER`
-  - `DEPLOY_SSH_KEY`
-  - `DEPLOY_PORT` (任意)
-  - `DEPLOY_APP_DIR` (サーバー上で `docker compose` を実行するディレクトリ)
-- API 本番では `ALLOWED_HOSTS` / `CORS_ORIGINS`（カンマ区切り）と `SUPABASE_URL` / `ALLOWED_EMAILS` を設定してください。
-- 取込プロンプトの保存先 API は **`GET` / `PATCH /api/preferences/import_prompt`**（フロント既定）。`/api/user_preferences` も同じ処理の別ルートとして残しています。リバースプロキシでパスを個別に許可している場合はどちらか（または `/api/` 一括）を API に流してください。
+- 想定構成: **App=Render**（Rails HTML） / **DB=Supabase PostgreSQL**
+- 本番 URL 例: `https://solarc.onrender.com`
+- `main` への push で `.github/workflows/cd.yml` が API Docker イメージを GHCR に push します。
+- Render 側は GitHub 連携または GHCR イメージでデプロイ。Pre-Deploy Command は `bash bin/render-release`。
+- API 本番では `ALLOWED_HOSTS` / `GOOGLE_CLIENT_*` / `ALLOWED_EMAILS` / `DATABASE_URL` / `SECRET_KEY_BASE` を設定してください。
 
 ### 本番 DB（Supabase PostgreSQL）
 
