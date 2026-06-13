@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Render の Pre-Deploy Command（または Blueprint の preDeployCommand）向け:
-#   bash bin/render-release
-#
+# Render Pre-Deploy（有料プランのみ）向け。Free プランは bin/docker-start が migrate する。
 # 本番でマスタ・予測の初期データを一度だけ入れたい場合は、デプロイ自動ではなく
 # Render Shell で手動実行してください（毎回 seed すると予測などが上書きされます）:
 #   bundle exec rails db:seed
