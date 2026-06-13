@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # Production Docker boot:
-# 1. Show cute startup page on $PORT immediately (before Rails is ready).
-# 2. Warm-boot Puma on an internal port until /up succeeds.
-# 3. Hand off to Puma on $PORT for normal traffic.
+# 1. db:migrate（Render Free は Pre-Deploy 不可のため起動時に実行）
+# 2. Show cute startup page on $PORT immediately (before Rails is ready).
+# 3. Warm-boot Puma on an internal port until /up succeeds.
+# 4. Hand off to Puma on $PORT for normal traffic.
 #
-# DB migration runs in Render preDeployCommand (bin/render-release), not here.
+# Paid プランで Pre-Deploy に bin/render-release を設定している場合も、
+# 未適用 migration があればここで当てる（二重実行は db:migrate が no-op）。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT="${PORT:-3000}"
 INTERNAL_PORT="${INTERNAL_PORT:-9292}"
+
+echo "==> db:migrate"
+bundle exec rails db:migrate
 
 bin/serve-startup "$PORT" &
 STARTUP_PID=$!

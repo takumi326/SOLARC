@@ -8,7 +8,7 @@ services:
     branch: main
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    preDeployCommand: bash bin/render-release
+    # preDeployCommand は有料プランのみ。Free は bin/docker-start が起動時に db:migrate する。
     healthCheckPath: /up
     envVars:
       - key: RAILS_ENV
