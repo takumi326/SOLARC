@@ -25,3 +25,5 @@ services:
         sync: false
       - key: ALLOWED_EMAILS
         sync: false
+      - key: WEB_CONCURRENCY
+        value: "0"
