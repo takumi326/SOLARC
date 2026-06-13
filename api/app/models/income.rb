@@ -10,6 +10,7 @@ class Income < ApplicationRecord
   validates :amount, numericality: { greater_than_or_equal_to: 0 }
   validate :end_month_not_before_start_month
 
+  before_validation :normalize_one_time_fields
   before_destroy :destroy_linked_ledger_transactions, prepend: true
 
   private
@@ -25,5 +26,11 @@ class Income < ApplicationRecord
     return unless end_month < start_month
 
     errors.add(:end_month, "must be greater than or equal to start_month")
+  end
+
+  def normalize_one_time_fields
+    return unless income_type_one_time?
+
+    self.end_month = nil
   end
 end
