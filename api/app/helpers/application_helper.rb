@@ -61,6 +61,15 @@ module ApplicationHelper
     active ? "#{base} bg-white text-slate-800 shadow-sm" : "#{base} text-slate-500 hover:text-slate-700"
   end
 
+  def master_type_tabs(current:, one_time_path:, recurring_path:)
+    tag.div(class: "mt-1 inline-flex rounded-full bg-slate-100 p-0.5 text-xs") do
+      safe_join([
+        link_to("単発", one_time_path, class: breakdown_tab_class(current == "one_time")),
+        link_to("定期", recurring_path, class: breakdown_tab_class(current == "recurring"))
+      ])
+    end
+  end
+
   def recurring_type_label(type)
     { "one_time" => "単発", "recurring" => "定期" }[type.to_s] || type
   end

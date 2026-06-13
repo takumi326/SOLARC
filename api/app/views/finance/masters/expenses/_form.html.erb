@@ -1,0 +1,72 @@
+<%= form_with model: @expense, url: @expense.persisted? ? finance_masters_expense_path(@expense) : finance_masters_expenses_path, class: "mt-4 space-y-3" do |form| %>
+  <label class="block text-sm">
+    カテゴリ
+    <%= form.collection_select :minor_category_id, @expense_minors, :id, ->(m) { "#{m.major_category.name} / #{m.name}" }, {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+  </label>
+  <label class="block text-sm">
+    支払方法
+    <%= form.collection_select :payment_method_id, @payment_methods, :id, :name, {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+  </label>
+
+  <div class="block text-sm">
+    <% if @expense.persisted? %>
+      <span class="text-slate-600">種別</span>
+      <%= master_type_tabs(
+        current: @expense.expense_type,
+        one_time_path: edit_finance_masters_expense_path(@expense, expense_type: "one_time"),
+        recurring_path: edit_finance_masters_expense_path(@expense, expense_type: "recurring")
+      ) %>
+    <% end %>
+    <%= form.hidden_field :expense_type %>
+  </div>
+
+  <% if @expense.expense_type_one_time? %>
+    <%= form.hidden_field :recurring_cycle, value: "monthly" %>
+  <% end %>
+
+  <% if @expense.expense_type_recurring? %>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="block text-sm">
+        定期の周期
+        <%= form.select :recurring_cycle, [["月次", "monthly"], ["年次", "yearly"]], {}, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+      </label>
+      <label class="block text-sm">
+        更新月（年次のみ）
+        <%= form.select :renewal_month, options_for_select((1..12).map { |m| [ "#{m}月", m ] }, @expense.renewal_month), { include_blank: "未設定" }, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+      </label>
+    </div>
+  <% end %>
+
+  <label class="block text-sm">
+    金額
+    <%= form.number_field :amount, min: 0, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %>
+  </label>
+
+  <% if @expense.expense_type_one_time? %>
+    <label class="block text-sm">
+      支払月
+      <%= form.month_field :start_month, value: format_month_input(@expense.start_month || Date.current), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %>
+    </label>
+  <% else %>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="block text-sm">
+        開始月
+        <%= form.month_field :start_month, value: format_month_input(@expense.start_month || Date.current), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm", required: true %>
+      </label>
+      <label class="block text-sm">
+        終了月（任意）
+        <%= form.month_field :end_month, value: (@expense.end_month ? format_month_input(@expense.end_month) : nil), class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+      </label>
+    </div>
+  <% end %>
+
+  <label class="block text-sm">
+    メモ
+    <%= form.text_area :memo, rows: 2, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+  </label>
+
+  <div class="flex gap-2">
+    <%= link_to "キャンセル", finance_masters_path(tab: "expenses", filter: @expense.expense_type), class: btn_classes(:secondary) %>
+    <%= form.submit "保存", class: btn_classes(:primary, extra: "cursor-pointer") %>
+  </div>
+<% end %>

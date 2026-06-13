@@ -50,6 +50,7 @@ class Expense < ApplicationRecord
     if expense_type_one_time?
       self.recurring_cycle = :monthly
       self.renewal_month = nil
+      self.end_month = start_month if start_month.present?
     elsif recurring_cycle_monthly?
       self.renewal_month = nil
     end
