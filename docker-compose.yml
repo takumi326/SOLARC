@@ -1,35 +1,35 @@
 services:
   db:
     image: postgres:16
-    container_name: iae_db
+    container_name: solarc_db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: iae_management_development
+      POSTGRES_DB: solarc_development
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d iae_management_development"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d solarc_development"]
       interval: 5s
       timeout: 5s
       retries: 30
       start_period: 20s
 
-  api:
+  app:
     build:
-      context: ./api
+      context: .
       dockerfile: Dockerfile
-    container_name: iae_api
-    working_dir: /app/api
+    container_name: solarc_app
+    working_dir: /app
     command: bash -lc "bundle install && bundle exec rails db:migrate && bin/rails tailwindcss:build && rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0 -p 3000"
     environment:
       RAILS_ENV: development
       BUNDLE_PATH: /usr/local/bundle
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/iae_management_development
-      TEST_DATABASE_URL: postgresql://postgres:postgres@db:5432/api_test
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/solarc_development
+      TEST_DATABASE_URL: postgresql://postgres:postgres@db:5432/solarc_test
       SUPABASE_URL: ${SUPABASE_URL:-}
       ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
     ports:

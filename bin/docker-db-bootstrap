@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Docker Compose の DB に migration + seed を一度流す（初回・DB 作り直し後）。
+# 前提: `docker compose up -d db` などで db が起動済み。
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+echo "==> db:migrate (development) + db:seed"
+docker compose run --rm app bash -lc "bundle exec rails db:migrate && bundle exec rails db:seed"
+
+echo "==> db:test:prepare"
+docker compose run --rm app bash -lc "bundle exec rails db:test:prepare"
+
+echo "Done."
