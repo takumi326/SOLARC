@@ -58,6 +58,19 @@ RSpec.describe "StockDailyNotes", type: :request do
     end
   end
 
+  describe "POST /stock_daily_notes" do
+    it "creates note and redirects to daily notes list" do
+      post stock_daily_notes_create_path,
+           params: {
+             stock_daily_note: { recorded_on: Date.current.iso8601, hypothesis: "new hypothesis" }
+           }
+
+      expect(response).to redirect_to(stock_daily_notes_path)
+      note = StockDailyNote.find_by!(owner_key: "development", recorded_on: Date.current)
+      expect(note.hypothesis).to eq("new hypothesis")
+    end
+  end
+
   describe "PATCH /stock_daily_notes" do
     it "updates field and redirects to daily notes list" do
       note = StockDailyNote.create!(

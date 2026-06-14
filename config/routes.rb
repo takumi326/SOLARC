@@ -59,7 +59,7 @@ Rails.application.routes.draw do
   patch "stocks/daily/prompts", to: "stock_daily_notes#update_prompts", as: :stock_daily_prompts
   get "stocks/daily", to: "stock_daily_notes#index", as: :stock_daily_notes
   get "stock_daily_notes/new", to: "stock_daily_notes#new", as: :new_stock_daily_note
-  post "stock_daily_notes", to: "stock_daily_notes#create"
+  post "stock_daily_notes", to: "stock_daily_notes#create", as: :stock_daily_notes_create
   get "stock_daily_notes/edit", to: "stock_daily_notes#edit", as: :edit_stock_daily_note
   patch "stock_daily_notes", to: "stock_daily_notes#update", as: :stock_daily_note
   delete "stock_daily_notes/:id", to: "stock_daily_notes#destroy", as: :destroy_stock_daily_note
