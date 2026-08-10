@@ -2,9 +2,11 @@
 
 class LineChangesController < ApplicationController
   include StockTimelineRedirect
+  include RejectsOmittedAiTrades
 
   before_action :set_line_change, only: [ :show, :edit, :update, :destroy ]
   before_action :load_context, only: [ :new, :create, :show, :edit, :update ]
+  before_action :reject_omitted_ai_judgment!
 
   def new
     @line_change = LineChange.new(

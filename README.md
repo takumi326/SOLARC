@@ -50,9 +50,19 @@ bin/docker-db-bootstrap
 | DB | Supabase PostgreSQL（Session pooler） |
 | 認証 | Google OAuth + Rails セッション |
 
-`main` への push で GitHub Actions が Docker イメージをビルドし、Render がデプロイします。
+`main` への push / merge で **Render Auto-Deploy** が Docker イメージをビルドしてデプロイします（GitHub Actions の CD は使いません。CI は PR / `main` の lint・test のみ）。
 
 起動時は `bin/docker-start` が `db:migrate` → Puma 起動の順で実行します（Render Free は Pre-Deploy 不可）。
+
+### Auto-Deploy の確認（Render）
+
+1. [Render Dashboard](https://dashboard.render.com/) → サービス `solarc` を開く
+2. **Settings** → **Build & Deploy**
+3. **Branch** が `main` であること
+4. **Auto-Deploy** は **After CI Checks Pass** を推奨（CI 成功後だけデプロイ。`On Commit` でも可）
+5. **Repository** が `takumi326/SOLARC` に繋がっていること
+
+手動デプロイしていた場合は Auto-Deploy を有効にすれば、以降は `main` 更新だけで反映されます。
 
 ### 環境変数（Render）
 
@@ -65,6 +75,7 @@ bin/docker-db-bootstrap
 | `ALLOWED_HOSTS` | `solarc.onrender.com` |
 | `ALLOWED_EMAILS` | ログイン許可メール（カンマ区切り） |
 | `WEB_CONCURRENCY` | `0`（Free プラン推奨） |
+| `AI_TRADE_FEATURES` | `true` で仮想AI取引・AIスクリプトを再有効化（未設定/`false` ならオミット） |
 
 `DATABASE_URL` は Supabase の **Session pooler**（`pooler.supabase.com:5432`）を使ってください。Direct connection（`db.*.supabase.co`）は Render から届かないことがあります。
 
