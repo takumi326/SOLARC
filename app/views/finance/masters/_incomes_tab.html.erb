@@ -69,10 +69,10 @@ end %>
                         <td class="px-3 py-2"><%= format_month_label(row.start_month) %></td>
                       <% end %>
                       <td class="px-3 py-2">
-                        <div class="flex gap-1">
-                          <%= link_to "詳細", finance_income_actuals_path(row), class: btn_classes(:link, extra: "px-2 py-1 text-xs") %>
-                          <%= link_to "編集", edit_finance_masters_income_path(row), class: btn_classes(:secondary, extra: "px-2 py-1 text-xs") %>
-                          <%= button_to "削除", finance_masters_income_path(row), method: :delete, form: { data: { turbo_confirm: "マスタと紐づく実績も削除されます。よろしいですか？" } }, class: btn_classes(:danger, extra: "px-2 py-1 text-xs") %>
+                        <div class="flex flex-nowrap items-center gap-1">
+                          <%= link_to "詳細", finance_income_actuals_path(row), class: btn_classes(:link, extra: "whitespace-nowrap px-2 py-1 text-xs") %>
+                          <%= link_to "編集", edit_finance_masters_income_path(row), class: btn_classes(:secondary, extra: "whitespace-nowrap px-2 py-1 text-xs") %>
+                          <%= button_to "削除", finance_masters_income_path(row), method: :delete, form: { data: { turbo_confirm: "マスタと紐づく実績も削除されます。よろしいですか？" }, class: "inline" }, class: btn_classes(:danger, extra: "whitespace-nowrap px-2 py-1 text-xs") %>
                         </div>
                       </td>
                     </tr>

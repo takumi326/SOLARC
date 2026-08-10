@@ -26,6 +26,30 @@ RSpec.describe "Finance summaries", type: :request do
       expect(response).to redirect_to(finance_summary_path(month: "2026-05"))
       expect(Forecast.find_by(kind: :income, month: Date.new(2026, 5, 1)).amount).to eq(250_000)
     end
+
+    it "accepts month in YYYY-MM format" do
+      patch finance_forecast_path, params: {
+        forecast: { kind: "expense", month: "2026-05", amount: 180_000 }
+      }
+      expect(response).to redirect_to(finance_summary_path(month: "2026-05"))
+      expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1)).amount).to eq(180_000)
+    end
+  end
+
+  describe "POST /finance/bulk_forecasts" do
+    it "saves fiscal year forecasts without type error" do
+      post finance_bulk_forecasts_path, params: {
+        anchor_month: "2026-05",
+        rows: {
+          "0" => { income: "300_000", expense: "190_000" },
+          "1" => { income: "310_000", expense: "195_000" }
+        }
+      }
+
+      expect(response).to redirect_to(finance_summary_path(month: "2026-05"))
+      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 4, 1)).amount).to eq(300_000)
+      expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1)).amount).to eq(195_000)
+    end
   end
 
   describe "POST /finance/monthly_balance" do

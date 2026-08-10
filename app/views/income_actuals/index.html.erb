@@ -27,8 +27,10 @@
               <td class="px-3 py-2"><%= format_month_label(tx.month) %></td>
               <td class="px-3 py-2"><%= format_yen(tx.amount) %></td>
               <td class="px-3 py-2">
-                <%= link_to "編集", edit_finance_income_actual_path(@income, tx), class: btn_classes(:secondary, extra: "px-2 py-1 text-xs") %>
-                <%= button_to "削除", finance_income_actual_path(@income, tx), method: :delete, form: { data: { turbo_confirm: "削除しますか？" } }, class: btn_classes(:danger, extra: "px-2 py-1 text-xs") %>
+                <div class="flex items-center gap-2">
+                  <%= link_to "編集", edit_finance_income_actual_path(@income, tx), class: btn_classes(:secondary, extra: "px-2 py-1 text-xs") %>
+                  <%= button_to "削除", finance_income_actual_path(@income, tx), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: btn_classes(:danger, extra: "px-2 py-1 text-xs") %>
+                </div>
               </td>
             </tr>
           <% end %>

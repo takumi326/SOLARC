@@ -20,8 +20,10 @@
               <td class="px-3 py-2"><%= method.name %></td>
               <td class="px-3 py-2"><%= payment_method_type_label(method.method_type) %></td>
               <td class="px-3 py-2">
-                <%= link_to "編集", edit_finance_masters_payment_method_path(method), class: btn_classes(:secondary, extra: "px-2 py-1 text-xs") %>
-                <%= button_to "削除", finance_masters_payment_method_path(method), method: :delete, form: { data: { turbo_confirm: "削除しますか？" } }, class: btn_classes(:danger, extra: "px-2 py-1 text-xs") %>
+                <div class="flex flex-nowrap items-center gap-1">
+                  <%= link_to "編集", edit_finance_masters_payment_method_path(method), class: btn_classes(:secondary, extra: "whitespace-nowrap px-2 py-1 text-xs") %>
+                  <%= button_to "削除", finance_masters_payment_method_path(method), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: btn_classes(:danger, extra: "whitespace-nowrap px-2 py-1 text-xs") %>
+                </div>
               </td>
             </tr>
           <% end %>

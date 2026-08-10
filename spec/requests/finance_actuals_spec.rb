@@ -24,11 +24,22 @@ RSpec.describe "Finance actuals", type: :request do
       expense, tx = create_recurring_expense_with_actual
 
       patch finance_expense_actual_path(expense, tx), params: {
-        actual: { month: "2026-05", amount: 12_000 }
+        actual: { amount: 12_000 }
       }
 
       expect(response).to redirect_to(finance_expense_actuals_path(expense))
       expect(tx.reload.amount).to eq(-12_000)
+      expect(tx.month).to eq(Date.new(2026, 5, 1))
+    end
+
+    it "does not change month even if month param is sent" do
+      expense, tx = create_recurring_expense_with_actual
+
+      patch finance_expense_actual_path(expense, tx), params: {
+        actual: { month: "2026-06", amount: 12_000 }
+      }
+
+      expect(tx.reload.month).to eq(Date.new(2026, 5, 1))
     end
   end
 
@@ -48,11 +59,22 @@ RSpec.describe "Finance actuals", type: :request do
       income, tx = create_recurring_income_with_actual
 
       patch finance_income_actual_path(income, tx), params: {
-        actual: { month: "2026-05", amount: 35_000 }
+        actual: { amount: 35_000 }
       }
 
       expect(response).to redirect_to(finance_income_actuals_path(income))
       expect(tx.reload.amount).to eq(35_000)
+      expect(tx.month).to eq(Date.new(2026, 5, 1))
+    end
+
+    it "does not change month even if month param is sent" do
+      income, tx = create_recurring_income_with_actual
+
+      patch finance_income_actual_path(income, tx), params: {
+        actual: { month: "2026-06", amount: 35_000 }
+      }
+
+      expect(tx.reload.month).to eq(Date.new(2026, 5, 1))
     end
   end
 

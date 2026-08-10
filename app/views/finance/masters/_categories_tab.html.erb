@@ -21,11 +21,11 @@
           <details open>
             <summary class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm">
               <span class="font-medium"><%= major.name %></span>
-              <span class="flex items-center gap-2 text-xs text-slate-500">
+              <span class="flex flex-nowrap items-center gap-2 text-xs text-slate-500">
                 <span><%= major.kind == "expense" ? "支出" : "収入" %></span>
                 <span><%= major_minors.size %>件</span>
-                <%= link_to "編集", edit_finance_masters_major_category_path(major), class: "rounded border border-slate-300 px-1.5 py-0.5 hover:bg-slate-100" %>
-                <%= button_to "削除", finance_masters_major_category_path(major), method: :delete, form: { data: { turbo_confirm: "削除しますか？" } }, class: "rounded border border-rose-300 px-1.5 py-0.5 text-rose-700 hover:bg-rose-50" %>
+                <%= link_to "編集", edit_finance_masters_major_category_path(major), class: "whitespace-nowrap rounded border border-slate-300 px-1.5 py-0.5 hover:bg-slate-100" %>
+                <%= button_to "削除", finance_masters_major_category_path(major), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: "whitespace-nowrap rounded border border-rose-300 px-1.5 py-0.5 text-rose-700 hover:bg-rose-50" %>
               </span>
             </summary>
             <div class="border-t border-slate-100 px-3 py-2">
@@ -36,9 +36,9 @@
                   <% major_minors.each do |minor| %>
                     <li class="flex items-center justify-between rounded bg-slate-50 px-2 py-1 text-sm">
                       <span><%= minor.name %></span>
-                      <div class="flex gap-2">
-                        <%= link_to "編集", edit_finance_masters_minor_category_path(minor), class: "rounded border border-slate-300 px-2 py-1 text-xs hover:bg-white" %>
-                        <%= button_to "削除", finance_masters_minor_category_path(minor), method: :delete, form: { data: { turbo_confirm: "削除しますか？" } }, class: "rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50" %>
+                      <div class="flex flex-nowrap items-center gap-2">
+                        <%= link_to "編集", edit_finance_masters_minor_category_path(minor), class: "whitespace-nowrap rounded border border-slate-300 px-2 py-1 text-xs hover:bg-white" %>
+                        <%= button_to "削除", finance_masters_minor_category_path(minor), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: "whitespace-nowrap rounded border border-rose-300 px-2 py-1 text-xs text-rose-700 hover:bg-rose-50" %>
                       </div>
                     </li>
                   <% end %>

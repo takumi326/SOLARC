@@ -19,15 +19,8 @@ class ExpenseActualsController < ApplicationController
 
   def update
     @transaction = find_transaction
-    new_month = parse_month_param(params.dig(:actual, :month))
     new_amount = -params.dig(:actual, :amount).to_d.abs
 
-    if duplicate_month?(new_month, except_id: @transaction.id)
-      flash.now[:alert] = "同じ月に別の実績が既にあります"
-      return render :edit, status: :unprocessable_entity
-    end
-
-    @transaction.month = new_month
     @transaction.amount = new_amount
     if @transaction.save
       redirect_to finance_expense_actuals_path(@expense), notice: "実績を更新しました。"
@@ -71,12 +64,5 @@ class ExpenseActualsController < ApplicationController
   def find_transaction
     et = @expense.expense_transactions.find_by!(transaction_id: params[:id])
     et.ledger_transaction
-  end
-
-  def duplicate_month?(month, except_id:)
-    @expense.expense_transactions
-            .joins(:ledger_transaction)
-            .where.not(transaction_id: except_id)
-            .exists?(transactions: { month: month })
   end
 end
