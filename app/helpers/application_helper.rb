@@ -130,7 +130,7 @@ module ApplicationHelper
     if trade_type == "real"
       "実取引"
     elsif judgment_type == "human"
-      "仮想・人間"
+      "仮想"
     else
       "仮想・AI"
     end
@@ -139,7 +139,7 @@ module ApplicationHelper
   def timeline_tabs
     tabs = [
       { trade_type: "real", judgment_type: "human", label: "実取引" },
-      { trade_type: "virtual", judgment_type: "human", label: "仮想・人間" }
+      { trade_type: "virtual", judgment_type: "human", label: "仮想" }
     ]
     if AiTradeFeatures.enabled?
       tabs << { trade_type: "virtual", judgment_type: "ai", label: "仮想・AI" }

@@ -5,7 +5,7 @@ class StockTradesController < ApplicationController
 
   MODE_CONFIG = {
     "real" => { title: "実取引一覧", trade_type: "real", judgment_type: "human", script_filter: false },
-    "virtual-human" => { title: "仮想取引一覧（人間）", trade_type: "virtual", judgment_type: "human", script_filter: false },
+    "virtual-human" => { title: "仮想取引一覧", trade_type: "virtual", judgment_type: "human", script_filter: false },
     "virtual-ai" => { title: "仮想取引一覧（AI）", trade_type: "virtual", judgment_type: "ai", script_filter: true }
   }.freeze
 
