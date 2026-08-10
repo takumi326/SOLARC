@@ -70,6 +70,7 @@ Rails.application.routes.draw do
   scope "stocks" do
     resources :industries, only: [ :index, :create ]
     resources :ai_scripts, path: "ai-scripts", only: [ :index, :new, :create, :edit, :update, :destroy ]
+    resources :stock_trade_rules, path: "trade-rules"
   end
 
   post "stocks/import", to: "stocks#import", as: :import_stocks
