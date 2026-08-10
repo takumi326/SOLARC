@@ -5,7 +5,7 @@
 
     <%= form_with url: finance_forecast_path, method: :patch, class: "mt-4 space-y-3" do %>
       <input type="hidden" name="forecast[kind]" value="<%= @kind %>" />
-      <input type="hidden" name="forecast[month]" value="<%= @month %>" />
+      <input type="hidden" name="forecast[month]" value="<%= month_input_value(@month) %>" />
       <label class="block text-sm">
         <span class="text-slate-600">金額</span>
         <div class="mt-1 flex items-center gap-2">

@@ -4,7 +4,7 @@
     <p class="mt-1 text-xs text-slate-500">アンカー月: <%= format_month_label(@anchor_month) %></p>
 
     <%= form_with url: finance_bulk_forecasts_path, method: :post, class: "mt-4 space-y-3" do %>
-      <input type="hidden" name="anchor_month" value="<%= @anchor_month %>" />
+      <input type="hidden" name="anchor_month" value="<%= month_input_value(@anchor_month) %>" />
       <div class="max-h-[60vh] overflow-y-auto rounded-lg border border-slate-200">
         <table class="min-w-full divide-y divide-slate-200 text-sm">
           <thead class="bg-slate-50 text-left text-xs text-slate-500">

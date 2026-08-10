@@ -19,18 +19,11 @@ class ExpenseActualsController < ApplicationController
 
   def update
     @transaction = find_transaction
-    new_month = parse_month_param(params.dig(:actual, :month))
     new_amount = -params.dig(:actual, :amount).to_d.abs
 
-    if duplicate_month?(new_month, except_id: @transaction.id)
-      flash.now[:alert] = "同じ月に別の実績が既にあります"
-      return render :edit, status: :unprocessable_entity
-    end
-
-    @transaction.month = new_month
     @transaction.amount = new_amount
     if @transaction.save
-      redirect_to expense_actuals_path(@expense), notice: "実績を更新しました。"
+      redirect_to finance_expense_actuals_path(@expense), notice: "実績を更新しました。"
     else
       flash.now[:alert] = @transaction.errors.full_messages.join(" ")
       render :edit, status: :unprocessable_entity
@@ -40,12 +33,12 @@ class ExpenseActualsController < ApplicationController
   def destroy
     transaction = find_transaction
     transaction.destroy!
-    redirect_to expense_actuals_path(@expense), notice: "実績を削除しました。"
+    redirect_to finance_expense_actuals_path(@expense), notice: "実績を削除しました。"
   end
 
   def bulk_from_month
     unless @expense.expense_type_recurring?
-      redirect_to expense_actuals_path(@expense), alert: "定期の支出のみ一括変更できます"
+      redirect_to finance_expense_actuals_path(@expense), alert: "定期の支出のみ一括変更できます"
       return
     end
 
@@ -57,9 +50,9 @@ class ExpenseActualsController < ApplicationController
       amount: amount,
       negative: true
     )
-    redirect_to expense_actuals_path(@expense), notice: "指定月以降の実績を一括更新しました。"
+    redirect_to finance_expense_actuals_path(@expense), notice: "指定月以降の実績を一括更新しました。"
   rescue ArgumentError => e
-    redirect_to expense_actuals_path(@expense), alert: e.message
+    redirect_to finance_expense_actuals_path(@expense), alert: e.message
   end
 
   private
@@ -71,12 +64,5 @@ class ExpenseActualsController < ApplicationController
   def find_transaction
     et = @expense.expense_transactions.find_by!(transaction_id: params[:id])
     et.ledger_transaction
-  end
-
-  def duplicate_month?(month, except_id:)
-    @expense.expense_transactions
-            .joins(:ledger_transaction)
-            .where.not(transaction_id: except_id)
-            .exists?(transactions: { month: month })
   end
 end

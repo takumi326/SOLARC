@@ -71,11 +71,11 @@ class FinanceSummariesController < ApplicationController
   def bulk_forecasts
     anchor = parse_month_param(params[:anchor_month])
     fiscal_months = fiscal_month_starts(anchor)
-    rows = params.fetch(:rows, {}).values
+    rows_by_index = params.fetch(:rows, {})
 
     ActiveRecord::Base.transaction do
       fiscal_months.each_with_index do |month, idx|
-        row = rows[idx.to_s] || rows[idx]
+        row = rows_by_index[idx.to_s] || rows_by_index[idx]
         next if row.blank?
 
         %w[income expense].each do |kind|
