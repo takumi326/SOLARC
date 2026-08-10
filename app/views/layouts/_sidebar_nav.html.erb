@@ -11,12 +11,12 @@
     <p class="mb-1 px-2 text-xs font-semibold tracking-wide text-slate-400">株管理</p>
     <div class="space-y-1">
       <%= nav_link "毎日の記録", stock_daily_notes_path %>
+      <%= nav_link "取引ルール", stock_trade_rules_path %>
       <%= nav_link "株一覧", stocks_path %>
       <%= nav_link "実取引一覧", stock_trades_path(mode: "real") %>
       <%= nav_link "仮想取引（人間）", stock_trades_path(mode: "virtual-human") %>
       <%= nav_link "仮想取引（AI）", stock_trades_path(mode: "virtual-ai") %>
       <%= nav_link "AI スクリプト", ai_scripts_path %>
-      <%= nav_link "取引ルール", stock_trade_rules_path %>
     </div>
   </div>
 </nav>
