@@ -177,9 +177,6 @@
           <button type="button" class="<%= btn_classes(:secondary) %>" data-copy-text="<%= h(@claude_prompt) %>" data-copy-label="プロンプト" data-copy-flash="プロンプトをコピーしました">プロンプトコピー</button>
           <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" class="<%= btn_classes(:link) %>">Claude</a>
         </div>
-        <% unless @fixed_payment_method&.method_type == "card" %>
-          <p class="text-xs text-amber-800">支払方法「<%= FinanceImportClaudePromptBuilder::FIXED_PAYMENT_METHOD_NAME %>」（クレジットカード）をマスタに追加してください。</p>
-        <% end %>
       </div>
 
       <%= form_with url: finance_import_path, method: :post, class: "mt-4 space-y-3" do %>
