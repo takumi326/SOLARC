@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class AiScriptsController < ApplicationController
+  include RejectsOmittedAiTrades
+
+  before_action :reject_omitted_ai_trades!
   before_action :set_script, only: [ :edit, :update, :destroy ]
 
   def index

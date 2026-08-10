@@ -15,8 +15,10 @@
       <%= nav_link "株一覧", stocks_path %>
       <%= nav_link "実取引一覧", stock_trades_path(mode: "real") %>
       <%= nav_link "仮想取引（人間）", stock_trades_path(mode: "virtual-human") %>
-      <%= nav_link "仮想取引（AI）", stock_trades_path(mode: "virtual-ai") %>
-      <%= nav_link "AI スクリプト", ai_scripts_path %>
+      <% if AiTradeFeatures.enabled? %>
+        <%= nav_link "仮想取引（AI）", stock_trades_path(mode: "virtual-ai") %>
+        <%= nav_link "AI スクリプト", ai_scripts_path %>
+      <% end %>
     </div>
   </div>
 </nav>

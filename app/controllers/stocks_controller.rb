@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 class StocksController < ApplicationController
+  include RejectsOmittedAiTrades
+
   before_action :set_stock, only: [ :show, :edit, :update, :timeline ]
   before_action :assign_timeline_tab_params, only: [ :edit, :update ]
+  before_action :reject_omitted_ai_timeline!, only: [ :show, :timeline, :edit, :update ]
 
   def index
     @q = params[:q].to_s.strip
@@ -98,7 +101,7 @@ class StocksController < ApplicationController
 
   def load_timeline_context!
     assign_timeline_tab_params
-    @ai_scripts = AiScript.order(id: :desc) if @judgment_type == "ai"
+    @ai_scripts = AiScript.order(id: :desc) if @judgment_type == "ai" && AiTradeFeatures.enabled?
 
     result = StockTimelineBuilder.build(
       stock: @stock,
@@ -108,5 +111,12 @@ class StocksController < ApplicationController
     )
     @timeline_rows = result[:rows]
     @current_line = result[:current_line]
+  end
+
+  def reject_omitted_ai_timeline!
+    return unless AiTradeFeatures.omitted?
+    return unless params[:judgment_type].to_s == "ai"
+
+    reject_omitted_ai_trades!
   end
 end
