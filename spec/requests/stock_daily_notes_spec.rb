@@ -58,6 +58,17 @@ RSpec.describe "StockDailyNotes", type: :request do
     end
   end
 
+  describe "GET /stock_daily_notes/new" do
+    it "defaults recorded_on to Tokyo calendar date near UTC midnight" do
+      travel_to Time.utc(2026, 8, 10, 15, 0, 0) do
+        # 2026-08-10 15:00 UTC = 2026-08-11 00:00 JST
+        get new_stock_daily_note_path
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include('value="2026-08-11"')
+      end
+    end
+  end
+
   describe "POST /stock_daily_notes" do
     it "creates note and redirects to daily notes list" do
       post stock_daily_notes_create_path,
