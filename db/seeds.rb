@@ -11,7 +11,7 @@ end
 {
   "食費" => [ "外食", "出前館", "ウーバーイーツ" ],
   "ソシャゲ" => [ "崩壊スターレイル", "鳴潮", "ゼンレスゾーンゼロ", "アークナイツ", "エンドフィールド" ],
-  "雑費" => [ "アマゾン", "UCC（コーヒー）", "宝くじ", "アマゾンプライム", "PC保証", "グーグルプレイカード" ],
+  "雑費" => [ "アマゾン", "UCC（コーヒー）", "宝くじ", "アマゾンプライム", "PC保証", "グーグルプレイカード", "未分類" ],
   "サブスク" => [ "Line", "Note（グリーンさん）", "Google Storage", "Claude", "エニタイム", "YouTube Premium" ],
   "ゲーム" => [ "Steam", "PlayStation", "任天堂" ]
 }.each do |major_name, minors|
@@ -105,4 +105,7 @@ if Rails.env.development?
   demo_balance = MonthlyBalance.find_or_initialize_by(month: demo_month)
   demo_balance.amount = 500_000
   demo_balance.save!
+
+  load Rails.root.join("db/seeds/development_demo.rb")
+  load Rails.root.join("db/seeds/development_import_demo.rb")
 end
