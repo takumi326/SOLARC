@@ -1,11 +1,7 @@
-<%= form_with model: @rule, url: @rule.persisted? ? stock_trade_rule_path(@rule) : stock_trade_rules_path, class: "mt-4 space-y-4" do |form| %>
-  <label class="block text-sm">
-    <span class="text-slate-700">タイトル</span>
-    <%= form.text_field :title, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
-  </label>
+<%= form_with model: @rule, url: stock_trade_rule_path, method: :patch, class: "mt-4 space-y-4" do |form| %>
   <label class="block text-sm">
     <span class="text-slate-700">ルール本文</span>
-    <%= form.text_area :body, rows: 16, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm leading-relaxed" %>
+    <%= form.text_area :body, rows: 20, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm leading-relaxed" %>
   </label>
   <div class="flex flex-wrap gap-2">
     <%= link_to "キャンセル", cancel_path, class: btn_classes(:secondary) %>
