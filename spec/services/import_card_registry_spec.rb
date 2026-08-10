@@ -8,7 +8,7 @@ RSpec.describe ImportCardRegistry do
     let!(:paypay) { create(:payment_method, name: "PayPayカード", method_type: "card") }
 
     it "maps smcc_amazon to payment method" do
-      result = described_class.resolve!( "smcc_amazon", line_number: 1)
+      result = described_class.resolve!("smcc_amazon", line_number: 1)
       expect(result[:card_name]).to eq("Amazonカード")
       expect(result[:payment_method]).to eq(smcc)
     end
