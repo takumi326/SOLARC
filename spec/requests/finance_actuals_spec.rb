@@ -66,4 +66,36 @@ RSpec.describe "Finance actuals", type: :request do
       expect(Transaction.exists?(tx.id)).to be(false)
     end
   end
+
+  describe "POST bulk_from_month expense actuals" do
+    it "updates from month and redirects to finance expense actuals index" do
+      expense, _tx = create_recurring_expense_with_actual(month: Date.new(2026, 5, 1), amount: 10_000)
+      tx_june = Transaction.create!(month: Date.new(2026, 6, 1), amount: -10_000)
+      ExpenseTransaction.create!(expense: expense, ledger_transaction: tx_june)
+
+      post bulk_from_month_finance_expense_actuals_path(expense), params: {
+        from_month: "2026-06",
+        amount: 15_000
+      }
+
+      expect(response).to redirect_to(finance_expense_actuals_path(expense))
+      expect(tx_june.reload.amount).to eq(-15_000)
+    end
+  end
+
+  describe "POST bulk_from_month income actuals" do
+    it "updates from month and redirects to finance income actuals index" do
+      income, _tx = create_recurring_income_with_actual(month: Date.new(2026, 5, 1), amount: 30_000)
+      tx_june = Transaction.create!(month: Date.new(2026, 6, 1), amount: 30_000)
+      IncomeTransaction.create!(income: income, ledger_transaction: tx_june)
+
+      post bulk_from_month_finance_income_actuals_path(income), params: {
+        from_month: "2026-06",
+        amount: 40_000
+      }
+
+      expect(response).to redirect_to(finance_income_actuals_path(income))
+      expect(tx_june.reload.amount).to eq(40_000)
+    end
+  end
 end
