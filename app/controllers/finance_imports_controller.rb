@@ -44,6 +44,7 @@ class FinanceImportsController < ApplicationController
       store_preview_draft(draft, @pending_rows, raw_json: @raw_json)
       @compare_month_input = min_month_label(@pending_rows)
       @selected_line_numbers = @pending_rows.map(&:line_number)
+      @verification_text = FinanceImportPreviewSummary.verification_text(@raw_json)
       load_preview_tables
       @phase = "preview"
       render :show
@@ -74,6 +75,7 @@ class FinanceImportsController < ApplicationController
       @pending_rows = pending_rows
       @compare_month_input = params[:compare_month].presence || draft.compare_month.presence || min_month_label(pending_rows)
       @selected_line_numbers = selected
+      @verification_text = FinanceImportPreviewSummary.verification_text(draft.raw_json)
       load_preview_tables
       flash.now[:alert] = "取り込む行を1件以上選んでください"
       return render :show, status: :unprocessable_entity
@@ -129,6 +131,7 @@ class FinanceImportsController < ApplicationController
       draft.update!(compare_month: @compare_month_input)
     end
     @selected_line_numbers = Array(params[:line_numbers]).presence || draft.selected_lines.presence || @pending_rows.map(&:line_number)
+    @verification_text = FinanceImportPreviewSummary.verification_text(draft.raw_json)
     load_preview_tables
   end
 
@@ -136,13 +139,15 @@ class FinanceImportsController < ApplicationController
     compare_month = parse_month_param("#{@compare_month_input}-01")
     pending_for_month = @pending_rows.select { |row| row.month_label == @compare_month_input }
     @existing_rows = FinanceExpenseImportService.existing_one_time_rows(compare_month: compare_month, pending_rows: pending_for_month)
-    @hidden_duplicate_count = pending_for_month.count do |pr|
-      @existing_rows.any? { |er| er[:minor_category_id] == pr.minor_category_id && er[:amount] == pr.amount }
-    end
-    @right_table_rows = @pending_rows.reject do |row|
-      row.month_label == @compare_month_input &&
-        @existing_rows.any? { |er| er[:minor_category_id] == row.minor_category_id && er[:amount] == row.amount }
-    end
+    @duplicate_pairs = FinanceImportPreviewSummary.duplicate_pairs(pending_for_month, @existing_rows)
+    @duplicate_pending_rows = @duplicate_pairs.map(&:pending)
+    duplicate_line_numbers = @duplicate_pending_rows.map(&:line_number).to_set
+    @right_table_rows = @pending_rows.reject { |row| duplicate_line_numbers.include?(row.line_number) }
+    @import_summary = FinanceImportPreviewSummary.build(
+      pending_rows: @pending_rows,
+      duplicate_rows: @duplicate_pending_rows,
+      compare_month: @compare_month_input
+    )
   end
 
   def persist_edit_draft(draft, raw_json)
@@ -171,7 +176,8 @@ class FinanceImportsController < ApplicationController
         "category_path" => row.category_path,
         "amount" => row.amount,
         "memo" => row.memo,
-        "minor_category_id" => row.minor_category_id
+        "minor_category_id" => row.minor_category_id,
+        "source_id" => row.source_id
       }
     end
   end
@@ -190,7 +196,8 @@ class FinanceImportsController < ApplicationController
         category_path: hash["category_path"].presence || "#{minor.major_category.name} / #{minor.name}",
         amount: hash["amount"],
         memo: hash["memo"],
-        minor_category_id: hash["minor_category_id"]
+        minor_category_id: hash["minor_category_id"],
+        source_id: hash["source_id"]
       )
     end
   end

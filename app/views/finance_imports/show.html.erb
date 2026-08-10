@@ -15,8 +15,90 @@
         <input type="month" name="compare_month" value="<%= @compare_month_input %>" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm" onchange="this.form.requestSubmit()" />
       <% end %>
 
-      <% if @hidden_duplicate_count.to_i.positive? %>
-        <p class="mb-3 text-xs text-amber-800">保存済みと重複する <%= @hidden_duplicate_count %> 件は表示・取り込み対象から除いています。</p>
+      <% if @import_summary.present? %>
+        <div class="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <p class="text-xs text-slate-500">JSON 全件</p>
+            <p class="text-lg font-semibold tabular-nums"><%= @import_summary.total_count %> 件 / <%= format_yen(@import_summary.total_amount) %></p>
+          </div>
+          <div class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+            <p class="text-xs text-indigo-700">取り込み候補（重複除く）</p>
+            <p class="text-lg font-semibold tabular-nums text-indigo-900"><%= @import_summary.importable_count %> 件 / <%= format_yen(@import_summary.importable_amount) %></p>
+          </div>
+          <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p class="text-xs text-amber-800">重複除外（<%= @compare_month_input %>）</p>
+            <p class="text-lg font-semibold tabular-nums text-amber-900"><%= @import_summary.duplicate_count %> 件 / <%= format_yen(@import_summary.duplicate_amount) %></p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+            <p class="text-xs text-slate-500">要確認メモ</p>
+            <p class="text-lg font-semibold tabular-nums"><%= @import_summary.needs_review_count %> 件</p>
+          </div>
+        </div>
+
+        <% if @import_summary.by_source[:vpass][:count].positive? || @import_summary.by_source[:paypal][:count].positive? %>
+          <div class="mb-4 flex flex-wrap gap-2 text-xs">
+            <% if @import_summary.by_source[:vpass][:count].positive? %>
+              <span class="rounded-full bg-slate-200 px-2.5 py-1 text-slate-700">VPass <%= @import_summary.by_source[:vpass][:count] %> 件 / <%= format_yen(@import_summary.by_source[:vpass][:amount]) %></span>
+            <% end %>
+            <% if @import_summary.by_source[:paypal][:count].positive? %>
+              <span class="rounded-full bg-slate-200 px-2.5 py-1 text-slate-700">PayPal <%= @import_summary.by_source[:paypal][:count] %> 件 / <%= format_yen(@import_summary.by_source[:paypal][:amount]) %></span>
+            <% end %>
+            <% if @import_summary.by_source[:unknown][:count].positive? %>
+              <span class="rounded-full bg-slate-200 px-2.5 py-1 text-slate-500">経路不明 <%= @import_summary.by_source[:unknown][:count] %> 件</span>
+            <% end %>
+          </div>
+        <% end %>
+
+        <% if @import_summary.by_month.size > 1 %>
+          <div class="mb-4 overflow-x-auto">
+            <table class="min-w-full text-left text-xs text-slate-600">
+              <thead><tr><th class="pr-4 pb-1">利用月</th><th class="pr-4 pb-1 text-right">件数</th><th class="pb-1 text-right">合計</th></tr></thead>
+              <tbody>
+                <% @import_summary.by_month.each do |month, stats| %>
+                  <tr><td class="pr-4 py-0.5"><%= month %></td><td class="pr-4 py-0.5 text-right"><%= stats[:count] %></td><td class="py-0.5 text-right tabular-nums"><%= format_yen(stats[:amount]) %></td></tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+
+        <% if @verification_text.present? %>
+          <details class="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+            <summary class="cursor-pointer font-medium text-slate-700">Claude 検算（--- 以降）</summary>
+            <pre class="mt-2 max-h-48 overflow-auto whitespace-pre-wrap font-mono text-slate-600"><%= @verification_text %></pre>
+          </details>
+        <% end %>
+      <% end %>
+
+      <% if @duplicate_pairs.present? %>
+        <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+          <p class="mb-2 text-sm font-medium text-amber-900">重複（<%= @compare_month_input %> — カテゴリ・金額が保存済みと一致）</p>
+          <p class="mb-2 text-xs text-amber-800">以下は右の取り込みリストから除外しています。既に登録済みならそのままで問題ありません。</p>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-left text-xs">
+              <thead class="text-amber-900/70">
+                <tr>
+                  <th class="px-2 py-1">保存済みメモ</th>
+                  <th class="px-2 py-1">カテゴリ</th>
+                  <th class="px-2 py-1 text-right">金額</th>
+                  <th class="px-2 py-1 text-slate-400">↔</th>
+                  <th class="px-2 py-1">今回メモ</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-amber-100">
+                <% @duplicate_pairs.each do |pair| %>
+                  <tr>
+                    <td class="px-2 py-1.5"><%= pair.existing[:memo].presence || "—" %></td>
+                    <td class="px-2 py-1.5"><%= pair.existing[:category_path] %></td>
+                    <td class="px-2 py-1.5 text-right tabular-nums"><%= format_yen(pair.existing[:amount]) %></td>
+                    <td class="px-2 py-1.5 text-center text-slate-400">=</td>
+                    <td class="px-2 py-1.5"><%= pair.pending.memo.presence || "—" %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
       <% end %>
 
       <div class="flex flex-col gap-4 lg:flex-row lg:items-stretch">
@@ -28,10 +110,15 @@
                 <tr><th class="px-3 py-2">月</th><th class="px-3 py-2">カテゴリ</th><th class="px-3 py-2 text-right">金額</th><th class="px-3 py-2">メモ</th></tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
-                <% @existing_rows.reject { |r| r[:duplicate_with_pending] }.each do |row| %>
-                  <tr>
+                <% @existing_rows.each do |row| %>
+                  <tr class="<%= row[:duplicate_with_pending] ? "bg-amber-50" : "" %>">
                     <td class="px-3 py-2"><%= row[:month_label] %></td>
-                    <td class="px-3 py-2"><%= row[:category_path] %></td>
+                    <td class="px-3 py-2">
+                      <%= row[:category_path] %>
+                      <% if row[:duplicate_with_pending] %>
+                        <span class="ml-1 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">重複</span>
+                      <% end %>
+                    </td>
                     <td class="px-3 py-2 text-right"><%= format_yen(row[:amount]) %></td>
                     <td class="px-3 py-2"><%= row[:memo].presence || "—" %></td>
                   </tr>

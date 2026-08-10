@@ -9,6 +9,7 @@ class FinanceExpenseImportParser
     :amount,
     :memo,
     :minor_category_id,
+    :source_id,
     keyword_init: true
   )
 
@@ -57,7 +58,8 @@ class FinanceExpenseImportParser
       category_path: category_path,
       amount: amount,
       memo: memo,
-      minor_category_id: minor.id
+      minor_category_id: minor.id,
+      source_id: row["source_id"].to_s.strip.presence
     )
   end
 
