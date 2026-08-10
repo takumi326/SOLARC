@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile
     container_name: solarc_app
     working_dir: /app
-    command: bash -lc "bundle install && bundle exec rails db:migrate && bin/rails tailwindcss:build && rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0 -p 3000"
+    command: bash -lc "bundle install && bundle exec rails db:migrate && bin/rails tailwindcss:watch & rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0 -p 3000"
     environment:
       RAILS_ENV: development
       BUNDLE_PATH: /usr/local/bundle

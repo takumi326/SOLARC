@@ -7,7 +7,13 @@
     return document.getElementById("mobile-nav-overlay")
   }
 
+  function isMobileNav() {
+    return window.matchMedia("(max-width: 767px)").matches
+  }
+
   function openNav() {
+    if (!isMobileNav()) return
+
     var el = drawer()
     var veil = overlay()
     if (!el || !veil) return
@@ -26,6 +32,17 @@
     veil.classList.add("hidden")
     document.body.classList.remove("overflow-hidden")
   }
+
+  function bindMobileNav() {
+    closeNav()
+  }
+
+  document.addEventListener("DOMContentLoaded", bindMobileNav)
+  document.addEventListener("turbo:load", bindMobileNav)
+
+  window.addEventListener("resize", function () {
+    if (!isMobileNav()) closeNav()
+  })
 
   document.addEventListener("click", function (event) {
     if (event.target.closest("#mobile-nav-open")) {
