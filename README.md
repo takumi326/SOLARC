@@ -50,9 +50,19 @@ bin/docker-db-bootstrap
 | DB | Supabase PostgreSQL（Session pooler） |
 | 認証 | Google OAuth + Rails セッション |
 
-`main` への push で GitHub Actions が Docker イメージをビルドし、Render がデプロイします。
+`main` への push / merge で **Render Auto-Deploy** が Docker イメージをビルドしてデプロイします（GitHub Actions の CD は使いません。CI は PR / `main` の lint・test のみ）。
 
 起動時は `bin/docker-start` が `db:migrate` → Puma 起動の順で実行します（Render Free は Pre-Deploy 不可）。
+
+### Auto-Deploy の確認（Render）
+
+1. [Render Dashboard](https://dashboard.render.com/) → サービス `solarc` を開く
+2. **Settings** → **Build & Deploy**
+3. **Branch** が `main` であること
+4. **Auto-Deploy** が `Yes`（または On）であること
+5. **Repository** が `takumi326/SOLARC` に繋がっていること
+
+手動デプロイしていた場合は Auto-Deploy を On にすれば、以降は `main` 更新だけで反映されます。
 
 ### 環境変数（Render）
 
