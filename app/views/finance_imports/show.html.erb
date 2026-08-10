@@ -73,21 +73,23 @@
       <% if @duplicate_pairs.present? %>
         <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
           <p class="mb-2 text-sm font-medium text-amber-900">重複（<%= @compare_month_input %> — カテゴリ・金額が保存済みと一致）</p>
-          <p class="mb-2 text-xs text-amber-800">以下は右の取り込みリストから除外しています。既に登録済みならそのままで問題ありません。</p>
+          <p class="mb-2 text-xs text-amber-800">以下は取り込みリストから除外しています。<strong>No.</strong> で左の保存済み行と対応づけできます。</p>
           <div class="overflow-x-auto">
             <table class="min-w-full text-left text-xs">
               <thead class="text-amber-900/70">
                 <tr>
-                  <th class="px-2 py-1">保存済みメモ</th>
+                  <th class="px-2 py-1">No.</th>
+                  <th class="px-2 py-1">保存済み</th>
                   <th class="px-2 py-1">カテゴリ</th>
                   <th class="px-2 py-1 text-right">金額</th>
                   <th class="px-2 py-1 text-slate-400">↔</th>
-                  <th class="px-2 py-1">今回メモ</th>
+                  <th class="px-2 py-1">今回（JSON）</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-amber-100">
                 <% @duplicate_pairs.each do |pair| %>
                   <tr>
+                    <td class="px-2 py-1.5 font-semibold tabular-nums text-amber-900"><%= pair.pending.line_number %></td>
                     <td class="px-2 py-1.5"><%= pair.existing[:memo].presence || "—" %></td>
                     <td class="px-2 py-1.5"><%= pair.existing[:category_path] %></td>
                     <td class="px-2 py-1.5 text-right tabular-nums"><%= format_yen(pair.existing[:amount]) %></td>
@@ -107,16 +109,23 @@
           <div class="min-h-0 max-h-72 flex-1 overflow-auto">
             <table class="min-w-full divide-y divide-slate-200 text-sm">
               <thead class="sticky top-0 bg-slate-50 text-left text-xs text-slate-500">
-                <tr><th class="px-3 py-2">月</th><th class="px-3 py-2">カテゴリ</th><th class="px-3 py-2 text-right">金額</th><th class="px-3 py-2">メモ</th></tr>
+                <tr><th class="px-3 py-2">No.</th><th class="px-3 py-2">月</th><th class="px-3 py-2">カテゴリ</th><th class="px-3 py-2 text-right">金額</th><th class="px-3 py-2">メモ</th></tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
                 <% @existing_rows.each do |row| %>
                   <tr class="<%= row[:duplicate_with_pending] ? "bg-amber-50" : "" %>">
+                    <td class="px-3 py-2 tabular-nums text-slate-500">
+                      <% if row[:pending_line_number].present? %>
+                        <span class="font-semibold text-amber-900"><%= row[:pending_line_number] %></span>
+                      <% else %>
+                        —
+                      <% end %>
+                    </td>
                     <td class="px-3 py-2"><%= row[:month_label] %></td>
                     <td class="px-3 py-2">
                       <%= row[:category_path] %>
                       <% if row[:duplicate_with_pending] %>
-                        <span class="ml-1 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">重複</span>
+                        <span class="ml-1 rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-900">No.<%= row[:pending_line_number] %> と重複</span>
                       <% end %>
                     </td>
                     <td class="px-3 py-2 text-right"><%= format_yen(row[:amount]) %></td>
@@ -135,7 +144,7 @@
           <div class="min-h-0 max-h-72 flex-1 overflow-auto">
             <table class="min-w-full divide-y divide-slate-200 text-sm">
               <thead class="sticky top-0 bg-slate-50 text-left text-xs text-slate-500">
-                <tr><th class="w-10 px-2 py-2"></th><th class="px-3 py-2">月</th><th class="px-3 py-2">カテゴリ</th><th class="px-3 py-2 text-right">金額</th><th class="px-3 py-2">メモ</th></tr>
+                <tr><th class="w-10 px-2 py-2"></th><th class="w-10 px-2 py-2">No.</th><th class="px-3 py-2">月</th><th class="px-3 py-2">カテゴリ</th><th class="px-3 py-2 text-right">金額</th><th class="px-3 py-2">メモ</th></tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
                 <% @right_table_rows.each do |row| %>
@@ -143,6 +152,7 @@
                     <td class="px-2 py-2">
                       <input type="checkbox" name="line_numbers[]" value="<%= row.line_number %>" <%= @selected_line_numbers.include?(row.line_number) ? "checked" : "" %> class="h-4 w-4 rounded border-slate-300" />
                     </td>
+                    <td class="px-2 py-2 font-semibold tabular-nums text-slate-700"><%= row.line_number %></td>
                     <td class="px-3 py-2"><%= row.month_label %></td>
                     <td class="px-3 py-2">
                       <select name="rows[<%= row.line_number %>][minor_category_id]" class="w-full min-w-[10rem] rounded border border-slate-300 px-2 py-1 text-xs">

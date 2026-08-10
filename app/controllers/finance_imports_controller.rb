@@ -143,6 +143,10 @@ class FinanceImportsController < ApplicationController
     @duplicate_pending_rows = @duplicate_pairs.map(&:pending)
     duplicate_line_numbers = @duplicate_pending_rows.map(&:line_number).to_set
     @right_table_rows = @pending_rows.reject { |row| duplicate_line_numbers.include?(row.line_number) }
+    pending_line_by_existing_id = @duplicate_pairs.to_h { |pair| [ pair.existing[:id], pair.pending.line_number ] }
+    @existing_rows.each do |row|
+      row[:pending_line_number] = pending_line_by_existing_id[row[:id]]
+    end
     @import_summary = FinanceImportPreviewSummary.build(
       pending_rows: @pending_rows,
       duplicate_rows: @duplicate_pending_rows,
