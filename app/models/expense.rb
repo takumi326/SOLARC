@@ -9,7 +9,7 @@ class Expense < ApplicationRecord
   has_many :transactions, through: :expense_transactions, source: :ledger_transaction
 
   validates :expense_type, :start_month, :amount, presence: true
-  validates :amount, numericality: { greater_than_or_equal_to: 0 }
+  validates :amount, numericality: { only_integer: true, other_than: 0 }
   validates :memo, length: { maximum: 2000 }, allow_nil: true
   validates :renewal_month, inclusion: { in: 1..12, allow_nil: true }
   validate :end_month_not_before_start_month

@@ -10,6 +10,9 @@ class FinanceExpenseImportParser
     :memo,
     :minor_category_id,
     :source_id,
+    :card_id,
+    :card_name,
+    :payment_method_id,
     keyword_init: true
   )
 
@@ -49,6 +52,7 @@ class FinanceExpenseImportParser
     month_date = resolve_month_date(row, line_number)
     amount = resolve_amount(row, line_number)
     memo = resolve_memo(row, line_number)
+    card = ImportCardRegistry.resolve!(row["card_id"], line_number: line_number)
     category_path = "#{minor.major_category.name} / #{minor.name}"
 
     ParsedRow.new(
@@ -59,7 +63,10 @@ class FinanceExpenseImportParser
       amount: amount,
       memo: memo,
       minor_category_id: minor.id,
-      source_id: row["source_id"].to_s.strip.presence
+      source_id: row["source_id"].to_s.strip.presence,
+      card_id: card[:card_id],
+      card_name: card[:card_name],
+      payment_method_id: card[:payment_method]&.id
     )
   end
 
@@ -123,7 +130,9 @@ class FinanceExpenseImportParser
 
   def resolve_amount(row, line_number)
     amount = row["amount"].to_d
-    raise ParseError, "#{line_number}行目: amount は0以上の数値にしてください" unless amount.finite? && amount >= 0
+    unless amount.finite? && !amount.zero?
+      raise ParseError, "#{line_number}行目: amount は0以外の数値にしてください"
+    end
 
     amount.round.to_i
   end

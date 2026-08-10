@@ -40,6 +40,26 @@ RSpec.describe FinanceImportPreviewSummary do
     end
   end
 
+  describe ".build_final_preview" do
+    it "merges existing rows and selected non-duplicate pending rows" do
+      existing = [ { month_label: "2026-07", category_path: "a", amount: 1000, memo: "saved", pending_line_number: 1 } ]
+      pending = [ row(line_number: 1, amount: 1000), row(line_number: 2, amount: 500, memo: "new") ]
+      duplicate_lines = [ 1 ].to_set
+      final = described_class.build_final_preview(
+        existing_rows: existing,
+        pending_rows: pending,
+        duplicate_line_numbers: duplicate_lines,
+        selected_line_numbers: [ 1, 2 ],
+        compare_month: "2026-07"
+      )
+
+      expect(final.size).to eq(2)
+      expect(final.count { |r| r.kind == :existing }).to eq(1)
+      expect(final.count { |r| r.kind == :new }).to eq(1)
+      expect(final.sum(&:amount)).to eq(1500)
+    end
+  end
+
   describe ".classify_source" do
     it "detects paypal ids" do
       expect(described_class.classify_source("2WA22952EX114591B")).to eq(:paypal)

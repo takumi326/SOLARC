@@ -1,29 +1,35 @@
 # frozen_string_literal: true
 
 class FinanceExpenseImportService
-  FIXED_PAYMENT_METHOD_NAME = "三井住友カード"
-
   Result = Struct.new(:imported_count, :touched_months, keyword_init: true)
 
-  def initialize(rows:, payment_method:)
+  def initialize(rows:)
     @rows = rows
-    @payment_method = payment_method
   end
 
   def call
     raise ArgumentError, "取り込む行がありません" if @rows.empty?
-    raise ArgumentError, "支払方法が不正です" unless @payment_method&.method_type == "card"
+
+    missing_card = @rows.find { |row| row.payment_method_id.blank? }
+    if missing_card
+      raise ArgumentError,
+            "#{missing_card.line_number}行目: card_id「#{missing_card.card_id}」に対応する支払方法が未設定です"
+    end
 
     touched_months = Set.new
     imported_count = 0
+    payment_methods = PaymentMethod.where(id: @rows.map(&:payment_method_id).uniq).index_by(&:id)
 
     ActiveRecord::Base.transaction do
-      @payment_method.update!(ledger_charge_timing: "next_month")
-
       @rows.each do |row|
+        payment_method = payment_methods.fetch(row.payment_method_id)
+        raise ArgumentError, "支払方法が不正です（行 #{row.line_number}）" unless payment_method.method_type == "card"
+
+        payment_method.update!(ledger_charge_timing: "next_month")
+
         Expense.create!(
           minor_category_id: row.minor_category_id,
-          payment_method: @payment_method,
+          payment_method: payment_method,
           expense_type: :one_time,
           recurring_cycle: :monthly,
           renewal_month: nil,
@@ -44,15 +50,12 @@ class FinanceExpenseImportService
     Result.new(imported_count: imported_count, touched_months: touched_months.to_a.sort)
   end
 
-  def self.fixed_payment_method
-    PaymentMethod.find_by(name: FIXED_PAYMENT_METHOD_NAME)
-  end
-
   def self.existing_one_time_rows(compare_month:, pending_rows:)
     month_first = compare_month.beginning_of_month
     expenses = Expense.expense_type_one_time
                       .joins(minor_category: :major_category)
-                      .includes(minor_category: :major_category)
+                      .joins(:payment_method)
+                      .includes({ minor_category: :major_category }, :payment_method)
                       .select { |e| expense_applies_to_accrual_month?(e, month_first) }
 
     expenses.map do |expense|
@@ -61,7 +64,8 @@ class FinanceExpenseImportService
       duplicate = pending_rows.any? do |pr|
         pr.month_label == compare_month.strftime("%Y-%m") &&
           pr.minor_category_id == minor.id &&
-          pr.amount == amount
+          pr.amount == amount &&
+          pr.payment_method_id == expense.payment_method_id
       end
       {
         id: expense.id,
@@ -70,6 +74,8 @@ class FinanceExpenseImportService
         amount: amount,
         memo: expense.memo,
         minor_category_id: minor.id,
+        payment_method_id: expense.payment_method_id,
+        card_name: expense.payment_method.name,
         duplicate_with_pending: duplicate
       }
     end.sort_by { |row| [ row[:duplicate_with_pending] ? 0 : 1, row[:category_path], row[:amount], row[:id] ] }

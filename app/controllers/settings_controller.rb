@@ -7,6 +7,21 @@ class SettingsController < ApplicationController
 
   def update
     @preference = UserPreference.find_or_initialize_by(owner_key: preference_owner_key)
+
+    if params[:reset_import_prompt].present?
+      @preference.import_claude_prompt_template = nil
+      @preference.import_merchant_rules = nil
+      if @preference.save
+        redirect_to finance_settings_path, notice: "プロンプトと加盟店ルールをアプリ既定に戻しました。"
+      else
+        @import_prompt_draft = ImportPromptTemplate::DEFAULT
+        @import_merchant_rules_draft = ImportPromptTemplate::DEFAULT_MERCHANT_RULES
+        flash.now[:alert] = @preference.errors.full_messages.join(" ")
+        render :show, status: :unprocessable_entity
+      end
+      return
+    end
+
     raw = params.dig(:user_preference, :import_claude_prompt_template)
     normalized = ImportPromptTemplate.normalize(raw)
     default_norm = ImportPromptTemplate.default_normalized
