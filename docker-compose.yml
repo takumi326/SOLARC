@@ -1,3 +1,5 @@
+name: solarc
+
 services:
   db:
     image: postgres:16
