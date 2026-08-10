@@ -12,11 +12,11 @@
     <%= javascript_include_tag "mobile_nav", defer: true %>
   </head>
   <body class="bg-slate-50 text-slate-800">
-    <div id="mobile-nav-overlay" class="fixed inset-0 z-40 hidden bg-black/40 lg:hidden" aria-hidden="true"></div>
+    <div id="mobile-nav-overlay" class="fixed inset-0 z-40 hidden bg-black/40 md:hidden" aria-hidden="true"></div>
 
     <aside
       id="mobile-nav-drawer"
-      class="fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] -translate-x-full flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-200 ease-out lg:hidden"
+      class="fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] -translate-x-full flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-200 ease-out md:hidden"
       aria-label="メインメニュー"
     >
       <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
@@ -31,15 +31,15 @@
     </aside>
 
     <div class="mx-auto min-h-screen w-full max-w-7xl p-3 sm:p-6">
-      <div class="mb-3 flex items-center gap-3 lg:hidden">
+      <div class="mb-3 flex items-center gap-3 md:hidden">
         <button type="button" id="mobile-nav-open" class="<%= btn_classes(:secondary, extra: "px-2.5 py-2") %>" aria-label="メニューを開く">
           <span class="text-lg leading-none" aria-hidden="true">≡</span>
         </button>
         <p class="text-base font-semibold text-slate-900">Solarc</p>
       </div>
 
-      <div class="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
-        <aside class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:block lg:h-[calc(100vh-3rem)] lg:overflow-y-auto">
+      <div class="grid gap-4 md:grid-cols-[220px_1fr] md:items-start">
+        <aside class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:sticky md:top-6 md:block md:h-[calc(100vh-3rem)] md:overflow-y-auto">
           <%= render "layouts/sidebar_nav" %>
         </aside>
 
