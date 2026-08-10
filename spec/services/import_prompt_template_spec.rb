@@ -9,5 +9,10 @@ RSpec.describe ImportPromptTemplate do
     it "rejects missing placeholder" do
       expect(described_class.validate("hello")).to include("{{CATALOG}}")
     end
+
+    it "rejects duplicated placeholders" do
+      text = described_class::DEFAULT + "\n{{CARDS}}\n"
+      expect(described_class.validate(text)).to include("1回だけ")
+    end
   end
 end

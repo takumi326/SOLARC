@@ -3,8 +3,6 @@
 class FinanceImportsController < ApplicationController
   include FinanceMonthParams
 
-  FIXED_PAYMENT_METHOD_NAME = FinanceImportClaudePromptBuilder::FIXED_PAYMENT_METHOD_NAME
-
   def show
     load_import_context
     draft = import_draft
@@ -43,8 +41,9 @@ class FinanceImportsController < ApplicationController
 
       store_preview_draft(draft, @pending_rows, raw_json: @raw_json)
       @compare_month_input = min_month_label(@pending_rows)
-      @selected_line_numbers = @pending_rows.map(&:line_number)
       load_preview_tables
+      @selected_line_numbers = @default_selected_line_numbers
+      draft.update!(selected_lines: @selected_line_numbers) if draft.persisted?
       @phase = "preview"
       render :show
     rescue FinanceExpenseImportParser::ParseError => e
@@ -52,6 +51,36 @@ class FinanceImportsController < ApplicationController
       flash.now[:alert] = e.message
       @phase = "edit"
       render :show, status: :unprocessable_entity
+    end
+  end
+
+  def append
+    load_import_context
+    draft = import_draft
+    pending_rows = load_pending_rows_from_draft(draft)
+    if pending_rows.empty?
+      redirect_to finance_import_path, alert: "プレビューが期限切れです。JSONを再度入力してください。"
+      return
+    end
+
+    begin
+      extra_rows = FinanceExpenseImportParser.new(raw_json: params[:raw_json].to_s, expense_minors: @expense_minors).call
+      if extra_rows.empty?
+        redirect_to finance_import_path, alert: "追加する行がありません"
+        return
+      end
+
+      next_line = pending_rows.map(&:line_number).max.to_i + 1
+      extra_rows.each_with_index do |row, index|
+        row.line_number = next_line + index
+      end
+      merged = pending_rows + extra_rows
+      persist_pending_rows(draft, merged)
+      draft.update!(selected_lines: (Array(draft.selected_lines) + extra_rows.map(&:line_number)).uniq) if draft.persisted?
+
+      redirect_to finance_import_path, notice: "不足分 #{extra_rows.size} 件を候補に追加しました。内容を確認して取り込んでください。"
+    rescue FinanceExpenseImportParser::ParseError => e
+      redirect_to finance_import_path, alert: e.message
     end
   end
 
@@ -64,24 +93,37 @@ class FinanceImportsController < ApplicationController
       return
     end
 
+    pending_rows = apply_card_payment_method_overrides(pending_rows, params[:card_payment_methods])
+    pending_rows = apply_row_overrides(pending_rows, params[:rows])
+    persist_pending_rows(draft, pending_rows)
+
+    compare_month_input = params[:compare_month].presence || draft.compare_month.presence || min_month_label(pending_rows)
+    compare_month = parse_month_param("#{compare_month_input}-01")
+    pending_for_month = pending_rows.select { |row| row.month_label == compare_month_input }
+    existing_rows = FinanceExpenseImportService.existing_one_time_rows(compare_month: compare_month, pending_rows: pending_for_month)
+    duplicate_line_numbers = FinanceImportPreviewSummary.duplicate_line_numbers(pending_rows, compare_month_input, existing_rows)
+
     selected = Array(params[:line_numbers]).map(&:to_i)
-    rows_to_import = pending_rows.select { |row| selected.include?(row.line_number) }
+    rows_to_import = pending_rows.select do |row|
+      selected.include?(row.line_number) && !duplicate_line_numbers.include?(row.line_number)
+    end
     if rows_to_import.empty?
       @phase = "preview"
       @pending_rows = pending_rows
-      @compare_month_input = params[:compare_month].presence || draft.compare_month.presence || min_month_label(pending_rows)
+      @compare_month_input = compare_month_input
       @selected_line_numbers = selected
       load_preview_tables
       flash.now[:alert] = "取り込む行を1件以上選んでください"
       return render :show, status: :unprocessable_entity
     end
 
-    unless @fixed_payment_method
-      redirect_to finance_import_path, alert: "支払方法「#{FIXED_PAYMENT_METHOD_NAME}」がマスタにありません。"
+    unless rows_to_import.all?(&:payment_method_id)
+      missing = rows_to_import.find { |row| row.payment_method_id.blank? }
+      redirect_to finance_import_path, alert: "card_id「#{missing.card_id}」の支払方法を選んでください"
       return
     end
 
-    result = FinanceExpenseImportService.new(rows: rows_to_import, payment_method: @fixed_payment_method).call
+    result = FinanceExpenseImportService.new(rows: rows_to_import).call
     clear_import_draft
     redirect_to finance_summary_path, notice: "#{result.imported_count}件を取り込みました。"
   rescue StandardError => e
@@ -95,7 +137,7 @@ class FinanceImportsController < ApplicationController
                                    .includes(:major_category)
                                    .where(major_categories: { kind: :expense })
                                    .order("major_categories.name ASC", "minor_categories.name ASC")
-    @fixed_payment_method = FinanceExpenseImportService.fixed_payment_method
+    @card_payment_methods = PaymentMethod.where(method_type: "card").order(:name)
     preference = UserPreference.find_or_initialize_by(owner_key: preference_owner_key)
     @import_prompt_draft = ImportPromptTemplate.draft_for(preference)
     @import_prompt_month = params[:prompt_month].presence || Date.current.strftime("%Y-%m")
@@ -104,7 +146,8 @@ class FinanceImportsController < ApplicationController
       catalog: catalog,
       example_minor_id: @expense_minors.first&.id || 1,
       month: @import_prompt_month,
-      saved_template: preference.import_claude_prompt_template
+      saved_template: preference.import_claude_prompt_template,
+      merchant_rules: ImportPromptTemplate.merchant_rules_for(preference)
     )
   end
 
@@ -124,21 +167,49 @@ class FinanceImportsController < ApplicationController
     if draft.compare_month != @compare_month_input && draft.persisted?
       draft.update!(compare_month: @compare_month_input)
     end
-    @selected_line_numbers = Array(params[:line_numbers]).presence || draft.selected_lines.presence || @pending_rows.map(&:line_number)
+    @selected_line_numbers = Array(params[:line_numbers]).presence || draft.selected_lines.presence
     load_preview_tables
+    @selected_line_numbers ||= @default_selected_line_numbers
   end
 
   def load_preview_tables
     compare_month = parse_month_param("#{@compare_month_input}-01")
     pending_for_month = @pending_rows.select { |row| row.month_label == @compare_month_input }
     @existing_rows = FinanceExpenseImportService.existing_one_time_rows(compare_month: compare_month, pending_rows: pending_for_month)
-    @hidden_duplicate_count = pending_for_month.count do |pr|
-      @existing_rows.any? { |er| er[:minor_category_id] == pr.minor_category_id && er[:amount] == pr.amount }
+    @duplicate_pairs = FinanceImportPreviewSummary.duplicate_pairs(pending_for_month, @existing_rows)
+    @duplicate_pending_rows = @duplicate_pairs.map(&:pending)
+    @duplicate_line_numbers = FinanceImportPreviewSummary.duplicate_line_numbers(@pending_rows, @compare_month_input, @existing_rows)
+    @right_table_rows = @pending_rows
+    pending_line_by_existing_id = @duplicate_pairs.to_h { |pair| [ pair.existing[:id], pair.pending.line_number ] }
+    @existing_rows.each do |row|
+      row[:pending_line_number] = pending_line_by_existing_id[row[:id]]
     end
-    @right_table_rows = @pending_rows.reject do |row|
-      row.month_label == @compare_month_input &&
-        @existing_rows.any? { |er| er[:minor_category_id] == row.minor_category_id && er[:amount] == row.amount }
-    end
+    @default_selected_line_numbers = @pending_rows.reject { |row| @duplicate_line_numbers.include?(row.line_number) }.map(&:line_number)
+    selected = @selected_line_numbers || @default_selected_line_numbers
+    @final_preview_rows = FinanceImportPreviewSummary.build_final_preview(
+      existing_rows: @existing_rows,
+      pending_rows: @pending_rows,
+      duplicate_line_numbers: @duplicate_line_numbers,
+      selected_line_numbers: selected,
+      compare_month: @compare_month_input
+    )
+    @import_summary = FinanceImportPreviewSummary.build(
+      pending_rows: @pending_rows,
+      duplicate_rows: @duplicate_pending_rows,
+      compare_month: @compare_month_input
+    )
+    @card_id_mappings = build_card_id_mappings(@pending_rows)
+    catalog = @expense_minors.map { |m| "- id #{m.id}: #{m.major_category.name} / #{m.name}" }.join("\n")
+    selected = @selected_line_numbers || @default_selected_line_numbers
+    @gap_check_prompt = FinanceImportGapCheckPromptBuilder.build(
+      month: @compare_month_input,
+      existing_rows: @existing_rows,
+      pending_rows: @pending_rows,
+      selected_line_numbers: selected,
+      duplicate_line_numbers: @duplicate_line_numbers,
+      catalog: catalog,
+      example_minor_id: @expense_minors.first&.id || 1
+    )
   end
 
   def persist_edit_draft(draft, raw_json)
@@ -153,7 +224,7 @@ class FinanceImportsController < ApplicationController
       phase: "preview",
       raw_json: raw_json,
       pending_rows: serialize_rows(rows),
-      selected_lines: rows.map(&:line_number),
+      selected_lines: [],
       compare_month: min_month_label(rows)
     )
   end
@@ -167,7 +238,11 @@ class FinanceImportsController < ApplicationController
         "category_path" => row.category_path,
         "amount" => row.amount,
         "memo" => row.memo,
-        "minor_category_id" => row.minor_category_id
+        "minor_category_id" => row.minor_category_id,
+        "source_id" => row.source_id,
+        "card_id" => row.card_id,
+        "card_name" => row.card_name,
+        "payment_method_id" => row.payment_method_id
       }
     end
   end
@@ -179,6 +254,9 @@ class FinanceImportsController < ApplicationController
       next unless minor
 
       month_date = Date.parse(hash["month_date"])
+      card_id = hash["card_id"].presence || ImportCardRegistry::DEFAULT_CARD_ID
+      card_name = hash["card_name"].presence || ImportCardRegistry.card_name_for(card_id)
+      payment_method_id = hash["payment_method_id"].presence || ImportCardRegistry.payment_method_for(card_id)&.id
       FinanceExpenseImportParser::ParsedRow.new(
         line_number: hash["line_number"],
         month_date: month_date,
@@ -186,7 +264,11 @@ class FinanceImportsController < ApplicationController
         category_path: hash["category_path"].presence || "#{minor.major_category.name} / #{minor.name}",
         amount: hash["amount"],
         memo: hash["memo"],
-        minor_category_id: hash["minor_category_id"]
+        minor_category_id: hash["minor_category_id"],
+        source_id: hash["source_id"],
+        card_id: card_id,
+        card_name: card_name,
+        payment_method_id: payment_method_id
       )
     end
   end
@@ -208,5 +290,83 @@ class FinanceImportsController < ApplicationController
 
   def min_month_label(rows)
     rows.map(&:month_label).min
+  end
+
+  def build_card_id_mappings(rows)
+    rows.group_by(&:card_id).map do |card_id, card_rows|
+      sources = card_rows.group_by { |row| FinanceImportPreviewSummary.classify_source(row.source_id) }
+      payment_method_ids = card_rows.map(&:payment_method_id).uniq
+      {
+        card_id: card_id,
+        label: ImportCardRegistry.card_name_for(card_id),
+        count: card_rows.size,
+        amount: card_rows.sum(&:amount),
+        payment_method_id: payment_method_ids.size == 1 ? payment_method_ids.first : nil,
+        vpass: source_tally(sources[:vpass]),
+        paypal: source_tally(sources[:paypal]),
+        unknown: source_tally(sources[:unknown])
+      }
+    end.sort_by { |mapping| mapping[:card_id].to_s }
+  end
+
+  def source_tally(rows)
+    list = Array(rows)
+    { count: list.size, amount: list.sum(&:amount) }
+  end
+
+  def apply_card_payment_method_overrides(rows, card_params)
+    return rows if card_params.blank?
+
+    mapping = {}
+    card_params.each do |card_id, payment_method_id|
+      next if payment_method_id.blank?
+
+      payment_method = @card_payment_methods.find { |pm| pm.id == payment_method_id.to_i }
+      raise ArgumentError, "支払方法が不正です（card_id=#{card_id}）" unless payment_method
+
+      mapping[card_id.to_s] = payment_method
+    end
+
+    rows.each do |row|
+      payment_method = mapping[row.card_id.to_s]
+      next unless payment_method
+
+      row.payment_method_id = payment_method.id
+      row.card_name = payment_method.name
+    end
+    rows
+  end
+
+  def apply_row_overrides(rows, row_params)
+    return rows if row_params.blank?
+
+    minor_by_id = @expense_minors.index_by(&:id)
+    rows.map do |row|
+      overrides = row_params[row.line_number.to_s]
+      next row unless overrides
+
+      if overrides[:minor_category_id].present?
+        minor = minor_by_id[overrides[:minor_category_id].to_i]
+        raise ArgumentError, "カテゴリが不正です（行 #{row.line_number}）" unless minor
+
+        row.minor_category_id = minor.id
+        row.category_path = "#{minor.major_category.name} / #{minor.name}"
+      end
+
+      if overrides.key?(:memo)
+        memo = overrides[:memo].to_s.strip
+        raise ArgumentError, "メモは2000文字以内にしてください（行 #{row.line_number}）" if memo.length > 2000
+
+        row.memo = memo.presence
+      end
+
+      row
+    end
+  end
+
+  def persist_pending_rows(draft, rows)
+    return unless draft_storage_available? && draft.persisted?
+
+    draft.update!(pending_rows: serialize_rows(rows))
   end
 end

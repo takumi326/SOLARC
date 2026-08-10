@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# ローカルでメール取込を試すためのセットアップ（Docker Compose 前提）
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+echo "==> docker compose up -d (db / app)"
+docker compose up -d
+
+echo "==> db:migrate"
+docker compose exec app bundle exec rails db:migrate
+
+echo "==> db:seed (masters + development demo + import sample)"
+docker compose exec app bundle exec rails db:seed
+
+echo "==> tailwindcss:build"
+docker compose exec app bundle exec rails tailwindcss:build
+
+echo ""
+echo "Ready."
+echo "  App:    http://localhost:3000"
+echo "  Import: http://localhost:3000/finance/import?prompt_month=2026-07"
+echo "  Sample: tmp/finance_import_sample.json （コンテナ内。ホストからは docker compose exec app cat tmp/finance_import_sample.json）"
+echo "  Gap:    tmp/finance_import_sample_gap.json （不足分追加用）"
+echo ""
+echo "サンプル JSON をホストにコピー:"
+echo "  docker compose exec app cat tmp/finance_import_sample.json > /tmp/finance_import_sample.json"
+echo "  docker compose exec app cat tmp/finance_import_sample_gap.json > /tmp/finance_import_sample_gap.json"

@@ -9,20 +9,18 @@ class BulkUpdateMasterActualsFromMonthService
   def initialize(master:, from_month:, amount:, negative:)
     @master = master
     @from_month = parse_month(from_month)
-    @amount = amount.to_d
+    @amount = amount.to_d.abs.to_i
     @negative = negative
   end
 
   def call
-    raise ArgumentError, "amount must be >= 0" if @amount.negative?
-
     updated_count = 0
     ActiveRecord::Base.transaction do
       each_target_transaction do |tx|
         tx.update!(amount: signed_amount)
         updated_count += 1
       end
-      @master.update!(amount: @amount.abs)
+      @master.update!(amount: @amount)
     end
 
     Result.new(updated_count:)
@@ -37,7 +35,7 @@ class BulkUpdateMasterActualsFromMonthService
   end
 
   def signed_amount
-    @negative ? -@amount.abs : @amount.abs
+    @negative ? -@amount : @amount
   end
 
   def each_target_transaction

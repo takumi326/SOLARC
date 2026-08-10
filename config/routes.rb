@@ -20,6 +20,7 @@ Rails.application.routes.draw do
 
   get "finance/import", to: "finance_imports#show", as: :finance_import
   post "finance/import", to: "finance_imports#create"
+  post "finance/import/append", to: "finance_imports#append", as: :append_finance_import
   post "finance/import/commit", to: "finance_imports#commit", as: :commit_finance_import
 
   get "finance/settings", to: "settings#show", as: :finance_settings
