@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_13_110304) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_10_081952) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -39,8 +39,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_110304) do
     t.index ["ai_script_id"], name: "index_entries_on_ai_script_id"
     t.index ["stock_id", "trade_type", "judgment_type"], name: "index_entries_on_stock_trade_judgment"
     t.index ["stock_id"], name: "index_entries_on_stock_id"
-    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying, 'ai'::character varying]::text[])", name: "entries_judgment_type_check"
-    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying, 'virtual'::character varying]::text[])", name: "entries_trade_type_check"
+    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying::text, 'ai'::character varying::text])", name: "entries_judgment_type_check"
+    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying::text, 'virtual'::character varying::text])", name: "entries_trade_type_check"
   end
 
   create_table "exits", force: :cascade do |t|
@@ -62,9 +62,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_110304) do
     t.index ["ai_script_id"], name: "index_exits_on_ai_script_id"
     t.index ["stock_id", "trade_type", "judgment_type"], name: "index_exits_on_stock_trade_judgment"
     t.index ["stock_id"], name: "index_exits_on_stock_id"
-    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying, 'ai'::character varying]::text[])", name: "exits_judgment_type_check"
-    t.check_constraint "review_result IS NULL OR (review_result::text = ANY (ARRAY['as_planned'::character varying, 'missed'::character varying, 'partial'::character varying]::text[]))", name: "exits_review_result_check"
-    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying, 'virtual'::character varying]::text[])", name: "exits_trade_type_check"
+    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying::text, 'ai'::character varying::text])", name: "exits_judgment_type_check"
+    t.check_constraint "review_result IS NULL OR (review_result::text = ANY (ARRAY['as_planned'::character varying::text, 'missed'::character varying::text, 'partial'::character varying::text]))", name: "exits_review_result_check"
+    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying::text, 'virtual'::character varying::text])", name: "exits_trade_type_check"
   end
 
   create_table "expense_transactions", force: :cascade do |t|
@@ -176,8 +176,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_110304) do
     t.index ["ai_script_id"], name: "index_line_changes_on_ai_script_id"
     t.index ["stock_id", "trade_type", "judgment_type", "changed_on"], name: "index_line_changes_on_stock_trade_judgment_changed"
     t.index ["stock_id"], name: "index_line_changes_on_stock_id"
-    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying, 'ai'::character varying]::text[])", name: "line_changes_judgment_type_check"
-    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying, 'virtual'::character varying]::text[])", name: "line_changes_trade_type_check"
+    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying::text, 'ai'::character varying::text])", name: "line_changes_judgment_type_check"
+    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying::text, 'virtual'::character varying::text])", name: "line_changes_trade_type_check"
   end
 
   create_table "major_categories", force: :cascade do |t|
@@ -217,8 +217,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_110304) do
     t.index ["name"], name: "index_payment_methods_on_name", unique: true
     t.check_constraint "closing_day IS NULL OR closing_day >= 1 AND closing_day <= 31", name: "payment_methods_closing_day_check"
     t.check_constraint "debit_day IS NULL OR debit_day >= 1 AND debit_day <= 31", name: "payment_methods_debit_day_check"
-    t.check_constraint "ledger_charge_timing IS NULL OR (ledger_charge_timing::text = ANY (ARRAY['same_month'::character varying, 'next_month'::character varying]::text[]))", name: "payment_methods_ledger_charge_timing_check"
-    t.check_constraint "method_type::text = ANY (ARRAY['card'::character varying, 'bank_debit'::character varying, 'bank_withdrawal'::character varying]::text[])", name: "payment_methods_method_type_check"
+    t.check_constraint "ledger_charge_timing IS NULL OR (ledger_charge_timing::text = ANY (ARRAY['same_month'::character varying::text, 'next_month'::character varying::text]))", name: "payment_methods_ledger_charge_timing_check"
+    t.check_constraint "method_type::text = ANY (ARRAY['card'::character varying::text, 'bank_debit'::character varying::text, 'bank_withdrawal'::character varying::text])", name: "payment_methods_method_type_check"
   end
 
   create_table "stock_daily_notes", force: :cascade do |t|
@@ -241,6 +241,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_13_110304) do
     t.datetime "updated_at", null: false
     t.index ["stock_id", "noted_on"], name: "index_stock_notes_on_stock_id_and_noted_on"
     t.index ["stock_id"], name: "index_stock_notes_on_stock_id"
+  end
+
+  create_table "stock_trade_rules", force: :cascade do |t|
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.string "title", limit: 100, null: false
+    t.datetime "updated_at", null: false
+    t.index ["title"], name: "index_stock_trade_rules_on_title", unique: true
   end
 
   create_table "stocks", force: :cascade do |t|

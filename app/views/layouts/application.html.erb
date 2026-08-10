@@ -9,32 +9,34 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= javascript_include_tag "clipboard", defer: true %>
+    <%= javascript_include_tag "mobile_nav", defer: true %>
   </head>
   <body class="bg-slate-50 text-slate-800">
-    <div class="mx-auto min-h-screen w-full max-w-7xl p-4 sm:p-6">
-      <div class="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-start">
-        <aside class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:overflow-y-auto">
-          <nav class="space-y-4">
-            <div>
-              <p class="mb-1 px-2 text-xs font-semibold tracking-wide text-slate-400">収支管理</p>
-              <div class="space-y-1">
-                <%= nav_link "今年度サマリ", root_path, also_active: finance_summary_path %>
-                <%= nav_link "支出・収入", finance_masters_path %>
-                <%= nav_link "設定", finance_settings_path %>
-              </div>
-            </div>
-            <div>
-              <p class="mb-1 px-2 text-xs font-semibold tracking-wide text-slate-400">株管理</p>
-              <div class="space-y-1">
-                <%= nav_link "毎日の記録", stock_daily_notes_path %>
-                <%= nav_link "株一覧", stocks_path %>
-                <%= nav_link "実取引一覧", stock_trades_path(mode: "real") %>
-                <%= nav_link "仮想取引（人間）", stock_trades_path(mode: "virtual-human") %>
-                <%= nav_link "仮想取引（AI）", stock_trades_path(mode: "virtual-ai") %>
-                <%= nav_link "AI スクリプト", ai_scripts_path %>
-              </div>
-            </div>
-          </nav>
+    <div id="mobile-nav-overlay" class="fixed inset-0 z-40 hidden bg-black/40 md:hidden" aria-hidden="true"></div>
+
+    <aside
+      id="mobile-nav-drawer"
+      class="fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] -translate-x-full flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-200 ease-out md:hidden"
+      aria-label="メインメニュー"
+    >
+      <div class="overflow-y-auto p-4 pt-5">
+        <%= render "layouts/sidebar_nav" %>
+      </div>
+    </aside>
+
+    <button
+      type="button"
+      id="mobile-nav-open"
+      class="fixed left-3 top-3 z-30 inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white/95 px-2.5 py-2 text-slate-800 shadow-lg ring-1 ring-black/5 backdrop-blur-sm hover:bg-slate-50 md:hidden"
+      aria-label="メニューを開く"
+    >
+      <span class="text-lg leading-none" aria-hidden="true">≡</span>
+    </button>
+
+    <div class="mx-auto min-h-screen w-full max-w-7xl p-3 sm:p-6">
+      <div class="grid gap-4 md:grid-cols-[220px_1fr] md:items-start">
+        <aside class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:sticky md:top-6 md:block md:h-[calc(100vh-3rem)] md:overflow-y-auto">
+          <%= render "layouts/sidebar_nav" %>
         </aside>
 
         <section class="min-w-0">
