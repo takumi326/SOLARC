@@ -30,7 +30,7 @@ class IncomeActualsController < ApplicationController
     @transaction.month = new_month
     @transaction.amount = new_amount
     if @transaction.save
-      redirect_to income_actuals_path(@income), notice: "実績を更新しました。"
+      redirect_to finance_income_actuals_path(@income), notice: "実績を更新しました。"
     else
       flash.now[:alert] = @transaction.errors.full_messages.join(" ")
       render :edit, status: :unprocessable_entity
@@ -40,12 +40,12 @@ class IncomeActualsController < ApplicationController
   def destroy
     transaction = find_transaction
     transaction.destroy!
-    redirect_to income_actuals_path(@income), notice: "実績を削除しました。"
+    redirect_to finance_income_actuals_path(@income), notice: "実績を削除しました。"
   end
 
   def bulk_from_month
     unless @income.income_type_recurring?
-      redirect_to income_actuals_path(@income), alert: "定期の収入のみ一括変更できます"
+      redirect_to finance_income_actuals_path(@income), alert: "定期の収入のみ一括変更できます"
       return
     end
 
@@ -57,9 +57,9 @@ class IncomeActualsController < ApplicationController
       amount: amount,
       negative: false
     )
-    redirect_to income_actuals_path(@income), notice: "指定月以降の実績を一括更新しました。"
+    redirect_to finance_income_actuals_path(@income), notice: "指定月以降の実績を一括更新しました。"
   rescue ArgumentError => e
-    redirect_to income_actuals_path(@income), alert: e.message
+    redirect_to finance_income_actuals_path(@income), alert: e.message
   end
 
   private

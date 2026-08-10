@@ -30,7 +30,7 @@ class ExpenseActualsController < ApplicationController
     @transaction.month = new_month
     @transaction.amount = new_amount
     if @transaction.save
-      redirect_to expense_actuals_path(@expense), notice: "実績を更新しました。"
+      redirect_to finance_expense_actuals_path(@expense), notice: "実績を更新しました。"
     else
       flash.now[:alert] = @transaction.errors.full_messages.join(" ")
       render :edit, status: :unprocessable_entity
@@ -40,12 +40,12 @@ class ExpenseActualsController < ApplicationController
   def destroy
     transaction = find_transaction
     transaction.destroy!
-    redirect_to expense_actuals_path(@expense), notice: "実績を削除しました。"
+    redirect_to finance_expense_actuals_path(@expense), notice: "実績を削除しました。"
   end
 
   def bulk_from_month
     unless @expense.expense_type_recurring?
-      redirect_to expense_actuals_path(@expense), alert: "定期の支出のみ一括変更できます"
+      redirect_to finance_expense_actuals_path(@expense), alert: "定期の支出のみ一括変更できます"
       return
     end
 
@@ -57,9 +57,9 @@ class ExpenseActualsController < ApplicationController
       amount: amount,
       negative: true
     )
-    redirect_to expense_actuals_path(@expense), notice: "指定月以降の実績を一括更新しました。"
+    redirect_to finance_expense_actuals_path(@expense), notice: "指定月以降の実績を一括更新しました。"
   rescue ArgumentError => e
-    redirect_to expense_actuals_path(@expense), alert: e.message
+    redirect_to finance_expense_actuals_path(@expense), alert: e.message
   end
 
   private
