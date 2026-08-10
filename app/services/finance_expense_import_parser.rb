@@ -21,12 +21,22 @@ class FinanceExpenseImportParser
   end
 
   def call
-    rows = JSON.parse(@raw_json)
+    rows = JSON.parse(self.class.extract_json_payload(@raw_json))
     raise ParseError, "JSON配列で入力してください" unless rows.is_a?(Array)
 
     rows.map.with_index(1) { |row, line_number| parse_row(row, line_number) }
   rescue JSON::ParserError => e
     raise ParseError, "JSONの形式が不正です: #{e.message}"
+  end
+
+  def self.extract_json_payload(raw)
+    text = raw.to_s.strip
+    text = text.split("\n---\n", 2).first
+    text = text.split("\n---", 2).first.to_s.strip
+    if (match = text.match(/```(?:json)?\s*([\s\S]*?)```/m))
+      text = match[1].strip
+    end
+    text
   end
 
   private
@@ -86,13 +96,17 @@ class FinanceExpenseImportParser
       return Date.parse("#{yyyymm}-01").beginning_of_month
     end
 
+    if row["date"].present?
+      return Date.parse(row["date"].to_s).beginning_of_month
+    end
+
     if row["payment_date"].present?
       return Date.parse(row["payment_date"].to_s).beginning_of_month
     end
 
-    raise ParseError, "#{line_number}行目: month（YYYY-MM または YYYY年MM月）が必要です"
+    raise ParseError, "#{line_number}行目: month または date（YYYY-MM-DD）が必要です"
   rescue Date::Error
-    raise ParseError, "#{line_number}行目: month の日付が不正です"
+    raise ParseError, "#{line_number}行目: month / date の日付が不正です"
   end
 
   def parse_import_month_field(raw)

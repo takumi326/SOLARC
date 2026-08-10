@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class FinanceExpenseImportService
-  FIXED_PAYMENT_METHOD_NAME = "Amazonカード"
+  FIXED_PAYMENT_METHOD_NAME = "三井住友カード"
 
   Result = Struct.new(:imported_count, :touched_months, keyword_init: true)
 

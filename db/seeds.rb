@@ -31,6 +31,8 @@ end
 end
 
 [
+  { name: "三井住友カード", method_type: "card", ledger_charge_timing: "next_month" },
+  { name: "Amazonカード", method_type: "card", ledger_charge_timing: "next_month" },
   { name: "楽天カード", method_type: "card", ledger_charge_timing: "next_month" },
   { name: "みずほ口座引き落とし", method_type: "bank_debit", ledger_charge_timing: "same_month" },
   { name: "ATM引き出し", method_type: "bank_withdrawal" }

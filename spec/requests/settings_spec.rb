@@ -17,7 +17,10 @@ RSpec.describe "Settings", type: :request do
 
     it "saves custom import prompt" do
       patch finance_settings_path, params: {
-        user_preference: { import_claude_prompt_template: valid_template }
+        user_preference: {
+          import_claude_prompt_template: valid_template,
+          import_merchant_rules: ImportPromptTemplate::DEFAULT_MERCHANT_RULES
+        }
       }
       expect(response).to redirect_to(finance_settings_path)
       row = UserPreference.find_by(owner_key: "development")

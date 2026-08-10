@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe "Finance imports", type: :request do
   let!(:minor) { create(:minor_category) }
   let!(:other_minor) { create(:minor_category, major_category: minor.major_category) }
-  let!(:amazon_card) { create(:payment_method, name: "Amazonカード", method_type: "card") }
+  let!(:amazon_card) { create(:payment_method, name: "三井住友カード", method_type: "card") }
 
   def build_rows_json(count:, memo_size: 50, minor_id: minor.id)
     rows = (1..count).map do |i|

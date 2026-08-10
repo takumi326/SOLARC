@@ -83,6 +83,10 @@
     <% else %>
       <div class="space-y-2">
         <div class="flex flex-wrap items-center gap-2">
+          <%= form_with url: finance_import_path, method: :get, class: "flex flex-wrap items-center gap-2 text-sm" do %>
+            <span class="text-slate-600">対象月</span>
+            <input type="month" name="prompt_month" value="<%= @import_prompt_month %>" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm" onchange="this.form.requestSubmit()" />
+          <% end %>
           <button type="button" class="<%= btn_classes(:secondary) %>" data-copy-text="<%= h(@claude_prompt) %>" data-copy-label="プロンプト" data-copy-flash="プロンプトをコピーしました">プロンプトコピー</button>
           <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" class="<%= btn_classes(:link) %>">Claude</a>
         </div>
@@ -94,7 +98,8 @@
       <%= form_with url: finance_import_path, method: :post, class: "mt-4 space-y-3" do %>
         <label class="block text-sm">
           <span class="text-slate-600">JSON</span>
-          <textarea name="raw_json" rows="10" placeholder='[{"month":"<%= @import_prompt_month %>","minor_category_id":<%= @expense_minors.first&.id || 1 %>,"amount":1200,"memo":""}]' class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"><%= @raw_json %></textarea>
+          <textarea name="raw_json" rows="10" placeholder='[{"date":"<%= @import_prompt_month %>-20","month":"<%= @import_prompt_month %>","minor_category_id":<%= @expense_minors.first&.id || 1 %>,"amount":1200,"memo":"","source_id":"..."}]' class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs"><%= @raw_json %></textarea>
+          <p class="mt-1 text-xs text-slate-500">検算ブロック（--- 以降）はそのまま貼り付けて OK です。</p>
         </label>
         <div class="flex justify-end gap-2">
           <%= link_to "キャンセル", finance_summary_path, class: btn_classes(:secondary) %>

@@ -107,7 +107,8 @@ class FinanceImportsController < ApplicationController
       catalog: catalog,
       example_minor_id: @expense_minors.first&.id || 1,
       month: @import_prompt_month,
-      saved_template: preference.import_claude_prompt_template
+      saved_template: preference.import_claude_prompt_template,
+      merchant_rules: ImportPromptTemplate.merchant_rules_for(preference)
     )
   end
 
