@@ -64,6 +64,9 @@ class FinanceImportsController < ApplicationController
       return
     end
 
+    pending_rows = apply_row_overrides(pending_rows, params[:rows])
+    persist_pending_rows(draft, pending_rows)
+
     selected = Array(params[:line_numbers]).map(&:to_i)
     rows_to_import = pending_rows.select { |row| selected.include?(row.line_number) }
     if rows_to_import.empty?
@@ -208,5 +211,38 @@ class FinanceImportsController < ApplicationController
 
   def min_month_label(rows)
     rows.map(&:month_label).min
+  end
+
+  def apply_row_overrides(rows, row_params)
+    return rows if row_params.blank?
+
+    minor_by_id = @expense_minors.index_by(&:id)
+    rows.map do |row|
+      overrides = row_params[row.line_number.to_s]
+      next row unless overrides
+
+      if overrides[:minor_category_id].present?
+        minor = minor_by_id[overrides[:minor_category_id].to_i]
+        raise ArgumentError, "カテゴリが不正です（行 #{row.line_number}）" unless minor
+
+        row.minor_category_id = minor.id
+        row.category_path = "#{minor.major_category.name} / #{minor.name}"
+      end
+
+      if overrides.key?(:memo)
+        memo = overrides[:memo].to_s.strip
+        raise ArgumentError, "メモは2000文字以内にしてください（行 #{row.line_number}）" if memo.length > 2000
+
+        row.memo = memo.presence
+      end
+
+      row
+    end
+  end
+
+  def persist_pending_rows(draft, rows)
+    return unless draft_storage_available? && draft.persisted?
+
+    draft.update!(pending_rows: serialize_rows(rows))
   end
 end

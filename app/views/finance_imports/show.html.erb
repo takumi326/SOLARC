@@ -7,7 +7,7 @@
 
     <% if @phase == "preview" && @pending_rows.present? %>
       <p class="mb-3 text-sm text-slate-700">
-        左で比較する月を選び、保存済みの<strong>単発</strong>支出と今回取り込む内容を並べて確認してください。チェックを付けた行だけが取り込まれます。
+        左で比較する月を選び、保存済みの<strong>単発</strong>支出と今回取り込む内容を並べて確認してください。右側で<strong>カテゴリ・メモ</strong>を直せます。チェックを付けた行だけが取り込まれます。
       </p>
 
       <%= form_with url: finance_import_path, method: :get, class: "mb-3 flex flex-wrap items-center gap-2 text-sm" do %>
@@ -57,9 +57,17 @@
                       <input type="checkbox" name="line_numbers[]" value="<%= row.line_number %>" <%= @selected_line_numbers.include?(row.line_number) ? "checked" : "" %> class="h-4 w-4 rounded border-slate-300" />
                     </td>
                     <td class="px-3 py-2"><%= row.month_label %></td>
-                    <td class="px-3 py-2"><%= row.category_path %></td>
+                    <td class="px-3 py-2">
+                      <select name="rows[<%= row.line_number %>][minor_category_id]" class="w-full min-w-[10rem] rounded border border-slate-300 px-2 py-1 text-xs">
+                        <% @expense_minors.each do |minor| %>
+                          <option value="<%= minor.id %>" <%= row.minor_category_id == minor.id ? "selected" : "" %>><%= minor.major_category.name %> / <%= minor.name %></option>
+                        <% end %>
+                      </select>
+                    </td>
                     <td class="px-3 py-2 text-right"><%= format_yen(row.amount) %></td>
-                    <td class="px-3 py-2"><%= row.memo.presence || "—" %></td>
+                    <td class="px-3 py-2">
+                      <input type="text" name="rows[<%= row.line_number %>][memo]" value="<%= row.memo %>" maxlength="2000" class="w-full min-w-[8rem] rounded border border-slate-300 px-2 py-1 text-xs" />
+                    </td>
                   </tr>
                 <% end %>
               </tbody>
