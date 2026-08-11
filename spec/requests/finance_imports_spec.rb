@@ -286,6 +286,63 @@ RSpec.describe "Finance imports", type: :request do
       expect(draft.pending_rows.size).to eq(2)
       expect(draft.pending_rows.last["memo"]).to include("不足追加")
     end
+
+    it "keeps the edited memo and category when appending gap-check rows" do
+      post finance_import_path, params: { raw_json: build_rows_json(count: 1, memo_size: 3) }
+      draft = FinanceImportDraft.find_by!(owner_key: "development")
+
+      extra = [ { month: "2026-05", card_id: "paypay_jcb", minor_category_id: minor.id, amount: 3300, memo: "[不足追加] x" } ].to_json
+      post append_finance_import_path, params: {
+        raw_json: extra,
+        line_numbers: [ 1 ],
+        rows: { "1" => { minor_category_id: other_minor.id, memo: "編集後メモ" } }
+      }
+
+      draft.reload
+      edited = draft.pending_rows.first
+      expect(edited["memo"]).to eq("編集後メモ")
+      expect(edited["minor_category_id"]).to eq(other_minor.id)
+      expect(draft.selected_lines).to contain_exactly(1, 2)
+    end
+  end
+
+  describe "POST /finance/import/draft" do
+    it "persists memo, category, and selection so a reload keeps the edits" do
+      post finance_import_path, params: { raw_json: build_rows_json(count: 2, memo_size: 3) }
+      draft = FinanceImportDraft.find_by!(owner_key: "development")
+
+      post update_draft_finance_import_path, params: {
+        compare_month: "2026-05",
+        line_numbers: [ 1 ],
+        rows: {
+          "1" => { minor_category_id: other_minor.id, memo: "自動保存メモ" },
+          "2" => { minor_category_id: minor.id, memo: "未選択の行" }
+        }
+      }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to eq("ok" => true)
+      draft.reload
+      expect(draft.pending_rows[0]["memo"]).to eq("自動保存メモ")
+      expect(draft.pending_rows[0]["minor_category_id"]).to eq(other_minor.id)
+      expect(draft.pending_rows[1]["memo"]).to eq("未選択の行")
+      expect(draft.selected_lines).to eq([ 1 ])
+
+      get finance_import_path
+      expect(response.body).to include("自動保存メモ")
+      expect(response.body).to include('name="line_numbers[]" value="1" checked')
+      expect(response.body).not_to include('name="line_numbers[]" value="2" checked')
+    end
+
+    it "returns gone when the draft has already been cleared" do
+      post update_draft_finance_import_path, params: {
+        line_numbers: [ 1 ],
+        rows: { "1" => { memo: "x" } }
+      }
+
+      expect(response).to have_http_status(:gone)
+      expect(response.parsed_body).to eq("ok" => false, "error" => "expired")
+    end
   end
 
   describe "GET /finance/import" do
