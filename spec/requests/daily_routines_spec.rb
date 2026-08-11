@@ -14,7 +14,8 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response.body).to include("休日")
       expect(response.body).to include("グリーンさんの Discord 確認")
       expect(response.body).to include("未完了")
-      expect(response.body).to include(">1</span>")
+      expect(response.body).to include("1.")
+      expect(response.body).not_to include("今日の対象枠")
       expect(DailyRoutineItem.for_owner("development").count).to eq(18)
     end
 
@@ -29,7 +30,6 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("完了")
       expect(response.body).to include("条件クリア")
-      expect(response.body).to include("今日の対象枠")
     end
 
     it "shows completion hints for incomplete slots" do

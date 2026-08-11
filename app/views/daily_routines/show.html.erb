@@ -1,6 +1,3 @@
-<% active_slots = @slots.select(&:emphasized) %>
-<% all_done = active_slots.any? && active_slots.all?(&:completed) %>
-
 <div class="space-y-4">
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -9,27 +6,6 @@
         <p class="mt-1 text-sm text-slate-500"><%= @date.strftime("%Y/%m/%d") %>（<%= %w[日 月 火 水 木 金 土][@date.wday] %>）</p>
       </div>
       <%= link_to "項目を編集", daily_routine_settings_path, class: btn_classes(:secondary) %>
-    </div>
-
-    <div class="mb-4 rounded-xl border px-4 py-3 <%= all_done ? 'border-emerald-300 bg-emerald-50' : 'border-amber-200 bg-amber-50' %>">
-      <p class="text-sm font-semibold <%= all_done ? 'text-emerald-800' : 'text-amber-900' %>">
-        <%= all_done ? "今日の対象枠はすべて完了" : "今日の対象枠" %>
-      </p>
-      <ul class="mt-2 space-y-1.5">
-        <% active_slots.each do |slot| %>
-          <li class="flex items-center justify-between gap-3 text-sm <%= all_done ? 'text-emerald-800' : 'text-amber-950' %>">
-            <span class="font-medium"><%= slot.label %></span>
-            <% if slot.completed %>
-              <span class="font-semibold text-emerald-700">完了</span>
-            <% else %>
-              <span class="font-semibold text-rose-700">未完了</span>
-            <% end %>
-          </li>
-        <% end %>
-      </ul>
-      <p class="mt-2 text-xs <%= all_done ? 'text-emerald-700' : 'text-amber-800' %>">
-        完了は SOLARC の記録から自動判定します（手動チェックはありません）
-      </p>
     </div>
 
     <div class="grid gap-4 lg:grid-cols-3">
@@ -66,14 +42,14 @@
             <% end %>
           </p>
 
-          <ul class="space-y-2 text-sm text-slate-700">
+          <ol class="space-y-2 text-sm text-slate-700">
             <% slot.items.each_with_index do |item, index| %>
-              <li class="flex gap-2.5">
-                <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white"><%= index + 1 %></span>
-                <span class="pt-0.5 leading-relaxed"><%= item.label %></span>
+              <li class="leading-relaxed">
+                <span class="font-medium text-slate-500"><%= index + 1 %>.</span>
+                <%= item.label %>
               </li>
             <% end %>
-          </ul>
+          </ol>
 
           <div class="mt-4">
             <% if slot.completed %>
