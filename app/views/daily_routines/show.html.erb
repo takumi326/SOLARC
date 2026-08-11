@@ -35,11 +35,7 @@
           </div>
 
           <p class="mb-3 rounded-lg px-2.5 py-2 text-xs leading-relaxed <%= slot.completed ? 'bg-emerald-100/80 text-emerald-900' : 'bg-white/80 text-slate-600' %>">
-            <% if slot.completed %>
-              条件クリア：<%= slot.completion_hint.sub(/と完了\z/, "") %>
-            <% else %>
-              <%= slot.completion_hint %>
-            <% end %>
+            完了条件：<%= slot.completion_hint %>
           </p>
 
           <ol class="space-y-2 text-sm text-slate-700">

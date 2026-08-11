@@ -81,11 +81,11 @@ class DailyRoutineStatus
     label = date_label
     case slot
     when "weekday_morning"
-      "#{label}の毎日の記録に仮説があると完了"
+      "#{label}の毎日の記録に仮説がある"
     when "weekday_evening"
-      "#{label}の毎日の記録に結果があると完了"
+      "#{label}の毎日の記録に結果がある"
     when "holiday"
-      "#{label}につくった未約定エントリーがあると完了"
+      "#{label}につくった未約定エントリーがある"
     else
       ""
     end
