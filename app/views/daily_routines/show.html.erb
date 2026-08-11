@@ -7,13 +7,6 @@
       </div>
       <div class="flex flex-wrap gap-2">
         <%= link_to "今日", daily_routine_path, class: btn_classes(:primary) %>
-        <% if @weekend %>
-          <span class="inline-flex items-center rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-600">土日は休み</span>
-        <% elsif @marked_off %>
-          <%= button_to "休みを解除", off_days_daily_routine_path(date: @date.iso8601), method: :delete, class: btn_classes(:secondary) %>
-        <% else %>
-          <%= button_to "この日を休みにする", off_days_daily_routine_path(date: @date.iso8601), method: :post, class: btn_classes(:secondary) %>
-        <% end %>
         <%= link_to "項目を編集", daily_routine_settings_path, class: btn_classes(:secondary) %>
       </div>
     </div>
@@ -90,6 +83,16 @@
           <button type="submit" class="<%= btn_classes(:secondary) %>">表示</button>
           <%= link_to "今日", daily_routine_path, class: btn_classes(:primary) %>
         <% end %>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <% if @weekend %>
+            <span class="inline-flex items-center rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-600">土日は休み</span>
+          <% elsif @marked_off %>
+            <%= button_to "休みを解除", off_days_daily_routine_path(date: @date.iso8601), method: :delete, class: btn_classes(:secondary) %>
+          <% else %>
+            <%= button_to "この日を休みにする", off_days_daily_routine_path(date: @date.iso8601), method: :post, class: btn_classes(:secondary) %>
+          <% end %>
+        </div>
       </div>
 
       <div class="mb-2 flex items-center justify-between gap-2">
