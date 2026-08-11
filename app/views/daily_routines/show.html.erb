@@ -18,20 +18,6 @@
       </div>
     </div>
 
-    <% if @off_day && @off_period %>
-      <%
-        period_text =
-          if @off_period.begin == @off_period.end
-            @off_period.begin.strftime("%-m/%-d")
-          else
-            "#{@off_period.begin.strftime("%-m/%-d")}〜#{@off_period.end.strftime("%-m/%-d")}"
-          end
-      %>
-      <p class="mb-3 text-sm text-slate-600">
-        休み期間 <%= period_text %>。この間は休日ルーチンだけで、期間内のどちらかで達成すればOKです。
-      </p>
-    <% end %>
-
     <% visible_slots = @slots.select(&:emphasized) %>
     <div class="mb-6 grid gap-4 sm:grid-cols-2">
       <% visible_slots.each do |slot| %>
