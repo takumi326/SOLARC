@@ -3,7 +3,7 @@
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h2 class="text-xl font-bold leading-none">ルーチン</h2>
-        <span class="text-base font-medium leading-none text-slate-500" style="font-family:inherit;"><%= @date.strftime("%Y/%m/%d") %>（<%= %w[日 月 火 水 木 金 土][@date.wday] %>）</span>
+        <span class="text-base font-bold leading-none text-slate-800" style="font-family:inherit;"><%= @date.strftime("%Y/%m/%d") %>（<%= %w[日 月 火 水 木 金 土][@date.wday] %>）</span>
         <% if @off_day %>
           <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold text-white" style="background-color:#7c3aed;">休日</span>
         <% else %>
