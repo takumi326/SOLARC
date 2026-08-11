@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
 class DailyRoutineItem < ApplicationRecord
-  SLOTS = %w[weekday_morning weekday_evening holiday].freeze
+  SLOTS = %w[weekday_morning weekday_evening holiday month_end].freeze
 
   SLOT_LABELS = {
     "weekday_morning" => "平日朝",
     "weekday_evening" => "平日夜",
-    "holiday" => "休日"
+    "holiday" => "休日",
+    "month_end" => "月末"
   }.freeze
 
   DEFAULT_LABELS = {
@@ -33,6 +34,14 @@ class DailyRoutineItem < ApplicationRecord
       "監視銘柄を需給で選別",
       "監視銘柄のエントリー計画を SOLARC に登録",
       "楽天証券に監視銘柄を登録"
+    ],
+    "month_end" => [
+      "カード明細を用意する",
+      "プロンプトをコピーして Claude で JSON を作る",
+      "JSON を実績取込に貼って内容を確認",
+      "過不足チェックで不足分を追加",
+      "選択した行を取り込む",
+      "月末残高を登録"
     ]
   }.freeze
 

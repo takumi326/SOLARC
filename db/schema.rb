@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_11_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_11_020002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -99,6 +99,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_020000) do
     t.datetime "created_at", null: false
     t.date "end_month"
     t.integer "expense_type", default: 0, null: false
+    t.datetime "imported_at"
     t.text "memo"
     t.bigint "minor_category_id", null: false
     t.bigint "payment_method_id", null: false
@@ -110,6 +111,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_020000) do
     t.index ["expense_type"], name: "index_expenses_on_expense_type"
     t.index ["minor_category_id"], name: "index_expenses_on_minor_category_id"
     t.index ["payment_method_id"], name: "index_expenses_on_payment_method_id"
+    t.index ["start_month", "imported_at"], name: "index_expenses_on_start_month_and_imported_at"
     t.index ["start_month"], name: "index_expenses_on_start_month"
     t.check_constraint "amount >= 0::numeric", name: "expenses_amount_check"
     t.check_constraint "expense_type = ANY (ARRAY[0, 1])", name: "expenses_expense_type_check"

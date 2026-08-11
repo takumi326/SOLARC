@@ -1,40 +1,57 @@
 # frozen_string_literal: true
 
 class DailyRoutineStatus
-  SlotStatus = Data.define(:slot, :label, :completed, :items, :emphasized, :completion_hint)
+  SlotStatus = Data.define(:slot, :label, :completed, :items, :emphasized, :completion_hint,
+                           :month, :date) do
+    def initialize(month: nil, date: nil, **) = super
+  end
 
-  def initialize(owner_key:, date: Date.current, note: nil, has_entry_plan: nil, classifier: nil, entry_plan_in_period: nil)
+  # これより前の月は取り込み記録が無いため対象外にする
+  TRACKING_START_MONTH = Date.new(2026, 7, 1)
+
+  # 末日を含む何日前からカードを出すか
+  MONTH_END_LEAD_DAYS = 3
+
+  def initialize(owner_key:, date: Date.current, note: nil, has_entry_plan: nil, classifier: nil,
+                 entry_plan_in_period: nil, imported_months: nil)
     @owner_key = owner_key
     @date = date
     @note = note
     @has_entry_plan = has_entry_plan
     @classifier = classifier || DailyRoutineDayClassifier.new(owner_key: owner_key)
     @entry_plan_in_period = entry_plan_in_period
+    @given_imported_months = imported_months
   end
 
   def call
     DailyRoutineItem.ensure_defaults_for!(@owner_key)
     items_by_slot = DailyRoutineItem.for_owner(@owner_key).ordered.group_by(&:slot)
-    off = off_day?
+    emphasized = day_slots
 
-    DailyRoutineItem::SLOTS.map do |slot|
+    statuses = DailyRoutineItem::SLOTS.filter_map do |slot|
+      next if slot == "month_end"
+
       SlotStatus.new(
         slot: slot,
         label: DailyRoutineItem::SLOT_LABELS.fetch(slot),
         completed: completed?(slot),
         items: items_by_slot[slot] || [],
-        emphasized: off ? slot == "holiday" : slot != "holiday",
-        completion_hint: completion_hint_for(slot)
+        emphasized: emphasized.include?(slot),
+        completion_hint: completion_hint_for(slot),
+        date: @date
       )
     end
+
+    statuses + month_end_statuses(items_by_slot["month_end"] || [])
   end
 
   def day_status
-    slots = emphasized_slots
-    return :none if slots.empty?
+    results = day_slots.map { |slot| completed?(slot) } +
+              due_months.map { |month| imported_on(month).present? }
+    return :none if results.empty?
 
-    done = slots.count { |slot| completed?(slot) }
-    return :complete if done == slots.size
+    done = results.count(true)
+    return :complete if done == results.size
     return :partial if done.positive?
 
     :incomplete
@@ -48,9 +65,41 @@ class DailyRoutineStatus
     @off_period ||= @classifier.off_period(@date)
   end
 
+  # 末日の3日前から出し始め、取り込むまで翌月以降も出し続ける。
+  # 取り込んだ日は完了として出し、その翌日から消える。
+  def due_months
+    @due_months ||= tracked_months.select { |month| due?(month) }
+  end
+
+  def self.imported_months_for(months)
+    return {} if months.empty?
+
+    Expense.expense_type_one_time.imported
+           .where(start_month: months)
+           .pluck(:start_month, :imported_at)
+           .each_with_object({}) do |(month, imported_at), result|
+      date = imported_at.in_time_zone.to_date
+      result[month] = [ result[month], date ].compact.max
+    end
+  end
+
   private
 
-  def emphasized_slots
+  def month_end_statuses(items)
+    due_months.map do |month|
+      SlotStatus.new(
+        slot: "month_end",
+        label: "#{month.strftime("%-m月")}末",
+        completed: imported_on(month).present?,
+        items: items,
+        emphasized: true,
+        completion_hint: "#{month.strftime("%-m月")}分の実績を取り込んでいる",
+        month: month
+      )
+    end
+  end
+
+  def day_slots
     off_day? ? %w[holiday] : %w[weekday_morning weekday_evening]
   end
 
@@ -85,6 +134,34 @@ class DailyRoutineStatus
     return false unless period
 
     Entry.unsettled.where(created_at: period.begin.beginning_of_day..period.end.end_of_day).exists?
+  end
+
+  def due?(month)
+    return false if @date < month.end_of_month - (MONTH_END_LEAD_DAYS - 1)
+
+    imported = imported_on(month)
+    imported.nil? || imported == @date
+  end
+
+  # 対象日までに出番が来ている可能性のある月（古い順）
+  def tracked_months
+    @tracked_months ||= begin
+      months = []
+      month = TRACKING_START_MONTH
+      while month <= @date.beginning_of_month
+        months << month
+        month = month.next_month
+      end
+      months
+    end
+  end
+
+  def imported_on(month)
+    imported_months[month]
+  end
+
+  def imported_months
+    @imported_months ||= @given_imported_months || self.class.imported_months_for(tracked_months)
   end
 
   def completion_hint_for(slot)

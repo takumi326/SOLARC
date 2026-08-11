@@ -36,7 +36,8 @@ class FinanceExpenseImportService
           amount: row.amount,
           start_month: row.month_date,
           end_month: row.month_date,
-          memo: row.memo
+          memo: row.memo,
+          imported_at: Time.current
         )
         touched_months << row.month_date
         imported_count += 1

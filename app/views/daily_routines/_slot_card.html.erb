@@ -1,0 +1,50 @@
+<%
+  accent, tint =
+    case slot.slot
+    when "holiday" then [ "#7c3aed", "#f5f3ff" ]
+    when "month_end" then [ "#d97706", "#fffbeb" ]
+    else [ "#2563eb", "#eff6ff" ]
+    end
+
+  card_style =
+    if slot.completed
+      "border:2px solid #059669;background-color:#ecfdf5;"
+    else
+      "border:2px solid #{accent};background-color:#{tint};"
+    end
+  status_style =
+    if slot.completed
+      "background-color:#059669;color:#ffffff;"
+    elsif slot.slot.start_with?("weekday")
+      "background-color:#e11d48;color:#ffffff;"
+    else
+      "background-color:#{accent};color:#ffffff;"
+    end
+  condition_border = slot.completed ? "#059669" : accent
+  condition_style =
+    "background-color:#ffffff;color:#1d4ed8;border:1px solid #{condition_border};" \
+    "text-decoration:underline;text-underline-offset:2px;"
+%>
+<article class="overflow-hidden rounded-xl" style="<%= card_style %>">
+  <div class="flex items-center justify-between gap-2 px-4 py-2" style="<%= status_style %>">
+    <h3 class="text-base font-bold"><%= slot.label %></h3>
+    <span class="text-sm font-bold tracking-wide">
+      <% if slot.completed %>✓ 完了<% else %>未完了<% end %>
+    </span>
+  </div>
+
+  <div class="p-4">
+    <%= link_to daily_routine_slot_path(slot), class: "mb-3 block rounded-lg px-3 py-2 text-sm font-medium leading-relaxed hover:opacity-80", style: condition_style do %>
+      完了条件：<%= slot.completion_hint %>
+    <% end %>
+
+    <ol class="space-y-2 text-sm text-slate-800">
+      <% slot.items.each_with_index do |item, index| %>
+        <li class="leading-relaxed">
+          <span class="font-semibold text-slate-500"><%= index + 1 %>.</span>
+          <%= item.label %>
+        </li>
+      <% end %>
+    </ol>
+  </div>
+</article>

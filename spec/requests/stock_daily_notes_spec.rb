@@ -101,6 +101,30 @@ RSpec.describe "StockDailyNotes", type: :request do
     end
   end
 
+  describe "GET /stock_daily_notes/edit" do
+    it "opens the result form for a day that has no note yet" do
+      get edit_stock_daily_note_path(date: "2026-08-14", field: "result")
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("結果")
+    end
+  end
+
+  describe "PATCH /stock_daily_notes without an existing note" do
+    it "creates the note with only the result filled in" do
+      patch stock_daily_note_path,
+            params: {
+              field: "result",
+              stock_daily_note: { recorded_on: "2026-08-14", body: "結果だけ書く" }
+            }
+
+      expect(response).to redirect_to(stock_daily_notes_path)
+      note = StockDailyNote.find_by!(owner_key: "development", recorded_on: Date.new(2026, 8, 14))
+      expect(note.result).to eq("結果だけ書く")
+      expect(note.hypothesis).to be_blank
+    end
+  end
+
   describe "DELETE /stock_daily_notes/:id" do
     it "destroys note" do
       note = StockDailyNote.create!(

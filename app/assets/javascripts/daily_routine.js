@@ -35,16 +35,6 @@
     loadRoutine(link.href, true)
   })
 
-  document.addEventListener("change", function (event) {
-    var input = event.target
-    if (!input || input.id !== "routine_date" || !root()) return
-    var form = input.form
-    var base = form ? form.action : window.location.pathname
-    var url = new URL(base, window.location.origin)
-    url.searchParams.set("date", input.value)
-    loadRoutine(url.toString(), true)
-  })
-
   window.addEventListener("popstate", function () {
     if (!root()) return
     loadRoutine(window.location.href, false)

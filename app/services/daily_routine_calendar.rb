@@ -17,6 +17,8 @@ class DailyRoutineCalendar
     extra_off = DailyRoutineOffDay.for_owner(@owner_key).covering(padded).pluck(:off_on).to_set
     classifier = DailyRoutineDayClassifier.new(owner_key: @owner_key, extra_off_dates: extra_off)
 
+    imported_months = DailyRoutineStatus.imported_months_for(tracked_months)
+
     entry_dates = Entry.unsettled
       .where(created_at: padded.begin.beginning_of_day..padded.end.end_of_day)
       .pluck(:created_at)
@@ -46,7 +48,8 @@ class DailyRoutineCalendar
               date: cell_date,
               note: notes[cell_date],
               classifier: classifier,
-              entry_plan_in_period: entry_in_period
+              entry_plan_in_period: entry_in_period,
+              imported_months: imported_months
             ).day_status
           else
             :outside
@@ -69,5 +72,18 @@ class DailyRoutineCalendar
       prev_month: @month.prev_month,
       next_month: @month.next_month
     )
+  end
+
+  private
+
+  # 表示月のセルが参照しうる「終わった月」をまとめて引く
+  def tracked_months
+    months = []
+    month = DailyRoutineStatus::TRACKING_START_MONTH
+    while month <= @month
+      months << month
+      month = month.next_month
+    end
+    months
   end
 end

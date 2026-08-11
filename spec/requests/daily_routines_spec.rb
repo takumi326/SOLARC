@@ -14,7 +14,77 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include("平日夜")
         expect(response.body).not_to include(">休日</h3>")
         expect(response.body).to include("この日を休みにする")
-        expect(DailyRoutineItem.for_owner("development").count).to eq(18)
+        expect(DailyRoutineItem.for_owner("development").count).to eq(24)
+      end
+    end
+
+    it "starts showing the month end card three days before the last day" do
+      create(:expense, start_month: Date.new(2026, 7, 1), imported_at: Time.zone.local(2026, 7, 31))
+
+      travel_to Time.zone.local(2026, 8, 28, 10, 0, 0) do
+        get daily_routine_path
+        expect(response.body).not_to include(">8月末</h3>")
+      end
+
+      travel_to Time.zone.local(2026, 8, 29, 10, 0, 0) do
+        get daily_routine_path
+        expect(response.body).to include(">8月末</h3>")
+        expect(response.body).to include("完了条件：8月分の実績を取り込んでいる")
+        expect(response.body).to include(%(href="#{finance_import_path(prompt_month: "2026-08")}"))
+        expect(response.body).to include("カード明細を用意する")
+      end
+    end
+
+    it "keeps showing the month end card until the month is imported" do
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(">7月末</h3>")
+        expect(response.body).to include("完了条件：7月分の実績を取り込んでいる")
+      end
+    end
+
+    it "shows one card per month that is still not imported" do
+      travel_to Time.zone.local(2026, 8, 31, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response.body).to include(">7月末</h3>")
+        expect(response.body).to include(">8月末</h3>")
+        expect(response.body).to include("完了条件：7月分の実績を取り込んでいる")
+        expect(response.body).to include("完了条件：8月分の実績を取り込んでいる")
+      end
+    end
+
+    it "shows the month end card as done on the day of the import" do
+      create(:expense, start_month: Date.new(2026, 7, 1), imported_at: Time.zone.local(2026, 8, 11, 9, 0, 0))
+
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response.body).to include(">7月末</h3>")
+        expect(response.body).to include("✓ 完了")
+      end
+    end
+
+    it "hides the month end card from the next day of the import" do
+      create(:expense, start_month: Date.new(2026, 7, 1), imported_at: Time.zone.local(2026, 8, 11, 9, 0, 0))
+
+      travel_to Time.zone.local(2026, 8, 12, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response.body).not_to include("月末</h3>")
+      end
+    end
+
+    it "ignores manually created expenses when judging the month end card" do
+      create(:expense, start_month: Date.new(2026, 7, 1), imported_at: nil)
+
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response.body).to include(">7月末</h3>")
+        expect(response.body).not_to include("✓ 完了")
       end
     end
 
@@ -26,7 +96,7 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include(">休日</h3>")
         expect(response.body).not_to include(">平日朝</h3>")
         expect(response.body).not_to include(">平日夜</h3>")
-        expect(response.body).to include("土日は休み")
+        expect(response.body).not_to include("この日を休みにする")
         expect(response.body).to include("未完了")
       end
     end
@@ -65,6 +135,36 @@ RSpec.describe "DailyRoutines", type: :request do
       end
     end
 
+    it "links the weekday hints to each field of that day even without a note" do
+      travel_to Time.zone.local(2026, 8, 14, 10, 0, 0) do
+        get daily_routine_path
+        expect(response.body).to include(
+          %(href="#{CGI.escapeHTML(edit_stock_daily_note_path(date: "2026-08-14", field: "hypothesis"))}")
+        )
+        expect(response.body).to include(
+          %(href="#{CGI.escapeHTML(edit_stock_daily_note_path(date: "2026-08-14", field: "result"))}")
+        )
+      end
+    end
+
+    it "links the weekday hints to the matching field of an existing note" do
+      travel_to Time.zone.local(2026, 8, 14, 10, 0, 0) do
+        StockDailyNote.create!(
+          owner_key: "development",
+          recorded_on: Date.current,
+          hypothesis: "朝の仮説"
+        )
+
+        get daily_routine_path
+        expect(response.body).to include(
+          %(href="#{stock_daily_note_detail_path(date: "2026-08-14")}")
+        )
+        expect(response.body).to include(
+          %(href="#{CGI.escapeHTML(edit_stock_daily_note_path(date: "2026-08-14", field: "result"))}")
+        )
+      end
+    end
+
     it "marks holiday complete on Sunday when entry was created on Saturday" do
       stock = create_test_stock
       travel_to Time.zone.local(2026, 8, 8, 15, 0, 0) do
@@ -86,7 +186,7 @@ RSpec.describe "DailyRoutines", type: :request do
       travel_to Time.zone.local(2026, 8, 9, 10, 0, 0) do
         get daily_routine_path
         expect(response.body).to include("エントリー予定")
-        expect(response.body).to include("株一覧へ")
+        expect(response.body).to include(%(href="#{stocks_path}"))
         expect(response.body).to include(">休日</h3>")
       end
     end
@@ -120,7 +220,7 @@ RSpec.describe "DailyRoutines", type: :request do
 
       get daily_routine_path, params: { date: past.iso8601 }
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("日付を選ぶ")
+      expect(response.body).to include("2026/08/05（水）")
       expect(response.body).to include("2026年8月")
       expect(response.body).to include("完了条件：")
       expect(response.body).to include("今日")
