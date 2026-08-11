@@ -27,6 +27,8 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).not_to include(">平日朝</h3>")
         expect(response.body).not_to include(">平日夜</h3>")
         expect(response.body).to include("土日は休み")
+        expect(response.body).to include("休みの日用")
+        expect(response.body).to include("休日・未完了")
       end
     end
 
@@ -112,6 +114,8 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response.body).to include("完了条件：")
       expect(response.body).to include("今日")
       expect(response.body).to include("すべて完了")
+      expect(response.body).to include("平日・未完了")
+      expect(response.body).to include("休み・未完了")
     end
   end
 
