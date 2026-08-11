@@ -10,6 +10,7 @@ class ImportCardRegistry
     :flash_subject,
     :paypal_funding,
     :payment_method_name,
+    :statement_url,
     keyword_init: true
   )
 
@@ -25,7 +26,8 @@ class ImportCardRegistry
       vpass_label: "Ａｍａｚｏｎマスター",
       flash_subject: nil,
       paypal_funding: "Mastercard-8225",
-      payment_method_name: "Amazonカード"
+      payment_method_name: "Amazonカード",
+      statement_url: "https://www.smbc-card.com/memx/web_meisai/top/index.html"
     ),
     Card.new(
       card_id: "paypay_jcb",
@@ -35,7 +37,8 @@ class ImportCardRegistry
       vpass_label: nil,
       flash_subject: "PayPayカード（JCB）利用速報",
       paypal_funding: nil,
-      payment_method_name: "PayPayカード"
+      payment_method_name: "PayPayカード",
+      statement_url: "https://www.paypay-card.co.jp/member/statement/top"
     )
   ].freeze
 
@@ -76,6 +79,10 @@ class ImportCardRegistry
 
     def prompt_text
       all.map { |card| format_card_for_prompt(card) }.join("\n\n")
+    end
+
+    def with_statement_url
+      all.select { |card| card.statement_url.present? }
     end
 
     def card_id_list_text
