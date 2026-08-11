@@ -96,9 +96,8 @@
         <%= form_with url: daily_routine_path, method: :get, local: true, class: "flex flex-wrap items-end gap-2" do %>
           <div>
             <label for="routine_date" class="mb-1 block text-xs font-medium text-slate-600">日付を選ぶ</label>
-            <input id="routine_date" type="date" name="date" value="<%= @date.iso8601 %>" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
+            <input id="routine_date" type="date" name="date" value="<%= @date.iso8601 %>" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" onchange="this.form.requestSubmit()" />
           </div>
-          <button type="submit" class="<%= btn_classes(:secondary) %>">表示</button>
           <%= link_to "今日", daily_routine_path, class: btn_classes(:primary) %>
         <% end %>
 
