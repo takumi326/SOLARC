@@ -27,6 +27,15 @@ RSpec.describe "DailyRoutines", type: :request do
       get daily_routine_path
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("完了")
+      expect(response.body).to include("条件クリア")
+      expect(response.body).to include("今日の進捗")
+    end
+
+    it "shows completion hints for incomplete slots" do
+      get daily_routine_path
+      expect(response.body).to include("今日の毎日の記録に仮説があると完了")
+      expect(response.body).to include("今日の毎日の記録に結果があると完了")
+      expect(response.body).to include("今日つくった未約定エントリーがあると完了")
     end
 
     it "marks holiday complete when an unsettled entry exists today" do

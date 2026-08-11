@@ -1,7 +1,13 @@
 # frozen_string_literal: true
 
 class DailyRoutineStatus
-  SlotStatus = Data.define(:slot, :label, :completed, :items, :emphasized)
+  COMPLETION_HINTS = {
+    "weekday_morning" => "今日の毎日の記録に仮説があると完了",
+    "weekday_evening" => "今日の毎日の記録に結果があると完了",
+    "holiday" => "今日つくった未約定エントリーがあると完了"
+  }.freeze
+
+  SlotStatus = Data.define(:slot, :label, :completed, :items, :emphasized, :completion_hint)
 
   def initialize(owner_key:, date: Date.current)
     @owner_key = owner_key
@@ -19,7 +25,8 @@ class DailyRoutineStatus
         label: DailyRoutineItem::SLOT_LABELS.fetch(slot),
         completed: completed?(slot),
         items: items_by_slot[slot] || [],
-        emphasized: holiday ? slot == "holiday" : slot != "holiday"
+        emphasized: holiday ? slot == "holiday" : slot != "holiday",
+        completion_hint: COMPLETION_HINTS.fetch(slot)
       )
     end
   end

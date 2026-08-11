@@ -1,3 +1,7 @@
+<% active_slots = @slots.select(&:emphasized) %>
+<% done_count = active_slots.count(&:completed) %>
+<% total_count = active_slots.size %>
+
 <div class="space-y-4">
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -8,17 +12,52 @@
       <%= link_to "項目を編集", daily_routine_settings_path, class: btn_classes(:secondary) %>
     </div>
 
+    <div class="mb-4 rounded-xl border px-4 py-3 <%= done_count == total_count && total_count.positive? ? 'border-emerald-300 bg-emerald-50' : 'border-amber-200 bg-amber-50' %>">
+      <p class="text-sm font-semibold <%= done_count == total_count && total_count.positive? ? 'text-emerald-800' : 'text-amber-900' %>">
+        <% if done_count == total_count && total_count.positive? %>
+          今日の日課はすべて完了（<%= done_count %>/<%= total_count %>）
+        <% else %>
+          今日の進捗 <%= done_count %>/<%= total_count %> 完了
+        <% end %>
+      </p>
+      <p class="mt-1 text-xs <%= done_count == total_count && total_count.positive? ? 'text-emerald-700' : 'text-amber-800' %>">
+        完了は SOLARC の記録から自動判定します（手動チェックはありません）
+      </p>
+    </div>
+
     <div class="grid gap-4 lg:grid-cols-3">
       <% @slots.each do |slot| %>
-        <article class="rounded-xl border p-4 <%= slot.emphasized ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-200 bg-slate-50/50 opacity-90' %>">
-          <div class="mb-3 flex items-center justify-between gap-2">
+        <%
+          card_classes =
+            if slot.completed
+              "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200"
+            elsif slot.emphasized
+              "border-indigo-300 bg-indigo-50/40"
+            else
+              "border-slate-200 bg-slate-50/50 opacity-80"
+            end
+        %>
+        <article class="rounded-xl border p-4 <%= card_classes %>">
+          <div class="mb-3 flex items-start justify-between gap-2">
             <h3 class="text-base font-semibold text-slate-900"><%= slot.label %></h3>
             <% if slot.completed %>
-              <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">完了</span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
+                <span aria-hidden="true">✓</span> 完了
+              </span>
             <% else %>
-              <span class="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-600">未完了</span>
+              <span class="inline-flex items-center gap-1 rounded-full bg-slate-700 px-2.5 py-1 text-xs font-semibold text-white">
+                未完了
+              </span>
             <% end %>
           </div>
+
+          <p class="mb-3 rounded-lg px-2.5 py-2 text-xs leading-relaxed <%= slot.completed ? 'bg-emerald-100/80 text-emerald-900' : 'bg-white/80 text-slate-600' %>">
+            <% if slot.completed %>
+              条件クリア：<%= slot.completion_hint.sub(/と完了\z/, "") %>
+            <% else %>
+              <%= slot.completion_hint %>
+            <% end %>
+          </p>
 
           <ol class="list-decimal space-y-1.5 pl-5 text-sm text-slate-700">
             <% slot.items.each do |item| %>
@@ -27,10 +66,12 @@
           </ol>
 
           <div class="mt-4">
-            <% if slot.slot == "holiday" %>
-              <%= link_to "エントリー登録へ", new_entry_path, class: btn_classes(:link) %>
+            <% if slot.completed %>
+              <p class="text-xs font-medium text-emerald-700">この枠は完了済みです</p>
+            <% elsif slot.slot == "holiday" %>
+              <%= link_to "エントリーを登録して完了にする →", new_entry_path, class: btn_classes(:primary) %>
             <% else %>
-              <%= link_to "毎日の記録へ", stock_daily_notes_path, class: btn_classes(:link) %>
+              <%= link_to "毎日の記録を書いて完了にする →", stock_daily_notes_path, class: btn_classes(:primary) %>
             <% end %>
           </div>
         </article>
