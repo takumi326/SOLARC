@@ -4,50 +4,69 @@ require "rails_helper"
 
 RSpec.describe "DailyRoutines", type: :request do
   describe "GET /daily-routine" do
-    it "shows dashboard with seeded items and incomplete slots" do
-      get daily_routine_path
+    it "shows weekday slots on a weekday" do
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        get daily_routine_path
 
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("ルーチン")
-      expect(response.body).to include("平日朝")
-      expect(response.body).to include("平日夜")
-      expect(response.body).to include("休日")
-      expect(response.body).to include("グリーンさんの Discord 確認")
-      expect(response.body).to include("未完了")
-      expect(response.body).to include("1.")
-      expect(response.body).not_to include("今日の対象枠")
-      expect(DailyRoutineItem.for_owner("development").count).to eq(18)
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include("ルーチン")
+        expect(response.body).to include("平日朝")
+        expect(response.body).to include("平日夜")
+        expect(response.body).not_to include(">休日</h3>")
+        expect(response.body).to include("グリーンさんの Discord 確認")
+        expect(response.body).to include("未完了")
+        expect(response.body).to include("1.")
+        expect(DailyRoutineItem.for_owner("development").count).to eq(18)
+      end
+    end
+
+    it "shows only holiday slot on a weekend" do
+      travel_to Time.zone.local(2026, 8, 9, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include(">休日</h3>")
+        expect(response.body).not_to include(">平日朝</h3>")
+        expect(response.body).not_to include(">平日夜</h3>")
+        expect(response.body).to include("グリーンさんの休日記事確認")
+      end
     end
 
     it "marks morning complete when today's hypothesis is filled" do
-      StockDailyNote.create!(
-        owner_key: "development",
-        recorded_on: Date.current,
-        hypothesis: "朝の仮説"
-      )
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        StockDailyNote.create!(
+          owner_key: "development",
+          recorded_on: Date.current,
+          hypothesis: "朝の仮説"
+        )
 
-      get daily_routine_path
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("完了")
-      expect(response.body).to include("完了条件：")
+        get daily_routine_path
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include("完了")
+        expect(response.body).to include("完了条件：")
+      end
     end
 
-    it "shows completion hints for incomplete slots" do
-      get daily_routine_path
-      expect(response.body).to include("完了条件：今日の毎日の記録に仮説がある")
-      expect(response.body).to include("完了条件：今日の毎日の記録に結果がある")
-      expect(response.body).to include("完了条件：今日につくった未約定エントリーがある")
+    it "shows completion hints for incomplete weekday slots" do
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        get daily_routine_path
+        expect(response.body).to include("完了条件：今日の毎日の記録に仮説がある")
+        expect(response.body).to include("完了条件：今日の毎日の記録に結果がある")
+        expect(response.body).not_to include("完了条件：今日につくった未約定エントリーがある")
+      end
     end
 
-    it "marks holiday complete when an unsettled entry exists today" do
-      stock = create_test_stock
-      create_test_entry(stock: stock, traded_at: nil)
+    it "marks holiday complete when an unsettled entry exists that day" do
+      travel_to Time.zone.local(2026, 8, 9, 10, 0, 0) do
+        stock = create_test_stock
+        create_test_entry(stock: stock, traded_at: nil)
 
-      get daily_routine_path
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("完了")
+        get daily_routine_path
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include("完了")
+        expect(response.body).to include("完了条件：今日につくった未約定エントリーがある")
+      end
     end
-
     it "shows calendar and accepts a selected date" do
       past = Date.current - 3
       StockDailyNote.create!(

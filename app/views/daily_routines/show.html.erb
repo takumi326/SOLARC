@@ -8,16 +8,15 @@
       <%= link_to "項目を編集", daily_routine_settings_path, class: btn_classes(:secondary) %>
     </div>
 
-    <div class="mb-6 grid gap-4 lg:grid-cols-3">
-      <% @slots.each do |slot| %>
+    <% visible_slots = @slots.select(&:emphasized) %>
+    <div class="mb-6 grid gap-4 <%= visible_slots.size == 1 ? 'lg:grid-cols-1 max-w-2xl' : 'lg:grid-cols-2' %>">
+      <% visible_slots.each do |slot| %>
         <%
           card_classes =
             if slot.completed
               "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200"
-            elsif slot.emphasized
-              "border-indigo-300 bg-indigo-50/40"
             else
-              "border-slate-200 bg-slate-50/50 opacity-80"
+              "border-indigo-300 bg-indigo-50/40"
             end
         %>
         <article class="rounded-xl border p-4 <%= card_classes %>">
