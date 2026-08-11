@@ -8,12 +8,13 @@ RSpec.describe "DailyRoutines", type: :request do
       get daily_routine_path
 
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("日課")
+      expect(response.body).to include("ルーチン")
       expect(response.body).to include("平日朝")
       expect(response.body).to include("平日夜")
       expect(response.body).to include("休日")
       expect(response.body).to include("グリーンさんの Discord 確認")
       expect(response.body).to include("未完了")
+      expect(response.body).to include(">1</span>")
       expect(DailyRoutineItem.for_owner("development").count).to eq(18)
     end
 
@@ -28,7 +29,7 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("完了")
       expect(response.body).to include("条件クリア")
-      expect(response.body).to include("今日の進捗")
+      expect(response.body).to include("今日の対象枠")
     end
 
     it "shows completion hints for incomplete slots" do
@@ -52,7 +53,7 @@ RSpec.describe "DailyRoutines", type: :request do
     it "shows editable items" do
       get daily_routine_settings_path
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include("日課の項目を編集")
+      expect(response.body).to include("ルーチンの項目を編集")
       expect(response.body).to include("ロイターの新着ニュース確認")
     end
   end
