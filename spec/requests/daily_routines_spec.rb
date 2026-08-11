@@ -63,6 +63,11 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response.body).to include(past.strftime("%Y年%-m月"))
       expect(response.body).to include("完了条件：")
       expect(response.body).to include("今日へ戻る")
+      expect(response.body).to include(">#{past.day}</span>")
+      expect(response.body).to include("すべて完了")
+      expect(response.body).to include("一部完了")
+      expect(response.body).to include("未完了")
+      expect(response.body).not_to include("対象枠すべて完了")
     end
   end
 

@@ -21,12 +21,10 @@ class DailyRoutineCalendar
 
     grid_start = @month.beginning_of_week(:sunday)
     grid_end = @month.end_of_month.end_of_week(:sunday)
+    days = (grid_start..grid_end).to_a
 
-    weeks = []
-    day = grid_start
-    while day <= grid_end
-      week = (0..6).map do
-        cell_date = day
+    weeks = days.each_slice(7).map do |week_days|
+      week_days.map do |cell_date|
         in_month = cell_date.month == @month.month
         status =
           if in_month
@@ -40,17 +38,14 @@ class DailyRoutineCalendar
             :outside
           end
 
-        cell = DayCell.new(
+        DayCell.new(
           date: cell_date,
           in_month: in_month,
           selected: cell_date == @selected_date,
           today: cell_date == Date.current,
           status: status
         )
-        day += 1
-        cell
       end
-      weeks << week
     end
 
     MonthView.new(

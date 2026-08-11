@@ -94,36 +94,36 @@
             <tr>
               <% week.each do |cell| %>
                 <%
-                  tone =
+                  cell_style =
                     case cell.status
-                    when :complete then "text-white"
-                    when :partial then "text-amber-950"
-                    when :incomplete, :none then "text-slate-700 border border-slate-200"
-                    else "text-slate-300"
+                    when :complete
+                      "background-color:#059669;color:#ffffff;border:1px solid #047857;"
+                    when :partial
+                      "background-color:#fbbf24;color:#78350f;border:1px solid #d97706;"
+                    when :incomplete, :none
+                      "background-color:#ffffff;color:#334155;border:1px solid #cbd5e1;"
+                    else
+                      "background-color:transparent;color:#cbd5e1;border:1px solid transparent;"
                     end
-                  tone_style =
-                    case cell.status
-                    when :complete then "background-color:#10b981;"
-                    when :partial then "background-color:#fde68a;"
-                    when :incomplete, :none then "background-color:#ffffff;"
-                    else "background-color:transparent;"
-                    end
-                  selected = cell.selected ? " ring-2 ring-indigo-500" : ""
-                  today = cell.today && !cell.selected ? " outline outline-1 outline-indigo-300" : ""
+                  if cell.selected
+                    cell_style += "outline:3px solid #4f46e5;outline-offset:1px;"
+                  elsif cell.today
+                    cell_style += "outline:2px solid #818cf8;outline-offset:1px;"
+                  end
                 %>
                 <td class="p-0.5 align-middle">
                   <% if cell.in_month %>
                     <%= link_to daily_routine_path(date: cell.date.iso8601, month: @calendar.month.strftime("%Y-%m")),
-                          class: "mx-auto flex h-10 w-full max-w-12 flex-col items-center justify-center rounded-lg text-sm font-medium #{tone}#{selected}#{today}",
-                          style: tone_style,
-                          aria: { current: (cell.selected ? "date" : nil), label: "#{cell.date.strftime("%Y/%m/%d")} #{cell.status}" } do %>
+                          class: "mx-auto flex h-10 w-full flex-col items-center justify-center rounded-lg text-sm font-bold no-underline",
+                          style: cell_style,
+                          aria: { current: (cell.selected ? "date" : false), label: "#{cell.date.strftime("%Y/%m/%d")} #{cell.status}" } do %>
                       <span><%= cell.date.day %></span>
                       <% if cell.status == :complete %>
-                        <span class="text-[10px] font-bold leading-none">✓</span>
+                        <span style="font-size:10px;line-height:1;">✓</span>
                       <% end %>
                     <% end %>
                   <% else %>
-                    <span class="mx-auto flex h-10 w-full max-w-12 items-center justify-center text-sm text-slate-300"><%= cell.date.day %></span>
+                    <span class="mx-auto flex h-10 w-full items-center justify-center text-sm" style="color:#cbd5e1;"><%= cell.date.day %></span>
                   <% end %>
                 </td>
               <% end %>
@@ -132,11 +132,11 @@
         </tbody>
       </table>
 
-      <ul class="mt-3 flex flex-wrap gap-3 text-[11px] text-slate-500">
-        <li><span class="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500"></span>対象枠すべて完了</li>
-        <li><span class="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-amber-200"></span>一部完了</li>
-        <li><span class="mr-1 inline-block h-2.5 w-2.5 rounded-sm border border-slate-300 bg-white"></span>未完了</li>
-      </ul>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold text-white" style="background-color:#059669;">すべて完了</span>
+        <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold" style="background-color:#fbbf24;color:#78350f;">一部完了</span>
+        <span class="inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-bold text-slate-700" style="background-color:#ffffff;border-color:#cbd5e1;">未完了</span>
+      </div>
     </div>
   </section>
 </div>
