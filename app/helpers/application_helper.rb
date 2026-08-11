@@ -36,7 +36,7 @@ module ApplicationHelper
   end
 
   def btn_classes(variant = :primary, extra: nil)
-    base = "inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium"
+    base = "inline-flex cursor-pointer items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium"
     classes = case variant.to_sym
     when :primary then "#{base} bg-indigo-600 text-white hover:bg-indigo-500"
     when :secondary then "#{base} border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
@@ -96,6 +96,23 @@ module ApplicationHelper
     base = "block rounded-lg px-3 py-2 text-sm"
     classes = active ? "#{base} bg-indigo-600 text-white" : "#{base} text-slate-600 hover:bg-slate-100"
     link_to label, path, class: classes, **options
+  end
+
+  # ルーチンカードの「完了条件」から、その条件を満たしに行く画面へ飛ばす
+  def daily_routine_slot_path(slot)
+    case slot.slot
+    when "holiday" then stocks_path
+    when "month_end" then finance_import_path(prompt_month: slot.month.strftime("%Y-%m"))
+    else daily_note_slot_path(slot)
+    end
+  end
+
+  def daily_note_slot_path(slot)
+    date = slot.date.iso8601
+    return stock_daily_note_detail_path(date: date) if slot.completed
+
+    field = slot.slot == "weekday_morning" ? "hypothesis" : "result"
+    edit_stock_daily_note_path(date: date, field: field)
   end
 
   def stock_field_value(note, field)

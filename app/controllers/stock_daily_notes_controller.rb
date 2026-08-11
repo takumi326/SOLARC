@@ -82,17 +82,15 @@ class StockDailyNotesController < ApplicationController
   def edit
     @date = parse_date!(params[:date])
     @field = validate_field!(params[:field])
-    @note = StockDailyNote.find_by!(owner_key: preference_owner_key, recorded_on: @date)
+    @note = StockDailyNote.find_or_initialize_by(owner_key: preference_owner_key, recorded_on: @date)
   rescue ArgumentError
     redirect_to stock_daily_notes_path, alert: "指定が不正です。"
-  rescue ActiveRecord::RecordNotFound
-    redirect_to stock_daily_notes_path, alert: "記録が見つかりません。"
   end
 
   def update
     @date = parse_date!(params.dig(:stock_daily_note, :recorded_on))
     @field = validate_field!(params[:field])
-    note = StockDailyNote.find_by!(owner_key: preference_owner_key, recorded_on: @date)
+    note = StockDailyNote.find_or_initialize_by(owner_key: preference_owner_key, recorded_on: @date)
 
     body = note_params[:body].to_s
     case @field
@@ -111,8 +109,6 @@ class StockDailyNotesController < ApplicationController
     end
   rescue ArgumentError
     redirect_to stock_daily_notes_path, alert: "指定が不正です。"
-  rescue ActiveRecord::RecordNotFound
-    redirect_to stock_daily_notes_path, alert: "記録が見つかりません。"
   end
 
   private

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_10_131000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_11_020002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,6 +20,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_131000) do
     t.datetime "updated_at", null: false
     t.string "version_name", limit: 100, null: false
     t.index ["version_name"], name: "index_ai_scripts_on_version_name", unique: true
+  end
+
+  create_table "daily_routine_items", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "label", limit: 255, null: false
+    t.string "owner_key", limit: 255, null: false
+    t.integer "position", default: 0, null: false
+    t.string "slot", limit: 32, null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_key", "slot", "position"], name: "index_daily_routine_items_on_owner_slot_position"
+  end
+
+  create_table "daily_routine_off_days", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "off_on", null: false
+    t.string "owner_key", limit: 255, null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_key", "off_on"], name: "index_daily_routine_off_days_on_owner_key_and_off_on", unique: true
   end
 
   create_table "entries", force: :cascade do |t|
@@ -81,6 +99,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_131000) do
     t.datetime "created_at", null: false
     t.date "end_month"
     t.integer "expense_type", default: 0, null: false
+    t.datetime "imported_at"
     t.text "memo"
     t.bigint "minor_category_id", null: false
     t.bigint "payment_method_id", null: false
@@ -92,6 +111,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_131000) do
     t.index ["expense_type"], name: "index_expenses_on_expense_type"
     t.index ["minor_category_id"], name: "index_expenses_on_minor_category_id"
     t.index ["payment_method_id"], name: "index_expenses_on_payment_method_id"
+    t.index ["start_month", "imported_at"], name: "index_expenses_on_start_month_and_imported_at"
     t.index ["start_month"], name: "index_expenses_on_start_month"
     t.check_constraint "amount >= 0::numeric", name: "expenses_amount_check"
     t.check_constraint "expense_type = ANY (ARRAY[0, 1])", name: "expenses_expense_type_check"

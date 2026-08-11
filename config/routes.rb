@@ -8,6 +8,18 @@ Rails.application.routes.draw do
   get "/auth/failure", to: "sessions#failure"
   match "/auth/:provider/callback", to: "sessions#create", via: [ :get, :post ]
 
+  resource :daily_routine, only: [ :show ], path: "daily-routine" do
+    post :off_days, action: :create_off_day, on: :member
+    delete :off_days, action: :destroy_off_day, on: :member
+  end
+  get "daily-routine/settings", to: "daily_routine_items#index", as: :daily_routine_settings
+  resources :daily_routine_items, only: [ :create, :update, :destroy ], path: "daily-routine/items" do
+    member do
+      patch :move_up
+      patch :move_down
+    end
+  end
+
   get "finance", to: "finance_summaries#show", as: :finance_summary
   post "finance/sync_recurring", to: "finance_summaries#sync_recurring", as: :finance_sync_recurring
   post "finance/sync_one_time", to: "finance_summaries#sync_one_time", as: :finance_sync_one_time

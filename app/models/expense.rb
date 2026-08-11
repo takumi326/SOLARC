@@ -15,6 +15,8 @@ class Expense < ApplicationRecord
   validate :end_month_not_before_start_month
   validate :recurring_options
 
+  scope :imported, -> { where.not(imported_at: nil) }
+
   before_validation :normalize_recurring_fields
   before_validation :strip_memo
   # dependent: :destroy が登録する before_destroy より先に台帳を消す（ET だけ消すと Transaction が残る）
