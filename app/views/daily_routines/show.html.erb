@@ -34,7 +34,7 @@
             <% end %>
           </div>
 
-          <p class="mb-3 rounded-lg px-2.5 py-2 text-xs leading-relaxed <%= slot.completed ? 'bg-emerald-100/80 text-emerald-900' : 'bg-white/80 text-slate-600' %>">
+          <p class="mb-3 rounded-lg px-2.5 py-2 text-xs font-medium leading-relaxed" style="<%= slot.completed ? 'background-color:#d1fae5;color:#065f46;border:1px solid #34d399;' : 'background-color:#ffffff;color:#334155;border:1px solid #94a3b8;' %>">
             完了条件：<%= slot.completion_hint %>
           </p>
 
