@@ -28,9 +28,16 @@ class FinanceExpenseImportParser
     rows = JSON.parse(self.class.extract_json_payload(@raw_json))
     raise ParseError, "JSON配列で入力してください" unless rows.is_a?(Array)
 
-    rows.map.with_index(1) { |row, line_number| parse_row(row, line_number) }
+    parsed = rows.map.with_index(1) { |row, line_number| parse_row(row, line_number) }
+    self.class.sort_and_renumber(parsed)
   rescue JSON::ParserError => e
     raise ParseError, "JSONの形式が不正です: #{e.message}"
+  end
+
+  # 入力の並びには意味がないので、台帳と見比べやすい順（月→カテゴリ→金額）に並べて番号を振る
+  def self.sort_and_renumber(rows, start_number: 1)
+    sorted = rows.sort_by { |row| [ row.month_label.to_s, row.category_path.to_s, row.amount, row.line_number ] }
+    sorted.each_with_index { |row, index| row.line_number = start_number + index }
   end
 
   def self.extract_json_payload(raw)

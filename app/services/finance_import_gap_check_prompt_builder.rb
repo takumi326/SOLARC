@@ -45,6 +45,8 @@ class FinanceImportGapCheckPromptBuilder
       ・利用通知は承認照会ベースなので、与信額と確定額の差・キャンセル無通知もありうる。
       ・それでも、スクショに明らかに載っているのに台帳に無い行は「不足」として拾う。
       ・台帳にあってスクショに無い行は、すぐ削除せず「過多候補」として理由付きで出す。
+      ・status=recurring は定期として登録済み（アプリが毎月自動計上する）。
+        明細に載っていても不足に挙げない。金額が違う場合だけ「金額差候補」に出す。
 
       ■カード定義（参考）
       {{CARDS}}
@@ -99,7 +101,7 @@ class FinanceImportGapCheckPromptBuilder
 
   def self.format_existing(row)
     [
-      "- status=saved",
+      "- status=#{row[:recurring] ? "recurring" : "saved"}",
       "card=#{row[:card_name]}",
       "date=#{row[:month_label]}",
       "category=#{row[:category_path]}",

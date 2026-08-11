@@ -26,6 +26,7 @@
             <button type="button" class="<%= btn_classes(:secondary) %>" data-copy-text="<%= h(@gap_check_prompt) %>" data-copy-label="過不足チェック用プロンプト" data-copy-flash="過不足チェック用プロンプトをコピーしました">過不足チェック用プロンプトをコピー</button>
             <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" class="<%= btn_classes(:link) %>">Claude</a>
           </div>
+          <div class="mt-2"><%= render "statement_links" %></div>
         </div>
       <% end %>
 
@@ -111,8 +112,8 @@
       <div class="space-y-3">
         <div class="flex min-h-0 flex-col rounded-lg border border-slate-200">
           <div class="flex shrink-0 items-center justify-between border-b border-slate-100 bg-slate-50 px-2 py-1.5">
-            <h4 class="text-sm font-medium text-slate-800">保存済み（<%= @compare_month_input %>）</h4>
-            <span class="text-xs text-slate-500"><%= @existing_rows.size %> 件</span>
+            <h4 class="text-sm font-medium text-slate-800">台帳（<%= @compare_month_input %>）</h4>
+            <span class="text-xs text-slate-500">保存済み＋この月の定期 / <%= @existing_rows.size %> 件</span>
           </div>
           <div class="max-h-72 overflow-x-auto">
             <table class="w-full min-w-[56rem] divide-y divide-slate-200 text-sm">
@@ -127,21 +128,18 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
-                <% @existing_rows.each do |row| %>
+                <% @existing_rows.each_with_index do |row, index| %>
                   <tr class="<%= row[:duplicate_with_pending] ? "bg-amber-50" : "" %>">
-                    <td class="px-2 py-1.5 tabular-nums text-slate-500">
-                      <% if row[:pending_line_number].present? %>
-                        <span class="font-semibold text-amber-900"><%= row[:pending_line_number] %></span>
-                      <% else %>
-                        —
-                      <% end %>
-                    </td>
+                    <td class="px-2 py-1.5 tabular-nums text-slate-500"><%= index + 1 %></td>
                     <td class="max-w-[10rem] px-2 py-1.5 text-xs text-slate-600">
                       <span class="block truncate" title="<%= row[:card_name] %>"><%= row[:card_name] %></span>
                     </td>
                     <td class="px-2 py-1.5 whitespace-nowrap"><%= row[:month_label] %></td>
                     <td class="px-2 py-1.5">
                       <%= row[:category_path] %>
+                      <% if row[:recurring] %>
+                        <span class="ml-1 rounded bg-indigo-100 px-1 py-0.5 text-[10px] font-medium text-indigo-800">定期</span>
+                      <% end %>
                       <% if row[:duplicate_with_pending] %>
                         <span class="ml-1 rounded bg-amber-200 px-1 py-0.5 text-[10px] font-medium text-amber-900">No.<%= row[:pending_line_number] %> と重複</span>
                       <% end %>
@@ -300,6 +298,8 @@
           <button type="button" class="<%= btn_classes(:secondary) %>" data-copy-text="<%= h(@claude_prompt) %>" data-copy-label="プロンプト" data-copy-flash="プロンプトをコピーしました">プロンプトコピー</button>
           <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" class="<%= btn_classes(:link) %>">Claude</a>
         </div>
+
+        <%= render "statement_links" %>
       </div>
 
       <%= form_with url: finance_import_path, method: :post, class: "mt-3 space-y-3" do %>

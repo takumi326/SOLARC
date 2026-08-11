@@ -33,6 +33,96 @@ RSpec.describe "Finance imports", type: :request do
     end
   end
 
+  describe "recurring expenses in the comparison ledger" do
+    it "lists this month's card subscriptions and treats a matching row as duplicate" do
+      create(
+        :expense,
+        minor_category: minor,
+        payment_method: amazon_card,
+        expense_type: :recurring,
+        recurring_cycle: :monthly,
+        amount: 3000,
+        start_month: Date.new(2026, 4, 1)
+      )
+      rows = [ { month: "2026-05", card_id: "smcc_amazon", minor_category_id: minor.id, amount: 3000, memo: "Claude Pro" } ]
+
+      post finance_import_path, params: { raw_json: rows.to_json }
+
+      expect(response.body).to include("定期で登録済み")
+      expect(response.body).to include("と重複")
+      expect(response.body).not_to include('name="line_numbers[]" value="1"')
+    end
+
+    it "treats a subscription as duplicate even when the statement shows another card" do
+      rakuten = create(:payment_method, name: "楽天カード", method_type: "card")
+      create(
+        :expense,
+        minor_category: minor,
+        payment_method: rakuten,
+        expense_type: :recurring,
+        recurring_cycle: :monthly,
+        amount: 1280,
+        start_month: Date.new(2026, 4, 1)
+      )
+      rows = [ { month: "2026-05", card_id: "smcc_amazon", minor_category_id: minor.id, amount: 1280, memo: "YouTube Premium" } ]
+
+      post finance_import_path, params: { raw_json: rows.to_json }
+
+      expect(response.body).to include("と重複")
+      expect(response.body).not_to include('name="line_numbers[]" value="1"')
+    end
+
+    it "keeps subscriptions paid outside the card out of the ledger" do
+      bank = create(:payment_method, name: "みずほ口座引き落とし", method_type: "bank_debit")
+      create(
+        :expense,
+        minor_category: other_minor,
+        payment_method: bank,
+        expense_type: :recurring,
+        recurring_cycle: :monthly,
+        amount: 8778,
+        start_month: Date.new(2026, 4, 1)
+      )
+
+      post finance_import_path, params: { raw_json: build_rows_json(count: 1) }
+
+      expect(response.body).not_to include("みずほ口座引き落とし")
+    end
+
+    it "skips a yearly subscription outside its renewal month" do
+      create(
+        :expense,
+        minor_category: minor,
+        payment_method: amazon_card,
+        expense_type: :recurring,
+        recurring_cycle: :yearly,
+        renewal_month: 11,
+        amount: 5900,
+        start_month: Date.new(2026, 4, 1)
+      )
+
+      post finance_import_path, params: { raw_json: build_rows_json(count: 1) }
+
+      expect(response.body).not_to include("定期で登録済み")
+    end
+  end
+
+  describe "candidate row order" do
+    it "numbers the candidate rows by category order instead of the JSON order" do
+      food = create(:minor_category, name: "食費", major_category: minor.major_category)
+      rows = [
+        { month: "2026-05", card_id: "smcc_amazon", minor_category_id: food.id, amount: 1000, memo: "a" },
+        { month: "2026-05", card_id: "smcc_amazon", minor_category_id: minor.id, amount: 1100, memo: "b" },
+        { month: "2026-05", card_id: "smcc_amazon", minor_category_id: food.id, amount: 300, memo: "c" }
+      ]
+      post finance_import_path, params: { raw_json: rows.to_json }
+
+      candidates = response.body[/これから保存する候補.*?<\/table>/m]
+      numbered_memos = candidates.scan(/rows\[(\d+)\]\[memo\]" value="(\w+)"/)
+      expect(numbered_memos).to eq([ [ "1", "b" ], [ "2", "c" ], [ "3", "a" ] ])
+    end
+  end
+
   describe "payment method selection after JSON import" do
     it "shows one payment method select per card_id on preview" do
       rows = [
@@ -203,6 +293,13 @@ RSpec.describe "Finance imports", type: :request do
       get finance_import_path
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("実績を取込")
+    end
+
+    it "links to each card statement page" do
+      get finance_import_path
+
+      expect(response.body).to include("https://www.smbc-card.com/memx/web_meisai/top/index.html")
+      expect(response.body).to include("https://www.paypay-card.co.jp/member/statement/top")
     end
 
     it "shows import form when finance_import_drafts table is missing" do

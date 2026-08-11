@@ -100,7 +100,7 @@ class FinanceImportsController < ApplicationController
     compare_month_input = params[:compare_month].presence || draft.compare_month.presence || min_month_label(pending_rows)
     compare_month = parse_month_param("#{compare_month_input}-01")
     pending_for_month = pending_rows.select { |row| row.month_label == compare_month_input }
-    existing_rows = FinanceExpenseImportService.existing_one_time_rows(compare_month: compare_month, pending_rows: pending_for_month)
+    existing_rows = FinanceExpenseImportService.existing_comparison_rows(compare_month: compare_month, pending_rows: pending_for_month)
     duplicate_line_numbers = FinanceImportPreviewSummary.duplicate_line_numbers(pending_rows, compare_month_input, existing_rows)
 
     selected = Array(params[:line_numbers]).map(&:to_i)
@@ -175,7 +175,7 @@ class FinanceImportsController < ApplicationController
   def load_preview_tables
     compare_month = parse_month_param("#{@compare_month_input}-01")
     pending_for_month = @pending_rows.select { |row| row.month_label == @compare_month_input }
-    @existing_rows = FinanceExpenseImportService.existing_one_time_rows(compare_month: compare_month, pending_rows: pending_for_month)
+    @existing_rows = FinanceExpenseImportService.existing_comparison_rows(compare_month: compare_month, pending_rows: pending_for_month)
     @duplicate_pairs = FinanceImportPreviewSummary.duplicate_pairs(pending_for_month, @existing_rows)
     @duplicate_pending_rows = @duplicate_pairs.map(&:pending)
     @duplicate_line_numbers = FinanceImportPreviewSummary.duplicate_line_numbers(@pending_rows, @compare_month_input, @existing_rows)

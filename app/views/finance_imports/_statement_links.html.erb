@@ -1,0 +1,6 @@
+<div class="flex flex-wrap items-center gap-2 text-sm">
+  <span class="text-slate-600">明細</span>
+  <% ImportCardRegistry.with_statement_url.each do |card| %>
+    <a href="<%= card.statement_url %>" target="_blank" rel="noopener noreferrer" class="<%= btn_classes(:secondary) %>"><%= card.card_name %></a>
+  <% end %>
+</div>

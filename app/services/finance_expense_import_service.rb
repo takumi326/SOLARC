@@ -13,7 +13,7 @@ class FinanceExpenseImportService
     missing_card = @rows.find { |row| row.payment_method_id.blank? }
     if missing_card
       raise ArgumentError,
-            "#{missing_card.line_number}行目: card_id「#{missing_card.card_id}」に対応する支払方法が未設定です"
+            "No.#{missing_card.line_number}: card_id「#{missing_card.card_id}」に対応する支払方法が未設定です"
     end
 
     touched_months = Set.new
@@ -51,35 +51,50 @@ class FinanceExpenseImportService
     Result.new(imported_count: imported_count, touched_months: touched_months.to_a.sort)
   end
 
-  def self.existing_one_time_rows(compare_month:, pending_rows:)
+  # 明細との突合に使う一覧。単発の実績に加えて、その月に発生するカード払いの定期も混ぜる。
+  # 定期は取り込み対象ではないが、明細には載るので不足扱いされないよう台帳側に出しておく。
+  def self.existing_comparison_rows(compare_month:, pending_rows:)
     month_first = compare_month.beginning_of_month
-    expenses = Expense.expense_type_one_time
-                      .joins(minor_category: :major_category)
+    expenses = Expense.joins(minor_category: :major_category)
                       .joins(:payment_method)
                       .includes({ minor_category: :major_category }, :payment_method)
-                      .select { |e| expense_applies_to_accrual_month?(e, month_first) }
+                      .select { |e| comparable_with_statement?(e, month_first) }
 
+    month_label = month_first.strftime("%Y-%m")
     expenses.map do |expense|
       minor = expense.minor_category
-      amount = expense.amount.to_i
-      duplicate = pending_rows.any? do |pr|
-        pr.month_label == compare_month.strftime("%Y-%m") &&
-          pr.minor_category_id == minor.id &&
-          pr.amount == amount &&
-          pr.payment_method_id == expense.payment_method_id
-      end
-      {
+      recurring = !expense.expense_type_one_time?
+      row = {
         id: expense.id,
-        month_label: expense.start_month.strftime("%Y-%m"),
+        recurring: recurring,
+        month_label: recurring ? month_label : expense.start_month.strftime("%Y-%m"),
         category_path: "#{minor.major_category.name} / #{minor.name}",
-        amount: amount,
+        amount: expense.amount.to_i,
         memo: expense.memo,
         minor_category_id: minor.id,
         payment_method_id: expense.payment_method_id,
-        card_name: expense.payment_method.name,
-        duplicate_with_pending: duplicate
+        card_name: expense.payment_method.name
       }
+      row[:duplicate_with_pending] = pending_rows.any? do |pending|
+        pending.month_label == month_label && same_expense?(row, pending)
+      end
+      row
     end.sort_by { |row| [ row[:duplicate_with_pending] ? 0 : 1, row[:category_path], row[:amount], row[:id] ] }
+  end
+
+  # 定期は請求カードを付け替えることがあるので、カード違いでも同じサブスクとして扱う
+  def self.same_expense?(existing_row, pending_row)
+    return false unless existing_row[:minor_category_id] == pending_row.minor_category_id
+    return false unless existing_row[:amount] == pending_row.amount
+
+    existing_row[:recurring] || existing_row[:payment_method_id] == pending_row.payment_method_id
+  end
+
+  def self.comparable_with_statement?(expense, month_first)
+    return false unless expense_applies_to_accrual_month?(expense, month_first)
+    return true if expense.expense_type_one_time?
+
+    expense.payment_method&.method_type == "card"
   end
 
   def self.expense_applies_to_accrual_month?(expense, accrual_month_first)

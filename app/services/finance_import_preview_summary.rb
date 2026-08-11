@@ -30,7 +30,7 @@ class FinanceImportPreviewSummary
         amount: row[:amount],
         memo: row[:memo],
         card_name: row[:card_name],
-        label: row[:pending_line_number].present? ? "すでに保存済み（No.#{row[:pending_line_number]} と重複）" : "すでに保存済み"
+        label: existing_label(row)
       )
     end
 
@@ -51,6 +51,13 @@ class FinanceImportPreviewSummary
     end
 
     rows.sort_by { |row| [ row.category_path, row.amount, row.kind == :new ? 1 : 0, row.label ] }
+  end
+
+  def self.existing_label(row)
+    base = row[:recurring] ? "定期で登録済み" : "すでに保存済み"
+    return base if row[:pending_line_number].blank?
+
+    "#{base}（No.#{row[:pending_line_number]} と重複）"
   end
 
   def self.verification_text(raw_json)
@@ -86,9 +93,7 @@ class FinanceImportPreviewSummary
   def self.duplicate_pairs(pending_for_month, existing_rows)
     pending_for_month.filter_map do |pending|
       existing = existing_rows.find do |row|
-        row[:minor_category_id] == pending.minor_category_id &&
-          row[:amount] == pending.amount &&
-          row[:payment_method_id] == pending.payment_method_id
+        FinanceExpenseImportService.same_expense?(row, pending)
       end
       next unless existing
 
