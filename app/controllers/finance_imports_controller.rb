@@ -70,18 +70,39 @@ class FinanceImportsController < ApplicationController
         return
       end
 
+      pending_rows = apply_preview_edits(pending_rows)
       next_line = pending_rows.map(&:line_number).max.to_i + 1
       extra_rows.each_with_index do |row, index|
         row.line_number = next_line + index
       end
       merged = pending_rows + extra_rows
       persist_pending_rows(draft, merged)
-      draft.update!(selected_lines: (Array(draft.selected_lines) + extra_rows.map(&:line_number)).uniq) if draft.persisted?
+      keep_selected = Array(params[:line_numbers]).map(&:to_i).presence || Array(draft.selected_lines)
+      draft.update!(selected_lines: (keep_selected + extra_rows.map(&:line_number)).uniq) if draft.persisted?
 
       redirect_to finance_import_path, notice: "不足分 #{extra_rows.size} 件を候補に追加しました。内容を確認して取り込んでください。"
-    rescue FinanceExpenseImportParser::ParseError => e
+    rescue FinanceExpenseImportParser::ParseError, ArgumentError => e
       redirect_to finance_import_path, alert: e.message
     end
+  end
+
+  # プレビュー画面での編集を下書きに即時保存する（JS のデバウンス自動保存から呼ばれる）
+  def update_draft
+    load_import_context
+    draft = import_draft
+    pending_rows = load_pending_rows_from_draft(draft)
+    if pending_rows.empty? || !draft.persisted?
+      return render json: { ok: false, error: "expired" }, status: :gone
+    end
+
+    pending_rows = apply_preview_edits(pending_rows)
+    persist_pending_rows(draft, pending_rows)
+    attrs = { selected_lines: Array(params[:line_numbers]).map(&:to_i) }
+    attrs[:compare_month] = params[:compare_month] if params[:compare_month].present?
+    draft.update!(attrs)
+    render json: { ok: true }
+  rescue ArgumentError => e
+    render json: { ok: false, error: e.message }, status: :unprocessable_entity
   end
 
   def commit
@@ -93,8 +114,7 @@ class FinanceImportsController < ApplicationController
       return
     end
 
-    pending_rows = apply_card_payment_method_overrides(pending_rows, params[:card_payment_methods])
-    pending_rows = apply_row_overrides(pending_rows, params[:rows])
+    pending_rows = apply_preview_edits(pending_rows)
     persist_pending_rows(draft, pending_rows)
 
     compare_month_input = params[:compare_month].presence || draft.compare_month.presence || min_month_label(pending_rows)
@@ -312,6 +332,11 @@ class FinanceImportsController < ApplicationController
   def source_tally(rows)
     list = Array(rows)
     { count: list.size, amount: list.sum(&:amount) }
+  end
+
+  def apply_preview_edits(rows)
+    rows = apply_card_payment_method_overrides(rows, params[:card_payment_methods])
+    apply_row_overrides(rows, params[:rows])
   end
 
   def apply_card_payment_method_overrides(rows, card_params)

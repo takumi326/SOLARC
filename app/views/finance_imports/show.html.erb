@@ -45,18 +45,20 @@
         <% end %>
       <% end %>
 
-      <%= form_with url: append_finance_import_path, method: :post, class: "mb-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2" do %>
+<%# 「候補に追加」は formaction で別パスへ送るため、送信先を限定しないトークンを埋める %>
+      <%= form_with url: commit_finance_import_path, method: :post, authenticity_token: form_authenticity_token,
+                    class: "space-y-3", data: { import_preview_form: true, draft_url: update_draft_finance_import_path } do %>
+      <div class="mb-3 space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
         <label class="block text-sm">
           <span class="font-medium text-slate-800">不足分 JSON を追加</span>
           <span class="ml-1 text-xs text-slate-500">過不足チェックで返ってきた JSON（--- 以降はそのままで OK）</span>
           <textarea name="raw_json" rows="4" placeholder='[{"date":"<%= @compare_month_input %>-15","month":"<%= @compare_month_input %>","card_id":"paypay_jcb","minor_category_id":<%= @expense_minors.first&.id || 1 %>,"amount":3300,"memo":"[不足追加] ...","source_id":"gap-1"}]' class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 font-mono text-xs"></textarea>
         </label>
         <div class="flex justify-end">
-          <button type="submit" class="<%= btn_classes(:secondary) %> cursor-pointer">候補に追加</button>
+          <button type="submit" formaction="<%= append_finance_import_path %>" class="<%= btn_classes(:secondary) %> cursor-pointer">候補に追加</button>
         </div>
-      <% end %>
+      </div>
 
-      <%= form_with url: commit_finance_import_path, method: :post, class: "space-y-3" do %>
       <% if @card_id_mappings.present? %>
         <div class="overflow-x-auto rounded-lg border border-slate-200">
           <table id="import-card-summary" class="w-full min-w-[40rem] text-left text-sm">

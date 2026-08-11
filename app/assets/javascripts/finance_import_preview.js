@@ -149,27 +149,116 @@
     refreshFinalPreview();
   }
 
+  const DRAFT_SAVE_DELAY_MS = 400;
+  let draftSaveTimer = null;
+  let draftSaveInFlight = null;
+  let draftSaveQueued = false;
+
+  function csrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute("content") : "";
+  }
+
+  function previewForm() {
+    return document.querySelector("form[data-import-preview-form]");
+  }
+
+  function scheduleDraftSave() {
+    const form = previewForm();
+    if (!form || !form.dataset.draftUrl) return;
+
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = setTimeout(() => {
+      draftSaveTimer = null;
+      saveDraft(form);
+    }, DRAFT_SAVE_DELAY_MS);
+  }
+
+  function saveDraft(form, options = {}) {
+    const keepalive = options.keepalive === true;
+    if (!keepalive && draftSaveInFlight) {
+      draftSaveQueued = true;
+      return draftSaveInFlight;
+    }
+
+    const body = new FormData(form);
+    body.delete("raw_json");
+    const request = fetch(form.dataset.draftUrl, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "X-CSRF-Token": csrfToken(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: body,
+      credentials: "same-origin",
+      keepalive: keepalive
+    })
+      .then((response) => {
+        if (!response.ok && response.status !== 410) {
+          console.warn("finance import draft save failed", response.status);
+        }
+      })
+      .catch((error) => {
+        console.warn("finance import draft save failed", error);
+      });
+
+    if (keepalive) return request;
+
+    draftSaveInFlight = request.finally(() => {
+      draftSaveInFlight = null;
+      if (draftSaveQueued) {
+        draftSaveQueued = false;
+        saveDraft(form);
+      }
+    });
+
+    return draftSaveInFlight;
+  }
+
+  function flushDraftSave() {
+    const form = previewForm();
+    if (!form || !form.dataset.draftUrl) return;
+
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = null;
+    saveDraft(form, { keepalive: true });
+  }
+
   function bindPreviewSync() {
-    const form = document.querySelector("[data-import-card-payment-method]")?.closest("form");
+    const form = previewForm() || document.querySelector("[data-import-card-payment-method]")?.closest("form");
     if (!form || form.dataset.importPreviewBound === "1") return;
     form.dataset.importPreviewBound = "1";
 
     form.addEventListener("change", (event) => {
       if (event.target.matches("[data-import-card-payment-method]")) {
         refreshAll();
+        scheduleDraftSave();
         return;
       }
       if (!event.target.closest("[data-import-candidate]")) return;
       if (event.target.matches('input[type="checkbox"]') || event.target.matches("select")) {
         refreshFinalPreview();
+        scheduleDraftSave();
       }
     });
 
     form.addEventListener("input", (event) => {
       if (event.target.closest("[data-import-candidate]") && event.target.matches('input[type="text"]')) {
         refreshFinalPreview();
+        scheduleDraftSave();
       }
     });
+
+    form.addEventListener("submit", () => {
+      clearTimeout(draftSaveTimer);
+      draftSaveTimer = null;
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushDraftSave();
+    });
+    window.addEventListener("pagehide", flushDraftSave);
 
     refreshAll();
   }
