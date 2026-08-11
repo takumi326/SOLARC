@@ -134,9 +134,17 @@
                   cell_style =
                     case cell.status
                     when :complete
-                      "background-color:#059669;color:#ffffff;border:1px solid #047857;"
+                      if cell.off_day
+                        "background-color:#059669;color:#ffffff;border:2px solid #7c3aed;"
+                      else
+                        "background-color:#059669;color:#ffffff;border:1px solid #047857;"
+                      end
                     when :partial
-                      "background-color:#fbbf24;color:#78350f;border:1px solid #d97706;"
+                      if cell.off_day
+                        "background-color:#fbbf24;color:#78350f;border:2px solid #7c3aed;"
+                      else
+                        "background-color:#fbbf24;color:#78350f;border:1px solid #d97706;"
+                      end
                     when :incomplete, :none
                       if cell.off_day
                         "background-color:#ede9fe;color:#5b21b6;border:1px solid #a78bfa;"
@@ -155,18 +163,20 @@
                 <td class="p-0.5 align-middle">
                   <% if cell.in_month %>
                     <%= link_to daily_routine_path(date: cell.date.iso8601, month: @calendar.month.strftime("%Y-%m")),
-                          class: "mx-auto flex h-10 w-full flex-col items-center justify-center rounded-lg text-sm font-bold no-underline",
+                          class: "mx-auto flex h-11 w-full flex-col items-center justify-center rounded-lg text-sm font-bold no-underline",
                           style: cell_style,
                           aria: { current: (cell.selected ? "date" : false), label: "#{cell.date.strftime("%Y/%m/%d")} #{cell.status}#{cell.off_day ? ' 休み' : ''}" } do %>
                       <span><%= cell.date.day %></span>
-                      <% if cell.status == :complete %>
-                        <span style="font-size:10px;line-height:1;">✓</span>
-                      <% elsif cell.off_day %>
-                        <span style="font-size:9px;line-height:1;font-weight:700;">休</span>
-                      <% end %>
+                      <span style="font-size:9px;line-height:1;font-weight:700;">
+                        <% marks = [] %>
+                        <% marks << "休" if cell.off_day %>
+                        <% marks << "✓" if cell.status == :complete %>
+                        <% marks << "一部" if cell.status == :partial %>
+                        <%= marks.join(" ") %>
+                      </span>
                     <% end %>
                   <% else %>
-                    <span class="mx-auto flex h-10 w-full items-center justify-center text-sm" style="color:#cbd5e1;"><%= cell.date.day %></span>
+                    <span class="mx-auto flex h-11 w-full items-center justify-center text-sm" style="color:#cbd5e1;"><%= cell.date.day %></span>
                   <% end %>
                 </td>
               <% end %>
@@ -176,10 +186,11 @@
       </table>
 
       <div class="mt-3 flex flex-wrap gap-2">
-        <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold text-white" style="background-color:#059669;">すべて完了</span>
+        <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold text-white" style="background-color:#059669;">完了</span>
         <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold" style="background-color:#fbbf24;color:#78350f;">一部完了</span>
         <span class="inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-bold text-slate-700" style="background-color:#ffffff;border-color:#cbd5e1;">平日・未完了</span>
         <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold" style="background-color:#ede9fe;color:#5b21b6;">休み・未完了</span>
+        <span class="inline-flex items-center rounded-md px-2.5 py-1 text-xs font-bold text-white" style="background-color:#059669;border:2px solid #7c3aed;">休み＋完了（紫枠）</span>
       </div>
     </div>
   </section>
