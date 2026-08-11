@@ -12,7 +12,7 @@
     </div>
 
     <% visible_slots = @slots.select(&:emphasized) %>
-    <div class="mb-6 grid gap-4" style="max-width:28rem;">
+    <div class="mb-6 grid gap-4 sm:grid-cols-2">
       <% visible_slots.each do |slot| %>
         <%
           card_style =
