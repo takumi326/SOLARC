@@ -1,26 +1,22 @@
 <%
-  accent, tint =
-    case slot.slot
-    when "holiday" then [ "#7c3aed", "#f5f3ff" ]
-    when "month_end" then [ "#d97706", "#fffbeb" ]
-    else [ "#2563eb", "#eff6ff" ]
-    end
+  incomplete_accent = "#e11d48"
+  incomplete_tint = "#fef2f2"
+  complete_accent = "#059669"
+  complete_tint = "#ecfdf5"
 
   card_style =
     if slot.completed
-      "border:2px solid #059669;background-color:#ecfdf5;"
+      "border:2px solid #{complete_accent};background-color:#{complete_tint};"
     else
-      "border:2px solid #{accent};background-color:#{tint};"
+      "border:2px solid #{incomplete_accent};background-color:#{incomplete_tint};"
     end
   status_style =
     if slot.completed
-      "background-color:#059669;color:#ffffff;"
-    elsif slot.slot.start_with?("weekday")
-      "background-color:#e11d48;color:#ffffff;"
+      "background-color:#{complete_accent};color:#ffffff;"
     else
-      "background-color:#{accent};color:#ffffff;"
+      "background-color:#{incomplete_accent};color:#ffffff;"
     end
-  condition_border = slot.completed ? "#059669" : accent
+  condition_border = slot.completed ? complete_accent : incomplete_accent
   condition_style =
     "background-color:#ffffff;color:#1d4ed8;border:1px solid #{condition_border};" \
     "text-decoration:underline;text-underline-offset:2px;"

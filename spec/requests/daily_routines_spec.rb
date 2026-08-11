@@ -29,7 +29,7 @@ RSpec.describe "DailyRoutines", type: :request do
       travel_to Time.zone.local(2026, 8, 29, 10, 0, 0) do
         get daily_routine_path
         expect(response.body).to include(">8月末</h3>")
-        expect(response.body).to include("完了条件：8月分の実績を取り込んでいる")
+        expect(response.body).to include("完了条件：8月分の支払いを取り込んでいる")
         expect(response.body).to include(%(href="#{finance_import_path(prompt_month: "2026-08")}"))
         expect(response.body).to include("カード明細を用意する")
       end
@@ -41,7 +41,7 @@ RSpec.describe "DailyRoutines", type: :request do
 
         expect(response).to have_http_status(:ok)
         expect(response.body).to include(">7月末</h3>")
-        expect(response.body).to include("完了条件：7月分の実績を取り込んでいる")
+        expect(response.body).to include("完了条件：7月分の支払いを取り込んでいる")
       end
     end
 
@@ -51,8 +51,8 @@ RSpec.describe "DailyRoutines", type: :request do
 
         expect(response.body).to include(">7月末</h3>")
         expect(response.body).to include(">8月末</h3>")
-        expect(response.body).to include("完了条件：7月分の実績を取り込んでいる")
-        expect(response.body).to include("完了条件：8月分の実績を取り込んでいる")
+        expect(response.body).to include("完了条件：7月分の支払いを取り込んでいる")
+        expect(response.body).to include("完了条件：8月分の支払いを取り込んでいる")
       end
     end
 
@@ -67,13 +67,47 @@ RSpec.describe "DailyRoutines", type: :request do
       end
     end
 
-    it "hides the month end card from the next day of the import" do
+    it "hides an overdue month end card from the next day of the import" do
       create(:expense, start_month: Date.new(2026, 7, 1), imported_at: Time.zone.local(2026, 8, 11, 9, 0, 0))
 
       travel_to Time.zone.local(2026, 8, 12, 10, 0, 0) do
         get daily_routine_path
 
         expect(response.body).not_to include("月末</h3>")
+      end
+    end
+
+    it "shows imported month history from the import day through Friday" do
+      create(:expense, start_month: Date.new(2026, 8, 1), imported_at: Time.zone.local(2026, 8, 11, 9, 0, 0))
+
+      travel_to Time.zone.local(2026, 8, 14, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-14")
+        expect(response.body).not_to include(">8月末</h3>")
+        expect(response.body).to include("直近の完了")
+        expect(response.body).to include("8月末")
+        expect(response.body).to include("8/11に8月分の支払いを取り込み")
+      end
+
+      travel_to Time.zone.local(2026, 8, 18, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-18")
+        expect(response.body).not_to include("直近の完了")
+      end
+    end
+
+    it "keeps the previous month in history for one week after import" do
+      create(:expense, start_month: Date.new(2026, 7, 1), imported_at: Time.zone.local(2026, 8, 11, 9, 0, 0))
+
+      travel_to Time.zone.local(2026, 8, 14, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-14")
+        expect(response.body).not_to include(">7月末</h3>")
+        expect(response.body).to include("直近の完了")
+        expect(response.body).to include("7月末")
+        expect(response.body).to include(%(href="#{daily_routine_path(date: "2026-08-11")}"))
+      end
+
+      travel_to Time.zone.local(2026, 8, 31, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-31")
+        expect(response.body).not_to include("直近の完了")
       end
     end
 
@@ -165,29 +199,76 @@ RSpec.describe "DailyRoutines", type: :request do
       end
     end
 
-    it "marks holiday complete on Sunday when entry was created on Saturday" do
+    it "shows the completed holiday card only on the day the entry was created" do
       stock = create_test_stock
       travel_to Time.zone.local(2026, 8, 8, 15, 0, 0) do
         create_test_entry(stock: stock, traded_at: nil)
       end
 
+      travel_to Time.zone.local(2026, 8, 8, 16, 0, 0) do
+        get daily_routine_path(date: "2026-08-08")
+        expect(response.body).to include(">休日</h3>")
+        expect(response.body).to include("✓ 完了")
+      end
+
       travel_to Time.zone.local(2026, 8, 9, 10, 0, 0) do
         get daily_routine_path
         expect(response).to have_http_status(:ok)
-        expect(response.body).to include("✓ 完了")
-        expect(response.body).to include("完了条件：この休み期間（8/8〜8/9）に未約定エントリーがある")
-        expect(response.body).to include("エントリー予定")
-        expect(response.body).to include(stock.code)
-        expect(response.body).to include(stock.name)
+        expect(response.body).not_to include(">休日</h3>")
       end
     end
 
-    it "shows empty holiday entry plans with link to stocks" do
+    it "shows holiday entry plans in history from completion day through Friday" do
+      stock = create_test_stock
+      travel_to Time.zone.local(2026, 8, 8, 15, 0, 0) do
+        create_test_entry(stock: stock, traded_at: nil)
+      end
+      %w[2026-08-10 2026-08-11 2026-08-12].each do |d|
+        DailyRoutineOffDay.create!(owner_key: "development", off_on: Date.iso8601(d))
+      end
+
+      travel_to Time.zone.local(2026, 8, 12, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-12")
+        expect(response.body).not_to include(">休日</h3>")
+        expect(response.body).to include("直近の完了")
+        expect(response.body).to include("エントリー予定（8/8〜8/12）")
+        expect(response.body).to include(stock.code)
+      end
+
+      travel_to Time.zone.local(2026, 8, 13, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-13")
+        expect(response.body).to include("直近の完了")
+        expect(response.body).to include(stock.code)
+      end
+
+      travel_to Time.zone.local(2026, 8, 17, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-17")
+        expect(response.body).not_to include("直近の完了")
+      end
+    end
+
+    it "shows history when entry was completed on a marked-off weekday" do
+      stock = create_test_stock
+      %w[2026-08-10 2026-08-11 2026-08-12].each do |d|
+        DailyRoutineOffDay.create!(owner_key: "development", off_on: Date.iso8601(d))
+      end
+      travel_to Time.zone.local(2026, 8, 11, 15, 0, 0) do
+        create_test_entry(stock: stock, traded_at: nil)
+      end
+
+      travel_to Time.zone.local(2026, 8, 12, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-12")
+        expect(response.body).to include("直近の完了")
+        expect(response.body).to include("✓ 8/11 完了")
+        expect(response.body).to include(stock.code)
+      end
+    end
+
+    it "shows only the holiday slot on a weekend without entries" do
       travel_to Time.zone.local(2026, 8, 9, 10, 0, 0) do
         get daily_routine_path
-        expect(response.body).to include("エントリー予定")
-        expect(response.body).to include(%(href="#{stocks_path}"))
         expect(response.body).to include(">休日</h3>")
+        expect(response.body).not_to include(">エントリー予定</h")
       end
     end
 
@@ -201,11 +282,16 @@ RSpec.describe "DailyRoutines", type: :request do
         DailyRoutineOffDay.create!(owner_key: "development", off_on: Date.iso8601(d))
       end
 
-      travel_to Time.zone.local(2026, 8, 12, 10, 0, 0) do
-        get daily_routine_path
+      travel_to Time.zone.local(2026, 8, 8, 12, 0, 0) do
+        get daily_routine_path(date: "2026-08-08")
         expect(response.body).to include(">休日</h3>")
         expect(response.body).to include("✓ 完了")
-        expect(response.body).not_to include("期間内のどちらかで達成すればOK")
+        expect(response.body).to include("完了条件：この休み期間（8/8〜8/12）に未約定エントリーがある")
+      end
+
+      travel_to Time.zone.local(2026, 8, 12, 10, 0, 0) do
+        get daily_routine_path
+        expect(response.body).not_to include(">休日</h3>")
       end
     end
 

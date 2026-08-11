@@ -8,7 +8,6 @@ class DailyRoutinesController < ApplicationController
     @status = DailyRoutineStatus.new(owner_key: preference_owner_key, date: @date, classifier: @classifier)
     @slots = @status.call
     @off_day = @status.off_day?
-    @off_period = @status.off_period
     @weekend = @classifier.weekend?(@date)
     @marked_off = @classifier.marked_off?(@date)
     @calendar = DailyRoutineCalendar.new(
@@ -16,7 +15,12 @@ class DailyRoutinesController < ApplicationController
       month: @month,
       selected_date: @date
     ).call
-    @holiday_entry_plans = holiday_entry_plans
+    @routine_history = DailyRoutineHistory.new(
+      owner_key: preference_owner_key,
+      date: @date,
+      classifier: @classifier,
+      status: @status
+    )
   end
 
   def create_off_day
@@ -37,15 +41,6 @@ class DailyRoutinesController < ApplicationController
   end
 
   private
-
-  def holiday_entry_plans
-    return [] unless @off_day && @off_period
-
-    Entry.unsettled
-      .includes(:stock)
-      .where(created_at: @off_period.begin.beginning_of_day..@off_period.end.end_of_day)
-      .order(created_at: :desc)
-  end
 
   def parse_date(value)
     return if value.blank?

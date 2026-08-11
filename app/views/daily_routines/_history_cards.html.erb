@@ -1,0 +1,37 @@
+<% @routine_history.holiday_records.each do |record| %>
+  <article class="overflow-hidden rounded-xl" style="border:2px solid #2563eb;background-color:#eff6ff;">
+    <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2" style="background-color:#2563eb;color:#ffffff;">
+      <h4 class="text-base font-bold">エントリー予定（<%= record.period_label %>）</h4>
+      <span class="text-sm font-bold">✓ <%= record.completed_on.strftime("%-m/%-d") %> 完了</span>
+    </div>
+    <ul class="space-y-2 p-4">
+      <% record.entries.each do |entry| %>
+        <li>
+          <%= link_to stock_timeline_path_for_record(entry),
+                class: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm no-underline hover:opacity-90",
+                style: "background-color:#ffffff;border:1px solid #93c5fd;color:#1e1b4b;" do %>
+            <span class="font-mono font-semibold" style="color:#1d4ed8;"><%= entry.stock.code %></span>
+            <span class="font-medium"><%= entry.stock.name %></span>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </article>
+<% end %>
+
+<% @routine_history.month_records.each do |record| %>
+  <article class="overflow-hidden rounded-xl" style="border:2px solid #059669;background-color:#ecfdf5;">
+    <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2" style="background-color:#059669;color:#ffffff;">
+      <h4 class="text-base font-bold"><%= record.label %></h4>
+      <span class="text-sm font-bold">✓ <%= record.imported_on.strftime("%-m/%-d") %> 完了</span>
+    </div>
+    <div class="p-4">
+      <%= link_to daily_routine_path(date: record.imported_on.iso8601),
+            class: "block rounded-lg px-3 py-2 text-sm font-medium no-underline hover:opacity-80",
+            style: "background-color:#ffffff;color:#1d4ed8;border:1px solid #059669;text-decoration:underline;text-underline-offset:2px;",
+            data: { routine_link: true } do %>
+        <%= record.imported_on.strftime("%-m/%-d") %>に<%= record.month.strftime("%-m月") %>分の支払いを取り込み →
+      <% end %>
+    </div>
+  </article>
+<% end %>
