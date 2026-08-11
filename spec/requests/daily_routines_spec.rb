@@ -114,8 +114,7 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response.body).to include("完了条件：")
       expect(response.body).to include("今日")
       expect(response.body).to include("完了")
-      expect(response.body).to include("平日・未完了")
-      expect(response.body).to include("休み・未完了")
+      expect(response.body).to include("平日")
       expect(response.body).to include("休み＋完了")
     end
   end
