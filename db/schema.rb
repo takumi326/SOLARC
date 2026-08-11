@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_10_131000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_11_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,6 +20,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_131000) do
     t.datetime "updated_at", null: false
     t.string "version_name", limit: 100, null: false
     t.index ["version_name"], name: "index_ai_scripts_on_version_name", unique: true
+  end
+
+  create_table "daily_routine_items", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "label", limit: 255, null: false
+    t.string "owner_key", limit: 255, null: false
+    t.integer "position", default: 0, null: false
+    t.string "slot", limit: 32, null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_key", "slot", "position"], name: "index_daily_routine_items_on_owner_slot_position"
   end
 
   create_table "entries", force: :cascade do |t|
