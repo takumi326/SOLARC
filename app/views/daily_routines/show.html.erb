@@ -47,10 +47,18 @@
                 today = cell.today && !cell.selected ? " outline outline-1 outline-offset-[-1px] outline-indigo-300" : ""
               %>
               <% if cell.in_month %>
-                <%= link_to cell.date.day,
-                      daily_routine_path(date: cell.date.iso8601, month: @calendar.month.strftime("%Y-%m")),
+                <%= link_to daily_routine_path(date: cell.date.iso8601, month: @calendar.month.strftime("%Y-%m")),
                       class: "#{base} #{tone}#{selected}#{today}",
-                      aria: { current: (cell.selected ? "date" : nil), label: "#{cell.date.strftime("%Y/%m/%d")} #{cell.status}" } %>
+                      aria: { current: (cell.selected ? "date" : nil), label: "#{cell.date.strftime("%Y/%m/%d")} #{cell.status}" } do %>
+                  <% if cell.status == :complete %>
+                    <span class="flex flex-col items-center leading-none">
+                      <span><%= cell.date.day %></span>
+                      <span class="text-[10px] font-bold">✓</span>
+                    </span>
+                  <% else %>
+                    <%= cell.date.day %>
+                  <% end %>
+                <% end %>
               <% else %>
                 <span class="<%= base %> <%= tone %>"><%= cell.date.day %></span>
               <% end %>
@@ -87,11 +95,11 @@
             <div class="mb-3 flex items-start justify-between gap-2">
               <h3 class="text-base font-semibold text-slate-900"><%= slot.label %></h3>
               <% if slot.completed %>
-                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
-                  <span aria-hidden="true">✓</span> 完了
+                <span class="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-bold tracking-wide text-white shadow-sm">
+                  <span aria-hidden="true">✓</span>完了
                 </span>
               <% else %>
-                <span class="inline-flex items-center gap-1 rounded-full bg-slate-700 px-2.5 py-1 text-xs font-semibold text-white">
+                <span class="inline-flex shrink-0 items-center rounded-md bg-rose-600 px-3 py-1.5 text-sm font-bold tracking-wide text-white shadow-sm">
                   未完了
                 </span>
               <% end %>
