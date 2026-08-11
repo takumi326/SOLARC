@@ -113,9 +113,9 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response.body).to include("2026年8月")
       expect(response.body).to include("完了条件：")
       expect(response.body).to include("今日")
-      expect(response.body).to include("完了")
-      expect(response.body).to include("平日")
-      expect(response.body).to include("休み＋完了")
+      expect(response.body).to include("背景")
+      expect(response.body).to include("枠線")
+      expect(response.body).to include("休みで完了")
     end
   end
 

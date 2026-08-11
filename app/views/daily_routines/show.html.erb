@@ -131,39 +131,30 @@
             <tr>
               <% week.each do |cell| %>
                 <%
+                  # 背景 = 完了状態 / 紫の太枠 = 休み
                   cell_style =
                     case cell.status
                     when :complete
                       "background-color:#059669;color:#ffffff;"
                     when :partial
-                      "background-color:#fbbf24;color:#78350f;"
+                      "background-color:#f59e0b;color:#ffffff;"
                     when :incomplete, :none
-                      if cell.off_day
-                        "background-color:#ede9fe;color:#5b21b6;"
-                      else
-                        "background-color:#ffffff;color:#334155;"
-                      end
+                      "background-color:#ffffff;color:#0f172a;"
                     else
                       "background-color:transparent;color:#cbd5e1;"
                     end
 
                   cell_style +=
-                    if cell.off_day
-                      "border:2px solid #7c3aed;"
-                    elsif cell.status == :complete
-                      "border:1px solid #047857;"
-                    elsif cell.status == :partial
-                      "border:1px solid #d97706;"
-                    elsif cell.status == :outside
+                    if !cell.in_month
                       "border:1px solid transparent;"
+                    elsif cell.off_day
+                      "border:3px solid #7c3aed;"
                     else
                       "border:1px solid #cbd5e1;"
                     end
 
                   if cell.selected
-                    cell_style += "outline:3px solid #4f46e5;outline-offset:1px;"
-                  elsif cell.today
-                    cell_style += "outline:2px solid #818cf8;outline-offset:1px;"
+                    cell_style += "box-shadow:inset 0 0 0 2px #0f172a;"
                   end
                 %>
                 <td class="p-0.5 align-middle">
@@ -184,22 +175,28 @@
         </tbody>
       </table>
 
-      <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-        <span class="inline-flex items-center gap-1.5">
-          <span class="inline-block h-3.5 w-3.5 rounded" style="background-color:#059669;"></span>完了
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="inline-block h-3.5 w-3.5 rounded" style="background-color:#fbbf24;"></span>一部
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="inline-block h-3.5 w-3.5 rounded border" style="background-color:#ffffff;border-color:#cbd5e1;"></span>平日
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="inline-block h-3.5 w-3.5 rounded" style="background-color:#ede9fe;border:2px solid #7c3aed;"></span>休み
-        </span>
-        <span class="inline-flex items-center gap-1.5">
-          <span class="inline-block h-3.5 w-3.5 rounded" style="background-color:#059669;border:2px solid #7c3aed;"></span>休み＋完了
-        </span>
+      <div class="mt-3 space-y-2 text-xs text-slate-700">
+        <div class="flex flex-wrap items-center gap-4">
+          <span class="font-semibold text-slate-500">背景</span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold text-white" style="background-color:#059669;border:1px solid #cbd5e1;">1</span>完了
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold text-white" style="background-color:#f59e0b;border:1px solid #cbd5e1;">2</span>一部
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold" style="background-color:#ffffff;border:1px solid #cbd5e1;color:#0f172a;">3</span>未完了
+          </span>
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <span class="font-semibold text-slate-500">枠線</span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold" style="background-color:#ffffff;border:3px solid #7c3aed;color:#0f172a;">4</span>休み
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="inline-flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-bold text-white" style="background-color:#059669;border:3px solid #7c3aed;">5</span>休みで完了
+          </span>
+        </div>
       </div>
     </div>
   </section>
