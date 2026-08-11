@@ -36,7 +36,8 @@ class DailyRoutineStatus
         label: DailyRoutineItem::SLOT_LABELS.fetch(slot),
         completed: completed?(slot),
         items: items_by_slot[slot] || [],
-        emphasized: emphasized.include?(slot),
+        # 休日は未完了なら休み期間中ずっと、完了後は完了日だけ出す（履歴）
+        emphasized: slot == "holiday" ? holiday_card_visible? : emphasized.include?(slot),
         completion_hint: completion_hint_for(slot),
         date: @date
       )
@@ -46,8 +47,8 @@ class DailyRoutineStatus
   end
 
   def day_status
-    results = day_slots.map { |slot| completed?(slot) } +
-              due_months.map { |month| imported_on(month).present? }
+    # カレンダーの色は日次ルーチンだけ。月末取込は含めない。
+    results = day_slots.map { |slot| completed?(slot) }
     return :none if results.empty?
 
     done = results.count(true)
@@ -65,10 +66,34 @@ class DailyRoutineStatus
     @off_period ||= @classifier.off_period(@date)
   end
 
-  # 末日の3日前から出し始め、取り込むまで翌月以降も出し続ける。
-  # 取り込んだ日は完了として出し、その翌日から消える。
+  # やること: 休み期間中は出す。完了後の履歴: 完了日だけ出す。
+  def holiday_card_visible?
+    return false unless off_day?
+    return true unless holiday_entry_plan?
+
+    completed_on = holiday_completed_on
+    return true if completed_on.nil?
+
+    completed_on == @date
+  end
+
+  # やることカード: 未取込は出し始めから、取込済みは取込日だけ。
   def due_months
-    @due_months ||= tracked_months.select { |month| due?(month) }
+    @due_months ||= tracked_months.select { |month| month_end_todo?(month) }
+  end
+
+  def month_end_todo?(month)
+    lead_start = month.end_of_month - (MONTH_END_LEAD_DAYS - 1)
+    return false if @date < lead_start
+
+    imported = imported_on(month)
+    return true if imported.nil?
+
+    imported == @date
+  end
+
+  def imported_on(month)
+    imported_months[month]
   end
 
   def self.imported_months_for(months)
@@ -93,7 +118,7 @@ class DailyRoutineStatus
         completed: imported_on(month).present?,
         items: items,
         emphasized: true,
-        completion_hint: "#{month.strftime("%-m月")}分の実績を取り込んでいる",
+        completion_hint: "#{month.strftime("%-m月")}分の支払いを取り込んでいる",
         month: month
       )
     end
@@ -130,17 +155,21 @@ class DailyRoutineStatus
     return @entry_plan_in_period unless @entry_plan_in_period.nil?
     return @has_entry_plan unless @has_entry_plan.nil?
 
-    period = off_period
-    return false unless period
-
-    Entry.unsettled.where(created_at: period.begin.beginning_of_day..period.end.end_of_day).exists?
+    holiday_completed_on.present?
   end
 
-  def due?(month)
-    return false if @date < month.end_of_month - (MONTH_END_LEAD_DAYS - 1)
+  def holiday_completed_on
+    return @holiday_completed_on if defined?(@holiday_completed_on)
 
-    imported = imported_on(month)
-    imported.nil? || imported == @date
+    period = off_period
+    @holiday_completed_on =
+      if period
+        Entry.unsettled
+             .where(created_at: period.begin.beginning_of_day..period.end.end_of_day)
+             .minimum(:created_at)
+             &.in_time_zone
+             &.to_date
+      end
   end
 
   # 対象日までに出番が来ている可能性のある月（古い順）
@@ -154,10 +183,6 @@ class DailyRoutineStatus
       end
       months
     end
-  end
-
-  def imported_on(month)
-    imported_months[month]
   end
 
   def imported_months

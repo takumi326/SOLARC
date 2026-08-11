@@ -42,46 +42,30 @@
     </div>
 
     <div class="routine-layout">
-      <div>
-        <div class="routine-cards">
-        <% day_slots.each do |slot| %>
-          <%= render "slot_card", slot: slot %>
+      <div class="space-y-4">
+        <% if @routine_history.visible? %>
+          <section class="space-y-3">
+            <h3 class="text-sm font-bold text-slate-700">直近の完了</h3>
+            <div class="routine-cards">
+              <%= render "history_cards" %>
+            </div>
+          </section>
         <% end %>
 
-        <% if @off_day %>
-          <aside class="overflow-hidden rounded-xl" style="border:2px solid #7c3aed;background-color:#faf5ff;">
-            <div class="px-4 py-2" style="background-color:#7c3aed;color:#ffffff;">
-              <h3 class="text-base font-bold">エントリー予定</h3>
-            </div>
-            <div class="p-4">
-              <% if @holiday_entry_plans.present? %>
-                <ul class="space-y-2">
-                  <% @holiday_entry_plans.each do |entry| %>
-                    <li>
-                      <%= link_to stock_timeline_path_for_record(entry),
-                            class: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm no-underline hover:opacity-90",
-                            style: "background-color:#ffffff;border:1px solid #c4b5fd;color:#1e1b4b;" do %>
-                        <span class="font-mono font-semibold" style="color:#6d28d9;"><%= entry.stock.code %></span>
-                        <span class="font-medium"><%= entry.stock.name %></span>
-                      <% end %>
-                    </li>
-                  <% end %>
-                </ul>
-              <% else %>
-                <p class="text-sm text-slate-600">まだありません。銘柄を選んでエントリーを登録するとここに出ます。</p>
+        <% if visible_slots.any? %>
+          <section class="space-y-3">
+            <h3 class="text-sm font-bold text-slate-700">やること</h3>
+            <div class="routine-cards">
+              <% day_slots.each do |slot| %>
+                <%= render "slot_card", slot: slot %>
+              <% end %>
+              <% month_end_slots.each do |slot| %>
+                <%= render "slot_card", slot: slot %>
               <% end %>
             </div>
-          </aside>
+          </section>
         <% end %>
-        </div>
 
-        <% if month_end_slots.any? %>
-          <div class="routine-cards mt-4">
-            <% month_end_slots.each do |slot| %>
-              <%= render "slot_card", slot: slot %>
-            <% end %>
-          </div>
-        <% end %>
       </div>
 
       <div class="routine-calendar rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
