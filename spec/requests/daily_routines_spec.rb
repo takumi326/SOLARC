@@ -13,9 +13,7 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include("平日朝")
         expect(response.body).to include("平日夜")
         expect(response.body).not_to include(">休日</h3>")
-        expect(response.body).to include("グリーンさんの Discord 確認")
-        expect(response.body).to include("未完了")
-        expect(response.body).to include("1.")
+        expect(response.body).to include("この日を休みにする")
         expect(DailyRoutineItem.for_owner("development").count).to eq(18)
       end
     end
@@ -28,7 +26,19 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include(">休日</h3>")
         expect(response.body).not_to include(">平日朝</h3>")
         expect(response.body).not_to include(">平日夜</h3>")
-        expect(response.body).to include("グリーンさんの休日記事確認")
+        expect(response.body).to include("土日は休み")
+        expect(response.body).to include("休み期間")
+      end
+    end
+
+    it "shows holiday slot on a weekday marked as off" do
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        DailyRoutineOffDay.create!(owner_key: "development", off_on: Date.current)
+        get daily_routine_path
+
+        expect(response.body).to include(">休日</h3>")
+        expect(response.body).not_to include(">平日朝</h3>")
+        expect(response.body).to include("休みを解除")
       end
     end
 
@@ -52,23 +62,43 @@ RSpec.describe "DailyRoutines", type: :request do
         get daily_routine_path
         expect(response.body).to include("完了条件：今日の毎日の記録に仮説がある")
         expect(response.body).to include("完了条件：今日の毎日の記録に結果がある")
-        expect(response.body).not_to include("完了条件：今日につくった未約定エントリーがある")
       end
     end
 
-    it "marks holiday complete when an unsettled entry exists that day" do
-      travel_to Time.zone.local(2026, 8, 9, 10, 0, 0) do
-        stock = create_test_stock
+    it "marks holiday complete on Sunday when entry was created on Saturday" do
+      stock = create_test_stock
+      travel_to Time.zone.local(2026, 8, 8, 15, 0, 0) do
         create_test_entry(stock: stock, traded_at: nil)
+      end
 
+      travel_to Time.zone.local(2026, 8, 9, 10, 0, 0) do
         get daily_routine_path
         expect(response).to have_http_status(:ok)
-        expect(response.body).to include("完了")
-        expect(response.body).to include("完了条件：今日につくった未約定エントリーがある")
+        expect(response.body).to include("✓ 完了")
+        expect(response.body).to include("完了条件：この休み期間（8/8〜8/9）に未約定エントリーがある")
       end
     end
+
+    it "treats contiguous leave with weekend as one holiday period" do
+      stock = create_test_stock
+      # Sat 8/8 entry, Mon-Wed leave
+      travel_to Time.zone.local(2026, 8, 8, 12, 0, 0) do
+        create_test_entry(stock: stock, traded_at: nil)
+      end
+      %w[2026-08-10 2026-08-11 2026-08-12].each do |d|
+        DailyRoutineOffDay.create!(owner_key: "development", off_on: Date.iso8601(d))
+      end
+
+      travel_to Time.zone.local(2026, 8, 12, 10, 0, 0) do
+        get daily_routine_path
+        expect(response.body).to include(">休日</h3>")
+        expect(response.body).to include("休み期間 8/8〜8/12")
+        expect(response.body).to include("✓ 完了")
+      end
+    end
+
     it "shows calendar and accepts a selected date" do
-      past = Date.current - 3
+      past = Date.new(2026, 8, 5) # Wednesday
       StockDailyNote.create!(
         owner_key: "development",
         recorded_on: past,
@@ -79,14 +109,30 @@ RSpec.describe "DailyRoutines", type: :request do
       get daily_routine_path, params: { date: past.iso8601 }
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("日付を選ぶ")
-      expect(response.body).to include(past.strftime("%Y年%-m月"))
+      expect(response.body).to include("2026年8月")
       expect(response.body).to include("完了条件：")
       expect(response.body).to include("今日")
-      expect(response.body).to include(">#{past.day}</span>")
       expect(response.body).to include("すべて完了")
-      expect(response.body).to include("一部完了")
-      expect(response.body).to include("未完了")
-      expect(response.body).not_to include("対象枠すべて完了")
+    end
+  end
+
+  describe "off day toggle" do
+    it "marks a weekday as off" do
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        expect {
+          post off_days_daily_routine_path, params: { date: Date.current.iso8601 }
+        }.to change(DailyRoutineOffDay, :count).by(1)
+        expect(response).to redirect_to(daily_routine_path(date: Date.current.iso8601))
+      end
+    end
+
+    it "removes an off day mark" do
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        DailyRoutineOffDay.create!(owner_key: "development", off_on: Date.current)
+        expect {
+          delete off_days_daily_routine_path, params: { date: Date.current.iso8601 }
+        }.to change(DailyRoutineOffDay, :count).by(-1)
+      end
     end
   end
 

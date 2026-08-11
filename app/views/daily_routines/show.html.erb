@@ -7,9 +7,30 @@
       </div>
       <div class="flex flex-wrap gap-2">
         <%= link_to "今日", daily_routine_path, class: btn_classes(:primary) %>
+        <% if @weekend %>
+          <span class="inline-flex items-center rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-600">土日は休み</span>
+        <% elsif @marked_off %>
+          <%= button_to "休みを解除", off_days_daily_routine_path(date: @date.iso8601), method: :delete, class: btn_classes(:secondary) %>
+        <% else %>
+          <%= button_to "この日を休みにする", off_days_daily_routine_path(date: @date.iso8601), method: :post, class: btn_classes(:secondary) %>
+        <% end %>
         <%= link_to "項目を編集", daily_routine_settings_path, class: btn_classes(:secondary) %>
       </div>
     </div>
+
+    <% if @off_day && @off_period %>
+      <%
+        period_text =
+          if @off_period.begin == @off_period.end
+            @off_period.begin.strftime("%-m/%-d")
+          else
+            "#{@off_period.begin.strftime("%-m/%-d")}〜#{@off_period.end.strftime("%-m/%-d")}"
+          end
+      %>
+      <p class="mb-3 text-sm text-slate-600">
+        休み期間 <%= period_text %>。この間は休日ルーチンだけで、期間内のどちらかで達成すればOKです。
+      </p>
+    <% end %>
 
     <% visible_slots = @slots.select(&:emphasized) %>
     <div class="mb-6 grid gap-4 sm:grid-cols-2">

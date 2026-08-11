@@ -3,17 +3,19 @@
 class DailyRoutineStatus
   SlotStatus = Data.define(:slot, :label, :completed, :items, :emphasized, :completion_hint)
 
-  def initialize(owner_key:, date: Date.current, note: nil, has_entry_plan: nil)
+  def initialize(owner_key:, date: Date.current, note: nil, has_entry_plan: nil, classifier: nil, entry_plan_in_period: nil)
     @owner_key = owner_key
     @date = date
     @note = note
     @has_entry_plan = has_entry_plan
+    @classifier = classifier || DailyRoutineDayClassifier.new(owner_key: owner_key)
+    @entry_plan_in_period = entry_plan_in_period
   end
 
   def call
     DailyRoutineItem.ensure_defaults_for!(@owner_key)
     items_by_slot = DailyRoutineItem.for_owner(@owner_key).ordered.group_by(&:slot)
-    holiday = weekend?
+    off = off_day?
 
     DailyRoutineItem::SLOTS.map do |slot|
       SlotStatus.new(
@@ -21,7 +23,7 @@ class DailyRoutineStatus
         label: DailyRoutineItem::SLOT_LABELS.fetch(slot),
         completed: completed?(slot),
         items: items_by_slot[slot] || [],
-        emphasized: holiday ? slot == "holiday" : slot != "holiday",
+        emphasized: off ? slot == "holiday" : slot != "holiday",
         completion_hint: completion_hint_for(slot)
       )
     end
@@ -38,14 +40,18 @@ class DailyRoutineStatus
     :incomplete
   end
 
-  private
-
-  def weekend?
-    @date.saturday? || @date.sunday?
+  def off_day?
+    @classifier.off_day?(@date)
   end
 
+  def off_period
+    @off_period ||= @classifier.off_period(@date)
+  end
+
+  private
+
   def emphasized_slots
-    weekend? ? %w[holiday] : %w[weekday_morning weekday_evening]
+    off_day? ? %w[holiday] : %w[weekday_morning weekday_evening]
   end
 
   def completed?(slot)
@@ -55,7 +61,7 @@ class DailyRoutineStatus
     when "weekday_evening"
       note_field_present?(:result)
     when "holiday"
-      entry_plan?
+      holiday_entry_plan?
     else
       false
     end
@@ -71,21 +77,24 @@ class DailyRoutineStatus
     note.public_send(field).to_s.strip.present?
   end
 
-  def entry_plan?
+  def holiday_entry_plan?
+    return @entry_plan_in_period unless @entry_plan_in_period.nil?
     return @has_entry_plan unless @has_entry_plan.nil?
 
-    Entry.unsettled.where(created_at: @date.all_day).exists?
+    period = off_period
+    return false unless period
+
+    Entry.unsettled.where(created_at: period.begin.beginning_of_day..period.end.end_of_day).exists?
   end
 
   def completion_hint_for(slot)
-    label = date_label
     case slot
     when "weekday_morning"
-      "#{label}の毎日の記録に仮説がある"
+      "#{date_label}の毎日の記録に仮説がある"
     when "weekday_evening"
-      "#{label}の毎日の記録に結果がある"
+      "#{date_label}の毎日の記録に結果がある"
     when "holiday"
-      "#{label}につくった未約定エントリーがある"
+      "この休み期間（#{period_label}）に未約定エントリーがある"
     else
       ""
     end
@@ -93,5 +102,16 @@ class DailyRoutineStatus
 
   def date_label
     @date == Date.current ? "今日" : @date.strftime("%-m/%-d")
+  end
+
+  def period_label
+    period = off_period
+    return date_label unless period
+
+    if period.begin == period.end
+      period.begin.strftime("%-m/%-d")
+    else
+      "#{period.begin.strftime("%-m/%-d")}〜#{period.end.strftime("%-m/%-d")}"
+    end
   end
 end

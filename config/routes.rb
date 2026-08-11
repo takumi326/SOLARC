@@ -8,7 +8,10 @@ Rails.application.routes.draw do
   get "/auth/failure", to: "sessions#failure"
   match "/auth/:provider/callback", to: "sessions#create", via: [ :get, :post ]
 
-  resource :daily_routine, only: [ :show ], path: "daily-routine"
+  resource :daily_routine, only: [ :show ], path: "daily-routine" do
+    post :off_days, action: :create_off_day, on: :member
+    delete :off_days, action: :destroy_off_day, on: :member
+  end
   get "daily-routine/settings", to: "daily_routine_items#index", as: :daily_routine_settings
   resources :daily_routine_items, only: [ :create, :update, :destroy ], path: "daily-routine/items" do
     member do
