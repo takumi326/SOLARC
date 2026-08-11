@@ -10,6 +10,8 @@
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
     <%= javascript_include_tag "clipboard", defer: true %>
     <%= javascript_include_tag "mobile_nav", defer: true %>
+    <%= javascript_include_tag "daily_routine", defer: true %>
+    <%= javascript_include_tag "flash_toast", defer: true %>
   </head>
   <body class="bg-slate-50 text-slate-800">
     <div id="mobile-nav-overlay" class="fixed inset-0 z-40 hidden bg-black/40 md:hidden" aria-hidden="true"></div>
@@ -40,12 +42,6 @@
         </aside>
 
         <section class="min-w-0 flex-1">
-          <% if flash[:notice].present? %>
-            <p class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"><%= flash[:notice] %></p>
-          <% end %>
-          <% if flash[:alert].present? %>
-            <p class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"><%= flash[:alert] %></p>
-          <% end %>
           <%= yield %>
         </section>
       </div>
@@ -53,5 +49,16 @@
     <div id="js-copy-toast" class="pointer-events-none fixed inset-x-0 bottom-6 z-50 hidden justify-center px-4 opacity-0 transition-opacity duration-200" aria-live="polite">
       <p id="js-copy-toast-message" class="pointer-events-auto rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-medium text-emerald-800 shadow-lg ring-1 ring-black/5"></p>
     </div>
+
+    <% if flash[:notice].present? || flash[:alert].present? %>
+      <div id="flash-toasts" class="fixed z-50 flex flex-col items-end" style="right:16px;top:16px;gap:8px;max-width:calc(100vw - 32px);" aria-live="polite">
+        <% if flash[:notice].present? %>
+          <p class="js-flash-toast cursor-pointer rounded-xl px-4 py-3 text-sm font-medium shadow-lg" style="background-color:#ffffff;border:1px solid #6ee7b7;color:#065f46;transition:opacity 200ms ease;"><%= flash[:notice] %></p>
+        <% end %>
+        <% if flash[:alert].present? %>
+          <p class="js-flash-toast cursor-pointer rounded-xl px-4 py-3 text-sm font-medium shadow-lg" style="background-color:#ffffff;border:1px solid #fda4af;color:#9f1239;transition:opacity 200ms ease;"><%= flash[:alert] %></p>
+        <% end %>
+      </div>
+    <% end %>
   </body>
 </html>

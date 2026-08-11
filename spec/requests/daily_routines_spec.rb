@@ -27,8 +27,7 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).not_to include(">平日朝</h3>")
         expect(response.body).not_to include(">平日夜</h3>")
         expect(response.body).to include("土日は休み")
-        expect(response.body).to include("休みの日用")
-        expect(response.body).to include("休日・未完了")
+        expect(response.body).to include("未完了")
       end
     end
 
@@ -77,6 +76,18 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response).to have_http_status(:ok)
         expect(response.body).to include("✓ 完了")
         expect(response.body).to include("完了条件：この休み期間（8/8〜8/9）に未約定エントリーがある")
+        expect(response.body).to include("エントリー予定")
+        expect(response.body).to include(stock.code)
+        expect(response.body).to include(stock.name)
+      end
+    end
+
+    it "shows empty holiday entry plans with link to stocks" do
+      travel_to Time.zone.local(2026, 8, 9, 10, 0, 0) do
+        get daily_routine_path
+        expect(response.body).to include("エントリー予定")
+        expect(response.body).to include("株一覧へ")
+        expect(response.body).to include(">休日</h3>")
       end
     end
 
@@ -113,9 +124,8 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response.body).to include("2026年8月")
       expect(response.body).to include("完了条件：")
       expect(response.body).to include("今日")
-      expect(response.body).to include("背景")
-      expect(response.body).to include("枠線")
-      expect(response.body).to include("休みで完了")
+      expect(response.body).to include("一部")
+      expect(response.body).to include("未完了")
     end
   end
 
@@ -126,6 +136,16 @@ RSpec.describe "DailyRoutines", type: :request do
           post off_days_daily_routine_path, params: { date: Date.current.iso8601 }
         }.to change(DailyRoutineOffDay, :count).by(1)
         expect(response).to redirect_to(daily_routine_path(date: Date.current.iso8601))
+      end
+    end
+
+    it "renders the notice as a toast after redirect" do
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        post off_days_daily_routine_path, params: { date: Date.current.iso8601 }
+        follow_redirect!
+
+        expect(response.body).to include("js-flash-toast")
+        expect(response.body).to include("8/11 を休みにしました。")
       end
     end
 
