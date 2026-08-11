@@ -5,7 +5,10 @@
         <h2 class="text-xl font-bold">ルーチン</h2>
         <p class="mt-1 text-sm text-slate-500"><%= @date.strftime("%Y/%m/%d") %>（<%= %w[日 月 火 水 木 金 土][@date.wday] %>）</p>
       </div>
-      <%= link_to "項目を編集", daily_routine_settings_path, class: btn_classes(:secondary) %>
+      <div class="flex flex-wrap gap-2">
+        <%= link_to "今日", daily_routine_path, class: btn_classes(:primary) %>
+        <%= link_to "項目を編集", daily_routine_settings_path, class: btn_classes(:secondary) %>
+      </div>
     </div>
 
     <% visible_slots = @slots.select(&:emphasized) %>
@@ -78,10 +81,7 @@
             <input id="routine_date" type="date" name="date" value="<%= @date.iso8601 %>" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" />
           </div>
           <button type="submit" class="<%= btn_classes(:secondary) %>">表示</button>
-        <% end %>
-
-        <% unless @date == Date.current %>
-          <%= link_to "今日へ戻る", daily_routine_path, class: btn_classes(:link) %>
+          <%= link_to "今日", daily_routine_path, class: btn_classes(:primary) %>
         <% end %>
       </div>
 
