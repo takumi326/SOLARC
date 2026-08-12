@@ -29,8 +29,15 @@ class StockWatchBatch < ApplicationRecord
       .sort
   end
 
+  # 平日の取込 → その週の月〜金。土日（休日ルーチン）→ 翌週の月〜金。
   def self.default_watch_range(from_date = Time.zone.today)
-    monday = from_date.to_date.next_occurring(:monday)
+    date = from_date.to_date
+    monday =
+      if date.saturday? || date.sunday?
+        date.next_occurring(:monday)
+      else
+        date.beginning_of_week(:monday)
+      end
     monday..(monday + 4)
   end
 

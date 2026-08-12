@@ -18,8 +18,7 @@ class DailyRoutineHistory
 
   def holiday_records
     @holiday_records ||= recent_batches.filter_map do |batch|
-      next unless history_window?(batch.imported_on)
-
+      next unless watch_history_visible?(batch)
       next if batch.stock_watch_items.empty?
 
       HolidayRecord.new(
@@ -46,6 +45,16 @@ class DailyRoutineHistory
   end
 
   private
+
+  # 監視期間が始まってから終わるまで（平日のみ）。未来の期間は出さない。
+  def watch_history_visible?(batch)
+    return false unless history_day?
+    return false if batch.imported_on > @date
+    return false if @date < batch.starts_on
+    return false if @date > batch.ends_on
+
+    true
+  end
 
   def history_day?
     !@classifier.weekend?(@date)
