@@ -29,6 +29,8 @@ class StocksController < ApplicationController
 
   def show
     @stock_notes = @stock.stock_notes.order(noted_on: :desc, id: :desc)
+    @watch_items = @stock.stock_watch_items.includes(:stock_watch_batch).joins(:stock_watch_batch)
+                         .order("stock_watch_batches.starts_on DESC, stock_watch_batches.id DESC")
     load_timeline_context!
   end
 
@@ -50,10 +52,13 @@ class StocksController < ApplicationController
     end
   end
 
+  def import_new
+  end
+
   def import
     file = params[:file]
     unless file.respond_to?(:read)
-      redirect_to stocks_path, alert: "CSV ファイルを選択してください。"
+      redirect_to new_import_stocks_path, alert: "CSV ファイルを選択してください。"
       return
     end
 
@@ -62,7 +67,7 @@ class StocksController < ApplicationController
                 notice: "読み込んで登録しました。新規業種 #{result.created_industries} / 新規銘柄 #{result.created_stocks} / 更新 #{result.updated_stocks} / スキップ #{result.skipped_rows}。"
   rescue StandardError => e
     Rails.logger.error("[StockCsvImporter] #{e.class}: #{e.message}")
-    redirect_to stocks_path, alert: "CSV の取り込みに失敗しました。UTF-8 または Shift_JIS で、列「銘柄名・コード・業種」を含む形式か確認してください。"
+    redirect_to new_import_stocks_path, alert: "CSV の取り込みに失敗しました。UTF-8 または Shift_JIS で、列「銘柄名・コード・業種」を含む形式か確認してください。"
   end
 
   private
@@ -74,7 +79,7 @@ class StocksController < ApplicationController
   end
 
   def stock_params
-    params.expect(stock: [ :memo, :watched, :industry_id ])
+    params.expect(stock: [ :memo, :industry_id ])
   end
 
   def parse_optional_id(v)

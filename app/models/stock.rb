@@ -8,6 +8,8 @@ class Stock < ApplicationRecord
   has_many :entries, dependent: :destroy
   has_many :stock_exits, class_name: "StockExit", dependent: :destroy
   has_many :line_changes, dependent: :destroy
+  has_many :stock_watch_items, dependent: :destroy
+  has_many :stock_watch_batches, through: :stock_watch_items
 
   validates :code, presence: true, uniqueness: true, length: { maximum: 10 }
   validates :name, presence: true, length: { maximum: 200 }

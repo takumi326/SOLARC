@@ -32,7 +32,7 @@ class DailyRoutineItem < ApplicationRecord
       "監視銘柄をセクターで選別",
       "監視銘柄を決算/イベントで選別",
       "監視銘柄を需給で選別",
-      "監視銘柄のエントリー計画を SOLARC に登録",
+      "監視銘柄リストを SOLARC に取り込む",
       "楽天証券に監視銘柄を登録"
     ],
     "month_end" => [

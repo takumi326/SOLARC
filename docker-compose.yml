@@ -29,6 +29,7 @@ services:
     command: bash -lc "bundle install && bundle exec rails db:migrate && bin/rails tailwindcss:watch & rm -f tmp/pids/server.pid && bundle exec rails server -b 0.0.0.0 -p 3000"
     environment:
       RAILS_ENV: development
+      TZ: Asia/Tokyo
       BUNDLE_PATH: /usr/local/bundle
       DATABASE_URL: postgresql://postgres:postgres@db:5432/solarc_development
       TEST_DATABASE_URL: postgresql://postgres:postgres@db:5432/solarc_test

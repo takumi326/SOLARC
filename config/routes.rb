@@ -87,12 +87,15 @@ Rails.application.routes.draw do
     resource :stock_trade_rule, path: "trade-rules", only: [ :show, :edit, :update ]
   end
 
+  get "stocks/import", to: "stocks#import_new", as: :new_import_stocks
   post "stocks/import", to: "stocks#import", as: :import_stocks
+  resources :stock_watchlists, only: [ :new, :create ], path: "stocks/watchlists"
   resources :stocks, only: [ :index, :show, :edit, :update ] do
     member do
       get :timeline
     end
     resources :stock_notes, only: [ :new, :create, :edit, :update, :destroy ]
+    resources :stock_watch_periods, only: [ :new, :create, :destroy ], path: "watch-periods"
   end
 
   resources :entries, only: [ :new, :create, :show, :edit, :update, :destroy ]

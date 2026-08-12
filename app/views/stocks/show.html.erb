@@ -29,18 +29,36 @@
         <span class="font-medium text-slate-700">銘柄設定</span>
         <%= link_to "編集",
                     edit_stock_path(@stock, trade_type: @trade_type, judgment_type: @judgment_type, ai_script_id: @ai_script_id),
-                    class: "text-indigo-600 hover:underline" %>
+                    class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
       </div>
       <dl class="grid gap-1 text-slate-700">
-        <div class="flex gap-2">
-          <dt class="text-slate-500">監視</dt>
-          <dd><%= @stock.watched? ? "あり" : "なし" %></dd>
-        </div>
         <div class="flex gap-2">
           <dt class="text-slate-500">メモ</dt>
           <dd class="min-w-0 flex-1 whitespace-pre-wrap"><%= @stock.memo.to_s.strip.present? ? @stock.memo : "（未入力）" %></dd>
         </div>
       </dl>
+    </div>
+
+    <div class="mt-4 rounded-lg border border-slate-200 bg-white p-3 text-sm">
+      <div class="mb-2 flex items-center justify-between gap-2">
+        <span class="font-medium text-slate-700">監視期間</span>
+        <%= link_to "追加", new_stock_stock_watch_period_path(@stock), class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
+      </div>
+      <% if @watch_items.any? %>
+        <ul class="space-y-2">
+          <% @watch_items.each do |item| %>
+            <li class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-slate-800"><%= item.stock_watch_batch.watch_period_label %></span>
+              <%= button_to "削除", stock_stock_watch_period_path(@stock, item),
+                    method: :delete,
+                    form: { data: { turbo_confirm: "この監視期間を削除しますか？" }, class: "inline" },
+                    class: btn_classes(:danger, extra: "px-2.5 py-1 text-xs") %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="text-slate-500">まだありません</p>
+      <% end %>
     </div>
   </section>
 
@@ -67,8 +85,10 @@
                 <td class="px-3 py-2.5 align-middle font-medium whitespace-nowrap tabular-nums text-slate-700"><%= note.noted_on.iso8601 %></td>
                 <td class="min-w-0 px-3 py-2.5 align-middle text-slate-800"><%= note.title.presence || content_tag(:span, "（無題）", class: "text-slate-400") %></td>
                 <td class="px-3 py-2.5 text-right align-middle whitespace-nowrap">
-                  <%= link_to "編集", edit_stock_stock_note_path(@stock, note), class: "text-indigo-600 hover:underline mr-2" %>
-                  <%= button_to "削除", stock_stock_note_path(@stock, note), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: "text-rose-600 hover:underline cursor-pointer text-sm" %>
+                  <div class="inline-flex flex-wrap items-center justify-end gap-2">
+                    <%= link_to "編集", edit_stock_stock_note_path(@stock, note), class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
+                    <%= button_to "削除", stock_stock_note_path(@stock, note), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: btn_classes(:danger, extra: "px-2.5 py-1 text-xs") %>
+                  </div>
                 </td>
               </tr>
             <% end %>

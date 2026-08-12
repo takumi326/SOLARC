@@ -54,9 +54,9 @@
             <span class="ml-2 text-slate-700"><%= trade_event_summary(row) %></span>
           </div>
           <div class="flex flex-wrap gap-2">
-            <%= link_to "詳細", stock_trade_event_path_for(row), class: "text-indigo-600 hover:underline" %>
-            <%= link_to "編集", stock_trade_edit_path_for(row), class: "text-indigo-600 hover:underline" %>
-            <%= button_to "削除", stock_trade_destroy_path_for(row), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: "text-rose-600 hover:underline cursor-pointer text-sm" %>
+            <%= link_to "詳細", stock_trade_event_path_for(row), class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
+            <%= link_to "編集", stock_trade_edit_path_for(row), class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
+            <%= button_to "削除", stock_trade_destroy_path_for(row), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: btn_classes(:danger, extra: "px-2.5 py-1 text-xs") %>
           </div>
         </li>
       <% end %>

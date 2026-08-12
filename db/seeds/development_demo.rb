@@ -113,17 +113,27 @@ semiconductor = Industry.find_or_create_by!(name: "半導体")
 it_industry = Industry.find_or_create_by!(name: "IT")
 
 [
-  { code: "6758", name: "ソニーグループ", industry: semiconductor, watched: true },
-  { code: "9984", name: "ソフトバンクグループ", industry: it_industry, watched: false }
+  { code: "6758", name: "ソニーグループ", industry: semiconductor, watch: true },
+  { code: "9984", name: "ソフトバンクグループ", industry: it_industry, watch: false }
 ].each do |attrs|
   stock = Stock.find_or_initialize_by(code: attrs[:code])
   stock.assign_attributes(
     name: attrs[:name],
     industry: attrs[:industry],
-    watched: attrs[:watched],
     memo: "#{DEMO}銘柄"
   )
   stock.save!
+
+  if attrs[:watch] && !stock.stock_watch_items.exists?
+    range = StockWatchBatch.default_watch_range(today)
+    batch = StockWatchBatch.create!(
+      imported_on: today,
+      starts_on: range.begin,
+      ends_on: range.end
+    )
+    StockWatchItem.create!(stock_watch_batch: batch, stock: stock, source_label: "手動")
+    StockWatchBatch.sync_watched_flags!
+  end
 
   next if stock.entries.real.human.exists?(entry_reason: "#{DEMO}エントリー")
 

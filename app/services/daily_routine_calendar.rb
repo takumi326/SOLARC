@@ -19,10 +19,9 @@ class DailyRoutineCalendar
 
     imported_months = DailyRoutineStatus.imported_months_for(tracked_months)
 
-    entry_dates = Entry.unsettled
-      .where(created_at: padded.begin.beginning_of_day..padded.end.end_of_day)
-      .pluck(:created_at)
-      .map { |t| t.in_time_zone.to_date }
+    import_dates = StockWatchBatch
+      .where(imported_on: padded)
+      .pluck(:imported_on)
       .to_set
 
     grid_start = @month.beginning_of_week(:sunday)
@@ -36,9 +35,9 @@ class DailyRoutineCalendar
         status =
           if in_month
             period = classifier.off_period(cell_date)
-            entry_in_period =
+            watchlist_imported =
               if period
-                period.any? { |d| entry_dates.include?(d) }
+                period.any? { |d| import_dates.include?(d) }
               else
                 false
               end
@@ -48,7 +47,7 @@ class DailyRoutineCalendar
               date: cell_date,
               note: notes[cell_date],
               classifier: classifier,
-              entry_plan_in_period: entry_in_period,
+              watchlist_imported_in_period: watchlist_imported,
               imported_months: imported_months
             ).day_status
           else
