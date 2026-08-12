@@ -9,7 +9,7 @@ class StockWatchlistsController < ApplicationController
   end
 
   def create
-    files = Array(params[:files]).select { |f| f.respond_to?(:read) }
+    files = Array(params[:files]).flatten.compact.select { |f| f.respond_to?(:read) }
     imported_on = parse_date(params[:imported_on]) || Time.zone.today
     starts_on = parse_date(params[:starts_on])
     ends_on = parse_date(params[:ends_on])

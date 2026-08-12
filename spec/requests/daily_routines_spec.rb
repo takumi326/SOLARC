@@ -235,7 +235,7 @@ RSpec.describe "DailyRoutines", type: :request do
       end
     end
 
-    it "shows watchlist stocks in history from completion day through Friday" do
+    it "shows watchlist history link during the watch period" do
       stock = create_test_stock
       travel_to Time.zone.local(2026, 8, 8, 15, 0, 0) do
         batch = StockWatchBatch.create!(
@@ -254,18 +254,21 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).not_to include(">休日</h3>")
         expect(response.body).to include("直近の完了")
         expect(response.body).to include("監視銘柄（8/10〜8/14）")
-        expect(response.body).to include(stock.code)
+        expect(response.body).to include("監視のみの一覧を見る")
+        expect(response.body).to include(%(href="#{stocks_path(filter: "watching")}"))
+        expect(response.body).not_to include(stock.code)
       end
 
       travel_to Time.zone.local(2026, 8, 13, 10, 0, 0) do
         get daily_routine_path(date: "2026-08-13")
         expect(response.body).to include("直近の完了")
-        expect(response.body).to include(stock.code)
+        expect(response.body).to include("監視銘柄（8/10〜8/14）")
+        expect(response.body).to include("監視のみの一覧を見る")
       end
 
       travel_to Time.zone.local(2026, 8, 17, 10, 0, 0) do
         get daily_routine_path(date: "2026-08-17")
-        expect(response.body).not_to include("直近の完了")
+        expect(response.body).not_to include("監視銘柄（8/10〜8/14）")
       end
     end
 
@@ -277,8 +280,8 @@ RSpec.describe "DailyRoutines", type: :request do
       travel_to Time.zone.local(2026, 8, 11, 15, 0, 0) do
         batch = StockWatchBatch.create!(
           imported_on: Date.new(2026, 8, 11),
-          starts_on: Date.new(2026, 8, 17),
-          ends_on: Date.new(2026, 8, 21)
+          starts_on: Date.new(2026, 8, 10),
+          ends_on: Date.new(2026, 8, 14)
         )
         StockWatchItem.create!(stock_watch_batch: batch, stock: stock, source_label: "ロング_高値ブレイク")
       end
@@ -287,7 +290,31 @@ RSpec.describe "DailyRoutines", type: :request do
         get daily_routine_path(date: "2026-08-12")
         expect(response.body).to include("直近の完了")
         expect(response.body).to include("✓ 8/11 完了")
-        expect(response.body).to include(stock.code)
+        expect(response.body).to include("監視銘柄（8/10〜8/14）")
+        expect(response.body).to include("監視のみの一覧を見る")
+        expect(response.body).to include(%(href="#{stocks_path(filter: "watching")}"))
+      end
+    end
+
+    it "hides watchlist history until the watch period has started" do
+      stock = create_test_stock
+      travel_to Time.zone.local(2026, 8, 13, 15, 0, 0) do
+        batch = StockWatchBatch.create!(
+          imported_on: Date.new(2026, 8, 13),
+          starts_on: Date.new(2026, 8, 17),
+          ends_on: Date.new(2026, 8, 21)
+        )
+        StockWatchItem.create!(stock_watch_batch: batch, stock: stock, source_label: "ロング_押し目")
+      end
+
+      travel_to Time.zone.local(2026, 8, 13, 16, 0, 0) do
+        get daily_routine_path(date: "2026-08-13")
+        expect(response.body).not_to include("監視銘柄（8/17〜8/21）")
+      end
+
+      travel_to Time.zone.local(2026, 8, 17, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-17")
+        expect(response.body).to include("監視銘柄（8/17〜8/21）")
       end
     end
 

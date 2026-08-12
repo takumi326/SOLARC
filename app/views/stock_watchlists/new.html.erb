@@ -29,7 +29,7 @@
       <div class="space-y-2 text-sm">
         <span class="font-medium text-slate-700">リストファイル（複数可）</span>
         <div class="flex flex-wrap items-center gap-3" data-file-picker>
-          <%= file_field_tag :files,
+          <%= file_field_tag "files[]",
                 multiple: true,
                 accept: ".txt,text/plain",
                 class: "hidden",
