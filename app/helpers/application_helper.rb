@@ -101,7 +101,7 @@ module ApplicationHelper
   # ルーチンカードの「完了条件」から、その条件を満たしに行く画面へ飛ばす
   def daily_routine_slot_path(slot)
     case slot.slot
-    when "holiday" then stocks_path
+    when "holiday" then new_stock_watchlist_path(date: slot.date&.iso8601)
     when "month_end" then finance_import_path(prompt_month: slot.month.strftime("%Y-%m"))
     else daily_note_slot_path(slot)
     end

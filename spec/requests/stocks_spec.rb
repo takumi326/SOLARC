@@ -68,6 +68,21 @@ RSpec.describe "Stocks", type: :request do
       expect(response.body).to include("取引タイムライン")
       expect(response.body).to include("買い理由")
     end
+
+    it "shows watch periods from imported watchlists" do
+      stock = create_test_stock
+      create_test_watch_period(
+        stock: stock,
+        starts_on: Date.new(2026, 8, 17),
+        ends_on: Date.new(2026, 8, 21),
+        source_label: "ロング_押し目"
+      )
+
+      get stock_path(stock)
+      expect(response.body).to include("監視期間")
+      expect(response.body).to include("8/17〜8/21")
+      expect(response.body).to include(%(href="#{new_stock_stock_watch_period_path(stock)}"))
+    end
   end
 
   describe "GET /stocks/:id/edit" do
@@ -93,7 +108,7 @@ RSpec.describe "Stocks", type: :request do
   describe "GET /stocks with filters" do
     it "shows watched stocks without entries" do
       stock = create_test_stock(code: "4444", name: "監視銘柄")
-      stock.update!(watched: true)
+      create_test_watch_period(stock: stock)
 
       get stocks_path
       expect(response.body).to include("監視銘柄")
@@ -101,7 +116,7 @@ RSpec.describe "Stocks", type: :request do
 
     it "filters to watching only" do
       watched = create_test_stock(code: "5555", name: "監視のみ")
-      watched.update!(watched: true)
+      create_test_watch_period(stock: watched)
       entered = create_test_stock(code: "6666", name: "エントリーのみ")
       create_test_entry(stock: entered)
 
@@ -113,9 +128,9 @@ RSpec.describe "Stocks", type: :request do
     it "filters by industry" do
       industry = Industry.find_or_create_by!(name: "フィルタ業種")
       stock = create_test_stock(code: "7777", name: "業種フィルタ", industry_name: "フィルタ業種")
-      stock.update!(watched: true)
+      create_test_watch_period(stock: stock)
       other = create_test_stock(code: "8888", name: "別業種", industry_name: "その他")
-      other.update!(watched: true)
+      create_test_watch_period(stock: other)
 
       get stocks_path, params: { industry_id: industry.id }
       expect(response.body).to include("業種フィルタ")
@@ -123,15 +138,15 @@ RSpec.describe "Stocks", type: :request do
     end
   end
 
-  describe "PATCH /stocks/:id with watched" do
-    it "updates watched and industry" do
+  describe "PATCH /stocks/:id with industry" do
+    it "updates industry and memo" do
       stock = create_test_stock
       industry = Industry.find_or_create_by!(name: "変更後業種")
 
-      patch stock_path(stock), params: { stock: { watched: "1", industry_id: industry.id, memo: "x" } }
+      patch stock_path(stock), params: { stock: { industry_id: industry.id, memo: "x" } }
       stock.reload
-      expect(stock.watched).to be(true)
       expect(stock.industry_id).to eq(industry.id)
+      expect(stock.memo).to eq("x")
     end
   end
 
@@ -141,6 +156,27 @@ RSpec.describe "Stocks", type: :request do
 
       get timeline_stock_path(stock, trade_type: "real", judgment_type: "human")
       expect(response).to redirect_to(stock_path(stock, trade_type: "real", judgment_type: "human"))
+    end
+  end
+
+  describe "GET /stocks" do
+    it "shows import shortcuts in the header" do
+      get stocks_path
+      expect(response.body).to include("銘柄取込")
+      expect(response.body).to include("監視銘柄取込")
+      expect(response.body).to include(%(href="#{new_import_stocks_path}"))
+      expect(response.body).to include(%(href="#{new_stock_watchlist_path}"))
+    end
+  end
+
+  describe "GET /stocks/import" do
+    it "shows the CSV import form" do
+      get new_import_stocks_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("銘柄取込")
+      expect(response.body).to include("CSVを選択")
+      expect(response.body).to include("JPX日経400")
+      expect(response.body).to include("https://indexes.nikkei.co.jp/nkave/index/profile?idx=jpxnk400")
     end
   end
 

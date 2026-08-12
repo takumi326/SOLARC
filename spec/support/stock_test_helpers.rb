@@ -16,6 +16,17 @@ module StockTestHelpers
       shares: 100
     }.merge(attrs))
   end
+
+  def create_test_watch_period(stock:, starts_on: Date.current, ends_on: Date.current + 4, source_label: "手動")
+    batch = StockWatchBatch.create!(
+      imported_on: Date.current,
+      starts_on: starts_on,
+      ends_on: ends_on
+    )
+    StockWatchItem.create!(stock_watch_batch: batch, stock: stock, source_label: source_label)
+    StockWatchBatch.sync_watched_flags!
+    batch
+  end
 end
 
 RSpec.configure do |config|

@@ -12,17 +12,12 @@
                   url: stock_path(@stock, trade_type: @trade_type, judgment_type: @judgment_type, ai_script_id: @ai_script_id),
                   method: :patch,
                   class: "mt-4 space-y-4" do |form| %>
-      <label class="flex items-center gap-2 text-sm">
-        <%= form.check_box :watched, class: "rounded border-slate-300" %>
-        <span class="font-medium text-slate-700">監視する（一覧に常時表示）</span>
-      </label>
-
       <label class="block text-sm">
         <span class="font-medium text-slate-700">業種</span>
         <%= form.collection_select :industry_id, @industries, :id, :name, {}, class: "mt-1 w-full max-w-md rounded-lg border border-slate-300 px-3 py-2" %>
       </label>
       <p class="text-xs text-slate-500">
-        <%= link_to "業種を追加", industries_path, class: "text-indigo-600 hover:underline" %>
+        <%= link_to "業種を追加", industries_path, class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
       </p>
 
       <label class="block text-sm">

@@ -2,7 +2,7 @@
 
 # やることカードの外で、直近の完了を見返す履歴（平日向け）。
 class DailyRoutineHistory
-  HolidayRecord = Data.define(:period_label, :completed_on, :entries)
+  HolidayRecord = Data.define(:watch_period_label, :completed_on, :stocks, :source_labels)
   MonthRecord = Data.define(:month, :label, :imported_on)
 
   def initialize(owner_key:, date:, classifier:, status:)
@@ -17,17 +17,17 @@ class DailyRoutineHistory
   end
 
   def holiday_records
-    @holiday_records ||= recent_completed_periods.filter_map do |period|
-      entries = entries_for_period(period)
-      next if entries.empty?
+    @holiday_records ||= recent_batches.filter_map do |batch|
+      next unless history_window?(batch.imported_on)
 
-      completed_on = entries.map { |e| e.created_at.in_time_zone.to_date }.min
-      next unless history_window?(completed_on)
+      stocks = batch.stocks.includes(:industry).ordered
+      next if stocks.empty?
 
       HolidayRecord.new(
-        period_label: format_period(period),
-        completed_on: completed_on,
-        entries: entries
+        watch_period_label: batch.watch_period_label,
+        completed_on: batch.imported_on,
+        stocks: stocks,
+        source_labels: batch.source_labels
       )
     end
   end
@@ -90,31 +90,10 @@ class DailyRoutineHistory
     end
   end
 
-  def recent_completed_periods
-    periods = Entry.unsettled
-                   .where("created_at >= ?", 60.days.ago)
-                   .pluck(:created_at)
-                   .filter_map { |created_at| @classifier.off_period(created_at.in_time_zone.to_date) }
-                   .uniq
-
-    periods
-      .sort_by(&:begin)
-      .reverse
-      .uniq { |period| [ period.begin, period.end ] }
-  end
-
-  def entries_for_period(period)
-    Entry.unsettled
-         .includes(:stock)
-         .where(created_at: period.begin.beginning_of_day..period.end.end_of_day)
-         .order(created_at: :desc)
-  end
-
-  def format_period(period)
-    if period.begin == period.end
-      period.begin.strftime("%-m/%-d")
-    else
-      "#{period.begin.strftime('%-m/%-d')}〜#{period.end.strftime('%-m/%-d')}"
-    end
+  def recent_batches
+    StockWatchBatch
+      .includes(stock_watch_items: :stock)
+      .where("imported_on >= ?", 60.days.ago.to_date)
+      .recent
   end
 end

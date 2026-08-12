@@ -9,17 +9,14 @@ class DailyRoutineStatus
   # これより前の月は取り込み記録が無いため対象外にする
   TRACKING_START_MONTH = Date.new(2026, 7, 1)
 
-  # 末日を含む何日前からカードを出すか
-  MONTH_END_LEAD_DAYS = 3
-
-  def initialize(owner_key:, date: Date.current, note: nil, has_entry_plan: nil, classifier: nil,
-                 entry_plan_in_period: nil, imported_months: nil)
+  def initialize(owner_key:, date: Date.current, note: nil, has_watchlist_import: nil, classifier: nil,
+                 watchlist_imported_in_period: nil, imported_months: nil)
     @owner_key = owner_key
     @date = date
     @note = note
-    @has_entry_plan = has_entry_plan
+    @has_watchlist_import = has_watchlist_import
     @classifier = classifier || DailyRoutineDayClassifier.new(owner_key: owner_key)
-    @entry_plan_in_period = entry_plan_in_period
+    @watchlist_imported_in_period = watchlist_imported_in_period
     @given_imported_months = imported_months
   end
 
@@ -69,7 +66,7 @@ class DailyRoutineStatus
   # やること: 休み期間中は出す。完了後の履歴: 完了日だけ出す。
   def holiday_card_visible?
     return false unless off_day?
-    return true unless holiday_entry_plan?
+    return true unless holiday_watchlist_imported?
 
     completed_on = holiday_completed_on
     return true if completed_on.nil?
@@ -77,14 +74,13 @@ class DailyRoutineStatus
     completed_on == @date
   end
 
-  # やることカード: 未取込は出し始めから、取込済みは取込日だけ。
+  # やることカード: 未取込は翌月1日から、取込済みは取込日だけ。
   def due_months
     @due_months ||= tracked_months.select { |month| month_end_todo?(month) }
   end
 
   def month_end_todo?(month)
-    lead_start = month.end_of_month - (MONTH_END_LEAD_DAYS - 1)
-    return false if @date < lead_start
+    return false if @date < self.class.month_end_available_from(month)
 
     imported = imported_on(month)
     return true if imported.nil?
@@ -96,6 +92,10 @@ class DailyRoutineStatus
     imported_months[month]
   end
 
+  def self.month_end_available_from(month)
+    month.next_month.beginning_of_month
+  end
+
   def self.imported_months_for(months)
     return {} if months.empty?
 
@@ -104,6 +104,9 @@ class DailyRoutineStatus
            .pluck(:start_month, :imported_at)
            .each_with_object({}) do |(month, imported_at), result|
       date = imported_at.in_time_zone.to_date
+      # 当月中の取込は月末ルーチン完了に使わない（翌月1日以降のみ）
+      next if date < month_end_available_from(month)
+
       result[month] = [ result[month], date ].compact.max
     end
   end
@@ -118,7 +121,7 @@ class DailyRoutineStatus
         completed: imported_on(month).present?,
         items: items,
         emphasized: true,
-        completion_hint: "#{month.strftime("%-m月")}分の支払いを取り込んでいる",
+        completion_hint: "翌月以降に#{month.strftime("%-m月")}分の支払いを取り込んでいる",
         month: month
       )
     end
@@ -135,7 +138,7 @@ class DailyRoutineStatus
     when "weekday_evening"
       note_field_present?(:result)
     when "holiday"
-      holiday_entry_plan?
+      holiday_watchlist_imported?
     else
       false
     end
@@ -151,9 +154,9 @@ class DailyRoutineStatus
     note.public_send(field).to_s.strip.present?
   end
 
-  def holiday_entry_plan?
-    return @entry_plan_in_period unless @entry_plan_in_period.nil?
-    return @has_entry_plan unless @has_entry_plan.nil?
+  def holiday_watchlist_imported?
+    return @watchlist_imported_in_period unless @watchlist_imported_in_period.nil?
+    return @has_watchlist_import unless @has_watchlist_import.nil?
 
     holiday_completed_on.present?
   end
@@ -164,11 +167,7 @@ class DailyRoutineStatus
     period = off_period
     @holiday_completed_on =
       if period
-        Entry.unsettled
-             .where(created_at: period.begin.beginning_of_day..period.end.end_of_day)
-             .minimum(:created_at)
-             &.in_time_zone
-             &.to_date
+        StockWatchBatch.imported_between(period.begin..period.end).minimum(:imported_on)
       end
   end
 
@@ -196,7 +195,7 @@ class DailyRoutineStatus
     when "weekday_evening"
       "#{date_label}の毎日の記録に結果がある"
     when "holiday"
-      "この休み期間（#{period_label}）に未約定エントリーがある"
+      "この休み期間（#{period_label}）に監視銘柄リストを取り込んでいる"
     else
       ""
     end

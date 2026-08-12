@@ -1,21 +1,26 @@
 <% @routine_history.holiday_records.each do |record| %>
   <article class="overflow-hidden rounded-xl" style="border:2px solid #2563eb;background-color:#eff6ff;">
     <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2" style="background-color:#2563eb;color:#ffffff;">
-      <h4 class="text-base font-bold">エントリー予定（<%= record.period_label %>）</h4>
+      <h4 class="text-base font-bold">監視銘柄（<%= record.watch_period_label %>）</h4>
       <span class="text-sm font-bold">✓ <%= record.completed_on.strftime("%-m/%-d") %> 完了</span>
     </div>
-    <ul class="space-y-2 p-4">
-      <% record.entries.each do |entry| %>
-        <li>
-          <%= link_to stock_timeline_path_for_record(entry),
-                class: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm no-underline hover:opacity-90",
-                style: "background-color:#ffffff;border:1px solid #93c5fd;color:#1e1b4b;" do %>
-            <span class="font-mono font-semibold" style="color:#1d4ed8;"><%= entry.stock.code %></span>
-            <span class="font-medium"><%= entry.stock.name %></span>
-          <% end %>
-        </li>
+    <div class="space-y-3 p-4">
+      <% if record.source_labels.any? %>
+        <p class="text-xs text-slate-600"><%= record.source_labels.join(" / ") %></p>
       <% end %>
-    </ul>
+      <ul class="space-y-2">
+        <% record.stocks.each do |stock| %>
+          <li>
+            <%= link_to stock_path(stock),
+                  class: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm no-underline hover:opacity-90",
+                  style: "background-color:#ffffff;border:1px solid #93c5fd;color:#1e1b4b;" do %>
+              <span class="font-mono font-semibold" style="color:#1d4ed8;"><%= stock.code %></span>
+              <span class="font-medium"><%= stock.name %></span>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
   </article>
 <% end %>
 

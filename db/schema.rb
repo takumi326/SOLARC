@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_11_020002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_13_070001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -270,6 +270,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_020002) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "stock_watch_batches", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.date "ends_on", null: false
+    t.date "imported_on", null: false
+    t.date "starts_on", null: false
+    t.datetime "updated_at", null: false
+    t.index ["imported_on"], name: "index_stock_watch_batches_on_imported_on"
+    t.index ["starts_on", "ends_on"], name: "index_stock_watch_batches_on_starts_on_and_ends_on"
+  end
+
+  create_table "stock_watch_items", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "source_label", limit: 100, null: false
+    t.bigint "stock_id", null: false
+    t.bigint "stock_watch_batch_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["stock_id"], name: "index_stock_watch_items_on_stock_id"
+    t.index ["stock_watch_batch_id", "stock_id"], name: "index_stock_watch_items_on_batch_and_stock", unique: true
+    t.index ["stock_watch_batch_id"], name: "index_stock_watch_items_on_stock_watch_batch_id"
+  end
+
   create_table "stocks", force: :cascade do |t|
     t.string "code", limit: 10, null: false
     t.datetime "created_at", null: false
@@ -317,5 +338,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_020002) do
   add_foreign_key "line_changes", "stocks"
   add_foreign_key "minor_categories", "major_categories"
   add_foreign_key "stock_notes", "stocks"
+  add_foreign_key "stock_watch_items", "stock_watch_batches"
+  add_foreign_key "stock_watch_items", "stocks"
   add_foreign_key "stocks", "industries"
 end
