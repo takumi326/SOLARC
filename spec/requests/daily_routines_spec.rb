@@ -235,7 +235,7 @@ RSpec.describe "DailyRoutines", type: :request do
       end
     end
 
-    it "shows watchlist stocks in history from completion day through Friday" do
+    it "shows watchlist history link from completion day through Friday" do
       stock = create_test_stock
       travel_to Time.zone.local(2026, 8, 8, 15, 0, 0) do
         batch = StockWatchBatch.create!(
@@ -254,13 +254,15 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).not_to include(">休日</h3>")
         expect(response.body).to include("直近の完了")
         expect(response.body).to include("監視銘柄（8/10〜8/14）")
-        expect(response.body).to include(stock.code)
+        expect(response.body).to include("監視のみの一覧を見る")
+        expect(response.body).to include(%(href="#{stocks_path(filter: "watching")}"))
+        expect(response.body).not_to include(stock.code)
       end
 
       travel_to Time.zone.local(2026, 8, 13, 10, 0, 0) do
         get daily_routine_path(date: "2026-08-13")
         expect(response.body).to include("直近の完了")
-        expect(response.body).to include(stock.code)
+        expect(response.body).to include("監視のみの一覧を見る")
       end
 
       travel_to Time.zone.local(2026, 8, 17, 10, 0, 0) do
@@ -287,7 +289,8 @@ RSpec.describe "DailyRoutines", type: :request do
         get daily_routine_path(date: "2026-08-12")
         expect(response.body).to include("直近の完了")
         expect(response.body).to include("✓ 8/11 完了")
-        expect(response.body).to include(stock.code)
+        expect(response.body).to include("監視のみの一覧を見る")
+        expect(response.body).to include(%(href="#{stocks_path(filter: "watching")}"))
       end
     end
 
