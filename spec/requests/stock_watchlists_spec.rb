@@ -18,6 +18,16 @@ RSpec.describe "StockWatchlists", type: :request do
     end
   end
 
+  it "defaults watch period to the current week on weekdays" do
+    travel_to Time.zone.local(2026, 8, 13, 10, 0, 0) do
+      get new_stock_watchlist_path
+      expect(response.body).to include('value="2026-08-13"')
+      expect(response.body).to include('value="2026-08-10"')
+      expect(response.body).to include('value="2026-08-14"')
+      expect(response.body).not_to include('value="2026-08-17"')
+    end
+  end
+
   it "defaults imported_on to the routine date when given" do
     travel_to Time.zone.local(2026, 8, 13, 7, 0, 0) do
       get new_stock_watchlist_path(date: "2026-08-09")
