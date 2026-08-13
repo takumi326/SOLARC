@@ -2,7 +2,7 @@
 
 # やることカードの外で、直近の完了を見返す履歴（平日向け）。
 class DailyRoutineHistory
-  HolidayRecord = Data.define(:watch_period_label, :completed_on, :source_labels)
+  HolidayRecord = Data.define(:watch_period_label, :completed_on)
   MonthRecord = Data.define(:month, :label, :imported_on)
 
   def initialize(owner_key:, date:, classifier:, status:)
@@ -17,15 +17,20 @@ class DailyRoutineHistory
   end
 
   def holiday_records
-    @holiday_records ||= recent_batches.filter_map do |batch|
-      next unless watch_history_visible?(batch)
-      next if batch.stock_watch_items.empty?
+    @holiday_records ||= begin
+      visible_batches = recent_batches.select do |batch|
+        watch_history_visible?(batch) && batch.stock_watch_items.any?
+      end
 
-      HolidayRecord.new(
-        watch_period_label: batch.watch_period_label,
-        completed_on: batch.imported_on,
-        source_labels: batch.source_labels
-      )
+      visible_batches
+        .group_by { |batch| [ batch.starts_on, batch.ends_on ] }
+        .map do |(_starts_on, _ends_on), batches|
+          HolidayRecord.new(
+            watch_period_label: batches.first.watch_period_label,
+            completed_on: batches.map(&:imported_on).max
+          )
+        end
+        .sort_by { |record| [ -record.completed_on.to_time.to_i, record.watch_period_label ] }
     end
   end
 
