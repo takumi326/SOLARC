@@ -293,6 +293,35 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include("監視銘柄（8/10〜8/14）")
         expect(response.body).to include("監視のみの一覧を見る")
         expect(response.body).to include(%(href="#{stocks_path(filter: "watching")}"))
+        expect(response.body).not_to include("ロング_高値ブレイク")
+      end
+    end
+
+    it "merges same-period watchlist imports into one history card" do
+      stock = create_test_stock(code: "1111")
+      other = create_test_stock(code: "2222", name: "別銘柄")
+      StockWatchBatch.create!(
+        imported_on: Date.new(2026, 8, 12),
+        starts_on: Date.new(2026, 8, 10),
+        ends_on: Date.new(2026, 8, 14)
+      ).tap do |batch|
+        StockWatchItem.create!(stock_watch_batch: batch, stock: stock, source_label: "ロング_押し目")
+      end
+      StockWatchBatch.create!(
+        imported_on: Date.new(2026, 8, 13),
+        starts_on: Date.new(2026, 8, 10),
+        ends_on: Date.new(2026, 8, 14)
+      ).tap do |batch|
+        StockWatchItem.create!(stock_watch_batch: batch, stock: other, source_label: "ロング_高値ブレイク")
+      end
+
+      travel_to Time.zone.local(2026, 8, 13, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-13")
+        expect(response.body).to include("監視銘柄（8/10〜8/14）")
+        expect(response.body.scan("監視銘柄（8/10〜8/14）").size).to eq(1)
+        expect(response.body).to include("✓ 8/13 完了")
+        expect(response.body).not_to include("ロング_押し目")
+        expect(response.body).not_to include("ロング_高値ブレイク")
       end
     end
 

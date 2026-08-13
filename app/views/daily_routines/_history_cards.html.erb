@@ -4,11 +4,7 @@
       <h4 class="text-base font-bold">監視銘柄（<%= record.watch_period_label %>）</h4>
       <span class="text-sm font-bold">✓ <%= record.completed_on.strftime("%-m/%-d") %> 完了</span>
     </div>
-    <div class="space-y-3 p-4">
-      <% labels = record.source_labels.reject { |label| label == "手動" } %>
-      <% if labels.any? %>
-        <p class="text-xs text-slate-600"><%= labels.join(" / ") %></p>
-      <% end %>
+    <div class="p-4">
       <%= link_to stocks_path(filter: "watching"),
             class: "block rounded-lg px-3 py-2 text-sm font-medium no-underline hover:opacity-80",
             style: "background-color:#ffffff;color:#1d4ed8;border:1px solid #93c5fd;text-decoration:underline;text-underline-offset:2px;" do %>
