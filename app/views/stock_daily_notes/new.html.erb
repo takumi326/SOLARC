@@ -10,7 +10,9 @@
     </label>
     <label class="block text-sm text-slate-700">
       仮説（マークダウン）
-      <%= text_area_tag "stock_daily_note[hypothesis]", @note.hypothesis, rows: 12, spellcheck: false, placeholder: "この日の仮説（マークダウン可）", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm leading-relaxed" %>
+      <%= text_area_tag "stock_daily_note[hypothesis]",
+            (@note.hypothesis.to_s.strip.present? ? @note.hypothesis : StockDailyNote::DEFAULT_HYPOTHESIS),
+            rows: 12, spellcheck: false, placeholder: "この日の仮説（マークダウン可）", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm leading-relaxed" %>
     </label>
     <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
       <%= link_to "キャンセル", stock_daily_notes_path, class: "rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50" %>

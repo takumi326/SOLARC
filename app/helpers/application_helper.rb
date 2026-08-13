@@ -117,7 +117,8 @@ module ApplicationHelper
 
   def stock_field_value(note, field)
     case field
-    when "hypothesis" then note.hypothesis
+    when "hypothesis"
+      note.hypothesis.to_s.strip.present? ? note.hypothesis : StockDailyNote::DEFAULT_HYPOTHESIS
     when "result" then note.result
     when "sector" then note.sector_research
     else ""
