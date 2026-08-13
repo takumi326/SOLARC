@@ -130,6 +130,27 @@ RSpec.describe "StockDailyNotes", type: :request do
       expect(response.body).to include("既存の仮説")
       expect(response.body).not_to include("## 米国市場")
     end
+
+    it "pre-fills the evening result template when empty" do
+      get edit_stock_daily_note_path(date: "2026-08-14", field: "result")
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("## 所有株")
+      expect(response.body).to include("## 日経平均、TOPIX")
+      expect(response.body).to include("## セクター")
+    end
+
+    it "keeps an existing result instead of the template" do
+      StockDailyNote.create!(
+        owner_key: "development",
+        recorded_on: Date.new(2026, 8, 14),
+        result: "既存の結果"
+      )
+
+      get edit_stock_daily_note_path(date: "2026-08-14", field: "result")
+      expect(response.body).to include("既存の結果")
+      expect(response.body).not_to include("## 所有株")
+    end
   end
 
   describe "PATCH /stock_daily_notes without an existing note" do

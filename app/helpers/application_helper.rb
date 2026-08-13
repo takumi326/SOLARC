@@ -119,7 +119,8 @@ module ApplicationHelper
     case field
     when "hypothesis"
       note.hypothesis.to_s.strip.present? ? note.hypothesis : StockDailyNote::DEFAULT_HYPOTHESIS
-    when "result" then note.result
+    when "result"
+      note.result.to_s.strip.present? ? note.result : StockDailyNote::DEFAULT_RESULT
     when "sector" then note.sector_research
     else ""
     end
