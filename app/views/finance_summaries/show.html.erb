@@ -7,11 +7,6 @@
       <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
         <%= button_to "定期実績を作成", finance_sync_recurring_path(month: @month_input), method: :post, class: btn_classes(:secondary, extra: "w-full sm:w-auto") %>
         <%= link_to "予測をまとめて編集", edit_finance_bulk_forecasts_path(month: @month_input), class: btn_classes(:secondary, extra: "w-full sm:w-auto") %>
-        <div class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5">
-          <p class="text-[11px] font-medium leading-none text-indigo-700">月末予想残高（予）</p>
-          <p class="mt-1 text-sm font-bold leading-none text-indigo-700"><%= format_yen(@year_summary.expected_balance) %></p>
-          <p class="mt-1 text-[11px] leading-none text-indigo-700">前月比 <%= format_yen_delta(@year_summary.last_month_diff) %></p>
-        </div>
         <%= link_to "取込", finance_import_path, class: btn_classes(:link, extra: "w-full sm:w-auto") %>
       </div>
     </div>
@@ -33,9 +28,7 @@
               <td class="px-2 py-2 whitespace-nowrap sm:px-3">
                 <span class="inline-flex items-center gap-2">
                   <span><%= format_yen(row.income.amount) %></span>
-                  <% if row.income.mode == "予" %>
-                    <%= finance_mode_badge("予", path: edit_finance_forecast_path(kind: "income", month: row.month_date)) %>
-                  <% else %>
+                  <% if row.income.mode == "実" %>
                     <%= finance_mode_badge("実") %>
                   <% end %>
                 </span>

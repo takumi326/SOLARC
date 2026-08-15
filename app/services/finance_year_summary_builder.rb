@@ -29,14 +29,13 @@ class FinanceYearSummaryBuilder
 
     rows = fiscal_months.each_with_object([]) do |m, acc|
       act = fiscal_actuals_by_month[m]
-      forecast_income = forecasts_by_key[[ "income", m ]] || 0
       forecast_expense = forecasts_by_key[[ "expense", m ]] || 0
       use_income_actual = act&.fetch(:has_income_actual, false)
       use_expense_actual = act&.fetch(:has_one_time_expense_actual, false)
 
-      income_amount = use_income_actual ? act[:income_actual] : forecast_income
+      income_amount = use_income_actual ? act[:income_actual] : 0
       expense_amount = use_expense_actual ? act[:expense_actual] : forecast_expense
-      income_mode = use_income_actual ? "実" : "予"
+      income_mode = use_income_actual ? "実" : nil
       expense_mode = use_expense_actual ? "実" : "予"
 
       previous_balance = acc.empty? ? 0 : acc.last.balance.amount

@@ -8,9 +8,5 @@
         <span class="font-semibold <%= accent %>"><%= format_yen(item[:amount]) %></span>
       </li>
     <% end %>
-    <li class="flex items-center justify-between py-2 text-sm">
-      <span class="font-medium text-slate-800">合計</span>
-      <span class="font-semibold <%= accent %>"><%= format_yen(items.sum { |item| item[:amount].to_d }) %></span>
-    </li>
   </ul>
 <% end %>

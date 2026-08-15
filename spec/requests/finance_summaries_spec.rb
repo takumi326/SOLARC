@@ -21,19 +21,28 @@ RSpec.describe "Finance summaries", type: :request do
       get finance_summary_path
       expect(response.body).to include("取込")
       expect(response.body).to include("予測をまとめて編集")
-      expect(response.body).to include("月末予想残高（予）")
+      expect(response.body).not_to include("月末予想残高（予）")
       expect(response.body).not_to include("単発の支出を追加")
       expect(response.body).not_to include("今月へ")
     end
   end
 
   describe "PATCH /finance/forecasts" do
-    it "upserts forecast and redirects" do
+    it "upserts expense forecast and redirects" do
+      patch finance_forecast_path, params: {
+        forecast: { kind: "expense", month: "2026-05-01", amount: 250_000 }
+      }
+      expect(response).to redirect_to(finance_summary_path(month: "2026-05"))
+      expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1)).amount).to eq(250_000)
+    end
+
+    it "ignores income kind and saves as expense forecast" do
       patch finance_forecast_path, params: {
         forecast: { kind: "income", month: "2026-05-01", amount: 250_000 }
       }
       expect(response).to redirect_to(finance_summary_path(month: "2026-05"))
-      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 5, 1)).amount).to eq(250_000)
+      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 5, 1))).to be_nil
+      expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1)).amount).to eq(250_000)
     end
 
     it "accepts month in YYYY-MM format" do
@@ -46,17 +55,17 @@ RSpec.describe "Finance summaries", type: :request do
   end
 
   describe "POST /finance/bulk_forecasts" do
-    it "saves fiscal year forecasts without type error" do
+    it "saves fiscal year expense forecasts without type error" do
       post finance_bulk_forecasts_path, params: {
         anchor_month: "2026-05",
         rows: {
-          "0" => { income: "300_000", expense: "190_000" },
-          "1" => { income: "310_000", expense: "195_000" }
+          "0" => { expense: "190_000" },
+          "1" => { expense: "195_000" }
         }
       }
 
       expect(response).to redirect_to(finance_summary_path(month: "2026-05"))
-      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 4, 1)).amount).to eq(300_000)
+      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 4, 1))).to be_nil
       expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1)).amount).to eq(195_000)
     end
   end
