@@ -8,9 +8,12 @@ class StocksController < ApplicationController
   before_action :reject_omitted_ai_timeline!, only: [ :show, :timeline, :edit, :update ]
 
   def index
-    result = StockIndexQuery.call
+    @watch_starts_on = parse_optional_date(params[:starts_on])
+    @watch_ends_on = parse_optional_date(params[:ends_on])
+    result = StockIndexQuery.call(starts_on: @watch_starts_on, ends_on: @watch_ends_on)
     @stocks = result.stocks
     @stock_flags = result.stock_flags
+    @watch_period_label = watch_period_label
   end
 
   def lookup
@@ -91,6 +94,24 @@ class StocksController < ApplicationController
     Integer(v)
   rescue ArgumentError, TypeError
     nil
+  end
+
+  def parse_optional_date(value)
+    return nil if value.blank?
+
+    Date.iso8601(value.to_s)
+  rescue ArgumentError, Date::Error
+    nil
+  end
+
+  def watch_period_label
+    return nil if @watch_starts_on.blank? || @watch_ends_on.blank?
+
+    if @watch_starts_on == @watch_ends_on
+      @watch_starts_on.strftime("%-m/%-d")
+    else
+      "#{@watch_starts_on.strftime('%-m/%-d')}〜#{@watch_ends_on.strftime('%-m/%-d')}"
+    end
   end
 
   def timeline_query_params

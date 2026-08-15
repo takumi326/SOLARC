@@ -255,6 +255,8 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include("直近の完了")
         expect(response.body).to include("監視銘柄（8/10〜8/14）")
         expect(response.body).to include("株一覧を見る")
+        expect(response.body).to include("starts_on=2026-08-10")
+        expect(response.body).to include("ends_on=2026-08-14")
         expect(response.body).not_to include(stock.code)
       end
 

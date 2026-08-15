@@ -13,22 +13,21 @@ RSpec.describe "Stocks", type: :request do
       expect(response.body).to include("エントリー中")
     end
 
-    it "shows virtual holding stocks" do
+    it "hides currently watched stocks that are not holding" do
+      stock = create_test_stock(code: "4444", name: "期間だけの監視")
+      create_test_watch_period(stock: stock)
+
+      get stocks_path
+      expect(response.body).not_to include("4444")
+      expect(response.body).not_to include("期間だけの監視")
+    end
+
+    it "hides virtual holding stocks that are not holding real shares" do
       stock = create_test_stock(code: "1111", name: "仮想のみ")
       create_test_entry(stock: stock, trade_type: "virtual", shares: 10)
 
       get stocks_path
-      expect(response.body).to include("仮想のみ")
-      expect(response.body).to include("仮想エントリー中")
-    end
-
-    it "shows currently watched stocks" do
-      stock = create_test_stock(code: "4444", name: "監視銘柄")
-      create_test_watch_period(stock: stock)
-
-      get stocks_path
-      expect(response.body).to include("4444")
-      expect(response.body).to include("監視中")
+      expect(response.body).not_to include("仮想のみ")
     end
 
     it "hides fully exited stocks" do
@@ -51,6 +50,19 @@ RSpec.describe "Stocks", type: :request do
     it "does not show a search field" do
       get stocks_path
       expect(response.body).not_to include("コード・銘柄名で検索")
+    end
+
+    it "shows stocks in the requested watch period from the daily routine" do
+      watched = create_test_stock(code: "4444", name: "期間監視")
+      other_period = create_test_stock(code: "5555", name: "別期間")
+      create_test_watch_period(stock: watched, starts_on: Date.new(2026, 8, 10), ends_on: Date.new(2026, 8, 14))
+      create_test_watch_period(stock: other_period, starts_on: Date.new(2026, 8, 17), ends_on: Date.new(2026, 8, 21))
+
+      get stocks_path(starts_on: "2026-08-10", ends_on: "2026-08-14")
+      expect(response.body).to include("監視銘柄（8/10〜8/14）")
+      expect(response.body).to include("期間監視")
+      expect(response.body).to include("監視中")
+      expect(response.body).not_to include("別期間")
     end
   end
 
