@@ -26,11 +26,24 @@ function showCopyToast(message) {
 }
 
 document.addEventListener("click", function (event) {
-  var button = event.target.closest("[data-copy-text]")
+  var button = event.target.closest("[data-copy-text], [data-copy-source]")
   if (!button) return
 
   event.preventDefault()
-  var text = button.getAttribute("data-copy-text")
+  var text = button.getAttribute("data-copy-text") || ""
+  var source = button.getAttribute("data-copy-source")
+  if (source) {
+    var sourceEl = document.querySelector(source)
+    if (sourceEl) text = sourceEl.value || sourceEl.textContent || ""
+  }
+  var suffixSource = button.getAttribute("data-copy-suffix-source")
+  if (suffixSource) {
+    var suffixEl = document.querySelector(suffixSource)
+    if (suffixEl) {
+      var suffix = suffixEl.value || suffixEl.textContent || ""
+      if (suffix) text = text.replace(/\s+$/, "") + "\n\n" + suffix.replace(/^\s+/, "")
+    }
+  }
   if (!text) return
 
   navigator.clipboard.writeText(text).then(function () {

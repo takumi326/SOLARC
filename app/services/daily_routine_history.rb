@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# やることカードの外で、直近の完了を見返す履歴（平日向け）。
+# やることカードの外で、直近の完了を見返す履歴。監視銘柄は取込日〜監視終了日（土日含む）。
 class DailyRoutineHistory
   HolidayRecord = Data.define(:watch_period_label, :completed_on, :starts_on, :ends_on)
   MonthRecord = Data.define(:month, :label, :imported_on)
@@ -13,7 +13,7 @@ class DailyRoutineHistory
   end
 
   def visible?
-    history_day? && (holiday_records.any? || month_records.any?)
+    holiday_records.any? || (history_day? && month_records.any?)
   end
 
   def holiday_records
@@ -25,9 +25,10 @@ class DailyRoutineHistory
       visible_batches
         .group_by { |batch| [ batch.starts_on, batch.ends_on ] }
         .map do |(starts_on, ends_on), batches|
+          completed_on = batches.map(&:imported_on).max
           HolidayRecord.new(
-            watch_period_label: batches.first.watch_period_label,
-            completed_on: batches.map(&:imported_on).max,
+            watch_period_label: period_label(completed_on, ends_on),
+            completed_on: completed_on,
             starts_on: starts_on,
             ends_on: ends_on
           )
@@ -53,14 +54,20 @@ class DailyRoutineHistory
 
   private
 
-  # 監視期間が始まってから終わるまで（平日のみ）。未来の期間は出さない。
+  # 取込完了日〜監視終了日（土日も含む）。未来の取込は出さない。
   def watch_history_visible?(batch)
-    return false unless history_day?
     return false if batch.imported_on > @date
-    return false if @date < batch.starts_on
     return false if @date > batch.ends_on
 
     true
+  end
+
+  def period_label(starts_on, ends_on)
+    if starts_on == ends_on
+      starts_on.strftime("%-m/%-d")
+    else
+      "#{starts_on.strftime("%-m/%-d")}〜#{ends_on.strftime("%-m/%-d")}"
+    end
   end
 
   def history_day?

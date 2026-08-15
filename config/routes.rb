@@ -91,6 +91,8 @@ Rails.application.routes.draw do
   get "stocks/lookup", to: "stocks#lookup", as: :lookup_stocks, defaults: { format: :json }
   get "stocks/import", to: "stocks#import_new", as: :new_import_stocks
   post "stocks/import", to: "stocks#import", as: :import_stocks
+  get "stocks/fundamentals", to: "stock_fundamentals#show", as: :stock_fundamentals
+  patch "stocks/fundamentals", to: "stock_fundamentals#update"
   resources :stock_watchlists, only: [ :new, :create ], path: "stocks/watchlists"
   resources :stocks, only: [ :index, :show, :edit, :update ] do
     member do
