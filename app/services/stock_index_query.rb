@@ -41,8 +41,7 @@ class StockIndexQuery
     scope = apply_sort(scope, period_active:, period_starts_on: filter_starts_on, period_ends_on: filter_ends_on)
 
     stocks = scope.to_a
-    stock_flags = build_stock_flags(stocks, period_active:, period_starts_on: filter_starts_on,
-                                            period_ends_on: filter_ends_on)
+    stock_flags = current_status_flags(stocks)
 
     Result.new(
       stocks: stocks,
@@ -127,32 +126,24 @@ class StockIndexQuery
     end
   end
 
-  def build_stock_flags(stocks, period_active:, period_starts_on:, period_ends_on:)
+  def current_status_flags(stocks)
     return {} if stocks.empty?
 
-    if period_active
-      flags_from_period_columns(stocks)
-    else
-      flags_from_current_state(stocks)
-    end
-  end
+    ids = stocks.map(&:id)
+    watching_ids = StockWatchItem.joins(:stock_watch_batch)
+      .merge(StockWatchBatch.covering(Time.zone.today))
+      .where(stock_id: ids)
+      .distinct
+      .pluck(:stock_id)
+      .to_set
 
-  def flags_from_period_columns(stocks)
-    stocks.each_with_object({}) do |stock, hash|
-      hash[stock.id] = {
-        watched: ActiveRecord::Type::Boolean.new.cast(stock.read_attribute(:period_watched)),
-        entered: ActiveRecord::Type::Boolean.new.cast(stock.read_attribute(:period_entered))
-      }
-    end
-  end
-
-  def flags_from_current_state(stocks)
-    entered_ids = Entry.real.human.where(stock_id: stocks.map(&:id)).distinct.pluck(:stock_id).to_set
+    holding_by_stock = Position.open.real.human.where(stock_id: ids).where("quantity > 0").group(:stock_id).sum(:quantity)
 
     stocks.each_with_object({}) do |stock, hash|
+      holding = holding_by_stock.fetch(stock.id, 0)
       hash[stock.id] = {
-        watched: stock.watched?,
-        entered: entered_ids.include?(stock.id)
+        watching: watching_ids.include?(stock.id),
+        holding: holding.positive?
       }
     end
   end

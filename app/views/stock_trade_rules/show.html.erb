@@ -5,7 +5,7 @@
         <h2 class="text-xl font-bold">取引ルール</h2>
         <p class="mt-1 text-xs text-slate-500">更新日 <%= @rule.updated_on_label %></p>
       </div>
-      <%= link_to "編集", edit_stock_trade_rule_path, class: btn_classes(:primary) %>
+      <%= link_to "編集", edit_stock_trade_rule_path, class: btn_classes(:secondary) %>
     </div>
     <% if @rule.body.present? %>
       <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap"><%= @rule.body %></div>

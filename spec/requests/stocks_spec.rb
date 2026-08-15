@@ -23,15 +23,7 @@ RSpec.describe "Stocks", type: :request do
     it "shows stocks even when fully exited" do
       stock = create_test_stock(code: "2222", name: "全決済済")
       create_test_entry(stock: stock, shares: 10)
-      StockExit.create!(
-        stock: stock,
-        trade_type: "real",
-        judgment_type: "human",
-        exit_reason: "売却",
-        traded_at: Date.current,
-        shares: 10,
-        actual_price: 1000
-      )
+      create_test_exit(stock: stock, shares: 10, actual_price: 1000, exit_reason: "売却")
 
       get stocks_path
       expect(response.body).to include("全決済済")
@@ -68,6 +60,55 @@ RSpec.describe "Stocks", type: :request do
       expect(response.body).not_to include("メモを保存")
       expect(response.body).to include("取引タイムライン")
       expect(response.body).to include("買い理由")
+      expect(response.body).not_to include("観察履歴")
+    end
+
+    it "shows エントリー中 when holding shares and 監視中 only during an active watch period" do
+      stock = create_test_stock
+      create_test_watch_period(
+        stock: stock,
+        starts_on: Date.new(2026, 8, 10),
+        ends_on: Date.new(2026, 8, 14)
+      )
+      create_test_entry(stock: stock, shares: 100, actual_price: 3480)
+
+      get stock_path(stock)
+      expect(response.body).to include("エントリー中")
+      expect(response.body).not_to include("監視中")
+    end
+
+    it "shows 監視中 when today is in a watch period" do
+      stock = create_test_stock
+      create_test_watch_period(
+        stock: stock,
+        starts_on: Date.current,
+        ends_on: Date.current
+      )
+
+      get stock_path(stock)
+      expect(response.body).to include("監視中")
+      expect(response.body).not_to include("エントリー中")
+    end
+
+    it "hides holdings summary when there are no remaining shares" do
+      stock = create_test_stock
+      create_test_entry(stock: stock, shares: 10, actual_price: 1000)
+      create_test_exit(stock: stock, shares: 10, actual_price: 1000, exit_reason: "全部")
+
+      get stock_path(stock)
+      expect(response.body).not_to include("現在の保有")
+    end
+
+    it "shows current holding shares and average price on the timeline" do
+      stock = create_test_stock
+      create_test_entry(stock: stock, shares: 100, actual_price: 1234, entry_reason: "押し目")
+
+      get stock_path(stock)
+      expect(response.body).to include("現在の保有")
+      expect(response.body).to include("100株")
+      expect(response.body).to include("1234")
+      expect(response.body).to include("株数")
+      expect(response.body).to include("価格")
     end
 
     it "shows watch periods from imported watchlists" do
@@ -193,15 +234,23 @@ RSpec.describe "Stocks", type: :request do
       expect(response.body).not_to include("実エントリー銘柄")
     end
 
-    it "shows watch and entry columns" do
-      watched = create_test_stock(code: "5555", name: "監視銘柄")
-      create_test_watch_period(stock: watched)
-      entered = create_test_stock(code: "6666", name: "エントリー銘柄")
-      create_test_entry(stock: entered)
+    it "shows エントリー中 and not 監視中 when holding even if watched" do
+      watching = create_test_stock(code: "5555", name: "監視銘柄")
+      create_test_watch_period(stock: watching, starts_on: Date.current, ends_on: Date.current)
+      holding = create_test_stock(code: "6666", name: "エントリー銘柄")
+      create_test_watch_period(stock: holding, starts_on: Date.current, ends_on: Date.current)
+      create_test_entry(stock: holding, shares: 100)
 
       get stocks_path
-      expect(response.body).to include("監視")
-      expect(response.body).to include("エントリー")
+      html = response.body
+      watching_idx = html.index("5555")
+      holding_idx = html.index("6666")
+      watching_slice = html[watching_idx, 400]
+      holding_slice = html[holding_idx, 400]
+      expect(watching_slice).to include("監視中")
+      expect(watching_slice).not_to include("エントリー中")
+      expect(holding_slice).to include("エントリー中")
+      expect(holding_slice).not_to include("監視中")
     end
 
     it "keeps stocks watched or entered within the selected period" do
@@ -266,7 +315,7 @@ RSpec.describe "Stocks", type: :request do
       inside = create_test_stock(code: "1010", name: "終了日以前")
       later = create_test_stock(code: "2020", name: "終了日より後")
       create_test_entry(stock: inside, traded_at: Date.new(2026, 7, 1))
-      create_test_entry(stock: later, traded_at: Date.new(2026, 8, 20))
+      create_test_entry(stock: later, traded_at: Date.new(2026, 8, 15))
 
       get stocks_path, params: { period_ends_on: "2026-08-14" }
 

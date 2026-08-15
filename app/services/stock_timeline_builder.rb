@@ -2,56 +2,80 @@
 
 class StockTimelineBuilder
   Row = Struct.new(:kind, :id, :sort_on, :record, keyword_init: true)
+  KIND_ORDER = { "exit" => 0, "line_change" => 1, "entry" => 2 }.freeze
 
   class << self
     def build(stock:, trade_type:, judgment_type:, ai_script_id: nil)
-      rows = timeline_rows(stock:, trade_type:, judgment_type:, ai_script_id:)
-      line = current_line(stock:, trade_type:, judgment_type:, ai_script_id:)
-      { rows: rows, current_line: line }
+      positions = position_scope(stock:, trade_type:, judgment_type:, ai_script_id:).includes(:trade_events)
+                    .order(opened_at: :desc, id: :desc)
+      groups = positions.map { |position| { position: position, rows: rows_for(position) } }
+      rows = groups.flat_map { |g| g[:rows] }
+      open_pos = positions.find(&:open?)
+      line = current_line_from(open_pos)
+      {
+        rows: rows,
+        groups: groups,
+        current_line: line,
+        position: position_hash(open_pos)
+      }
     end
 
-    def timeline_rows(stock:, trade_type:, judgment_type:, ai_script_id: nil)
-      es = stock.entries.where(trade_type: trade_type, judgment_type: judgment_type)
-      xs = stock.stock_exits.where(trade_type: trade_type, judgment_type: judgment_type)
-      ls = stock.line_changes.where(trade_type: trade_type, judgment_type: judgment_type)
-      es, xs, ls = apply_ai_axis!(es, xs, ls, judgment_type:, ai_script_id:)
-
-      rows = []
-      es.find_each { |e| rows << Row.new(kind: "entry", id: e.id, sort_on: sort_date_for_entry(e), record: e) }
-      xs.find_each { |x| rows << Row.new(kind: "exit", id: x.id, sort_on: sort_date_for_exit(x), record: x) }
-      ls.find_each { |l| rows << Row.new(kind: "line_change", id: l.id, sort_on: l.changed_on.to_s, record: l) }
-
-      rows.sort_by! { |r| [ r.sort_on.to_s, r.id.to_i ] }
-      rows.reverse!
-      rows
-    end
-
-    def current_line(stock:, trade_type:, judgment_type:, ai_script_id: nil)
-      if judgment_type.to_s == "ai" && ai_script_id.present?
-        stock.current_line(trade_type: trade_type, judgment_type: judgment_type, ai_script_id: ai_script_id)
-      else
-        stock.current_line(trade_type: trade_type, judgment_type: judgment_type)
-      end
+    def current_line(stock:, trade_type:, judgment_type:, ai_script_id: nil, on_or_after: nil)
+      stock.current_line(trade_type:, judgment_type:, ai_script_id:, on_or_after:)
     end
 
     private
 
-    def apply_ai_axis!(es, xs, ls, judgment_type:, ai_script_id:)
+    def position_scope(stock:, trade_type:, judgment_type:, ai_script_id:)
+      scope = stock.positions.where(trade_type: trade_type, judgment_type: judgment_type)
       if judgment_type.to_s == "ai" && ai_script_id.present?
-        [ es.where(ai_script_id: ai_script_id), xs.where(ai_script_id: ai_script_id), ls.where(ai_script_id: ai_script_id) ]
+        scope.where(ai_script_id: ai_script_id)
       elsif judgment_type.to_s == "human"
-        [ es.where(ai_script_id: nil), xs.where(ai_script_id: nil), ls.where(ai_script_id: nil) ]
+        scope.where(ai_script_id: nil)
       else
-        [ es, xs, ls ]
+        scope
       end
     end
 
-    def sort_date_for_entry(e)
-      (e.traded_at || e.created_at.to_date).to_s
+    def rows_for(position)
+      rows = position.trade_events.map do |event|
+        Row.new(
+          kind: event.kind,
+          id: event.id,
+          sort_on: event.traded_at&.to_s || event.created_at.to_date.to_s,
+          record: event
+        )
+      end
+      rows.sort! do |a, b|
+        date_cmp = b.sort_on.to_s <=> a.sort_on.to_s
+        next date_cmp unless date_cmp.zero?
+
+        kind_cmp = KIND_ORDER.fetch(a.kind, 9) <=> KIND_ORDER.fetch(b.kind, 9)
+        next kind_cmp unless kind_cmp.zero?
+
+        b.id.to_i <=> a.id.to_i
+      end
+      rows
     end
 
-    def sort_date_for_exit(x)
-      (x.traded_at || x.created_at.to_date).to_s
+    def current_line_from(position)
+      return nil if position.blank?
+
+      line = position.trade_events.select(&:line_change?).max_by { |e| [ e.executed_at, e.id ] }
+      return nil if line.blank?
+
+      line
+    end
+
+    def position_hash(position)
+      return { shares: 0, avg_price: nil, opened_on: nil } if position.blank?
+
+      {
+        shares: position.quantity,
+        avg_price: position.average_cost,
+        opened_on: position.opened_at&.in_time_zone&.to_date,
+        record: position
+      }
     end
   end
 end

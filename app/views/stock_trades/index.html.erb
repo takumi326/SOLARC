@@ -5,35 +5,34 @@
     <div class="mb-3 flex flex-wrap gap-2">
       <% { "all" => "全部", "entry" => "エントリ", "exit" => "イグジット" }.each do |kind, label| %>
         <%= link_to label,
-                    stock_trades_path(mode: @mode, event_kind: kind, settled: @settled, from: @from, to: @to, ai_script_id: @ai_script_id, q: @q),
+                    stock_trades_path(mode: @mode, event_kind: kind, settled_yes: @settled_yes ? "1" : "0", settled_no: @settled_no ? "1" : "0", from: @from, to: @to, ai_script_id: @ai_script_id, q: @q),
                     class: "rounded-full px-3 py-1.5 text-sm #{@event_kind == kind ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}" %>
       <% end %>
     </div>
 
-    <%= form_with url: stock_trades_path(mode: @mode), method: :get, class: "mb-4 flex flex-wrap items-end gap-3" do %>
+    <%= form_with url: stock_trades_path(mode: @mode), method: :get, class: "mb-4 flex flex-wrap items-center gap-2" do %>
       <%= hidden_field_tag :event_kind, @event_kind %>
-      <label class="flex flex-col gap-1 text-sm">
-        <span class="text-slate-600">約定</span>
-        <%= select_tag :settled, options_for_select([["すべて", "all"], ["約定済みのみ", "yes"], ["未約定のみ", "no"]], @settled), class: "rounded-lg border border-slate-300 px-2 py-1.5" %>
-      </label>
-      <label class="flex flex-col gap-1 text-sm">
-        <span class="text-slate-600">期間 from</span>
-        <%= date_field_tag :from, @from.presence, class: "rounded-lg border border-slate-300 px-2 py-1.5" %>
-      </label>
-      <label class="flex flex-col gap-1 text-sm">
-        <span class="text-slate-600">to</span>
-        <%= date_field_tag :to, @to.presence, class: "rounded-lg border border-slate-300 px-2 py-1.5" %>
-      </label>
-      <% if @config[:script_filter] && @ai_scripts.present? %>
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-slate-600">AI スクリプト</span>
-          <%= select_tag :ai_script_id, options_from_collection_for_select(@ai_scripts, :id, :version_name, @ai_script_id), include_blank: "全バージョン", class: "min-w-[10rem] rounded-lg border border-slate-300 px-2 py-1.5" %>
+      <%= text_field_tag :q, @q, class: "w-56 rounded-lg border border-slate-300 px-2 py-1.5 text-sm", placeholder: "コード・銘柄名で検索", aria: { label: "コード・銘柄名で検索" } %>
+      <div class="flex items-center gap-3 text-sm">
+        <label class="inline-flex items-center gap-1.5">
+          <%= hidden_field_tag :settled_yes, "0", id: nil %>
+          <%= check_box_tag :settled_yes, "1", @settled_yes, id: "stock_trades_settled_yes" %>
+          <span>約定済み</span>
         </label>
+        <label class="inline-flex items-center gap-1.5">
+          <%= hidden_field_tag :settled_no, "0", id: nil %>
+          <%= check_box_tag :settled_no, "1", @settled_no, id: "stock_trades_settled_no" %>
+          <span>未約定</span>
+        </label>
+      </div>
+      <div class="flex items-center gap-1.5 text-sm">
+        <%= date_field_tag :from, @from.presence, class: "rounded-lg border border-slate-300 px-2 py-1.5 text-sm", aria: { label: "期間の開始日" } %>
+        <span class="text-slate-400">〜</span>
+        <%= date_field_tag :to, @to.presence, class: "rounded-lg border border-slate-300 px-2 py-1.5 text-sm", aria: { label: "期間の終了日" } %>
+      </div>
+      <% if @config[:script_filter] && @ai_scripts.present? %>
+        <%= select_tag :ai_script_id, options_from_collection_for_select(@ai_scripts, :id, :version_name, @ai_script_id), include_blank: "全バージョン", class: "min-w-[10rem] rounded-lg border border-slate-300 px-2 py-1.5 text-sm", aria: { label: "AI スクリプト" } %>
       <% end %>
-      <label class="flex flex-col gap-1 text-sm">
-        <span class="text-slate-600">銘柄検索</span>
-        <%= text_field_tag :q, @q, class: "rounded-lg border border-slate-300 px-2 py-1.5", placeholder: "コード・銘柄名" %>
-      </label>
       <%= submit_tag "絞り込み", class: "rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-700 cursor-pointer" %>
     <% end %>
 
@@ -48,25 +47,34 @@
       <table class="min-w-full text-left text-sm">
         <thead>
           <tr class="border-b border-slate-200 text-slate-500">
-            <th class="py-2 pr-2">種別</th>
-            <th class="py-2 pr-2">日付</th>
             <th class="py-2 pr-2">銘柄</th>
-            <th class="py-2 pr-2">概要</th>
-            <th class="py-2 pr-2">操作</th>
+            <th class="py-2 pr-2">日付</th>
+            <th class="py-2 pr-2">種別</th>
+            <th class="py-2 pr-2 text-right" style="white-space: nowrap; min-width: 4.5rem">株数</th>
+            <th class="py-2 pr-2 text-right" style="white-space: nowrap; min-width: 4.5rem">価格</th>
+            <th class="w-10"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           <% @result.rows.each do |row| %>
-            <tr class="border-b border-slate-100">
-              <td class="py-2 pr-2"><%= trade_event_kind_label(row.kind) %></td>
-              <td class="py-2 pr-2 tabular-nums"><%= row.sort_on %></td>
+            <tr class="border-b border-slate-100" title="<%= trade_event_reason(row) %>">
               <td class="py-2 pr-2">
-                <%= link_to row.stock.name, stock_path(row.stock), class: "text-indigo-600 hover:underline" %>
+                <%= link_to stock_path(row.stock), class: "text-indigo-600 hover:underline" do %>
+                  <span class="font-mono"><%= row.stock.code %></span>
+                  <span class="font-medium"><%= row.stock.name %></span>
+                <% end %>
               </td>
-              <td class="max-w-md truncate py-2 pr-2 text-slate-700"><%= trade_event_summary(row) %></td>
-              <td class="py-2 pr-2 whitespace-nowrap">
-                <%= link_to "詳細", stock_trade_event_path_for(row), class: "text-indigo-600 hover:underline mr-2" %>
-                <%= link_to "編集", stock_trade_edit_path_for(row), class: "text-indigo-600 hover:underline" %>
+              <td class="py-2 pr-2 tabular-nums"><%= row.sort_on %></td>
+              <td class="py-2 pr-2 whitespace-nowrap"><%= trade_kind_cell(row) %></td>
+              <td class="py-2 pr-2 text-right tabular-nums whitespace-nowrap"><%= row.record.try(:shares).presence || "—" %></td>
+              <td class="py-2 text-right tabular-nums whitespace-nowrap"><%= trade_price_cell(row.record) %></td>
+              <td style="width: 2.5rem"></td>
+              <td class="py-2 whitespace-nowrap" style="width: 1%">
+                <div class="inline-flex items-center gap-2">
+                  <%= link_to "詳細", stock_trade_event_path_for(row), class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
+                  <%= link_to "編集", stock_trade_edit_path_for(row), class: btn_classes(:secondary, extra: "px-2.5 py-1 text-xs") %>
+                </div>
               </td>
             </tr>
           <% end %>

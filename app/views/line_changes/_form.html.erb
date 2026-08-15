@@ -8,7 +8,7 @@
 <% form_url = local_assigns.fetch(:form_url) %>
 <% form_method = local_assigns.fetch(:form_method, :post) %>
 
-<%= form_with model: record, url: form_url, method: form_method, class: "space-y-3 text-sm" do |form| %>
+<%= form_with model: record, scope: :line_change, url: form_url, method: form_method, class: "space-y-3 text-sm" do |form| %>
   <%= form.hidden_field :stock_id, value: stock.id %>
   <%= form.hidden_field :trade_type, value: trade_type %>
   <%= form.hidden_field :judgment_type, value: judgment_type %>
@@ -29,11 +29,11 @@
   </label>
   <label class="block">
     <span class="text-slate-700">損切</span>
-    <%= form.text_field :stop_loss, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.number_field :stop_loss, min: 0, step: :any, inputmode: "decimal", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
   </label>
   <label class="block">
     <span class="text-slate-700">利確</span>
-    <%= form.text_field :target_price, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.number_field :target_price, min: 0, step: :any, inputmode: "decimal", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
   </label>
   <label class="block">
     <span class="text-slate-700">理由</span>

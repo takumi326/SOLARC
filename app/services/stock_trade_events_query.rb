@@ -3,6 +3,7 @@
 class StockTradeEventsQuery
   Result = Struct.new(:rows, :total_realized_pl, keyword_init: true)
   Row = Struct.new(:kind, :id, :sort_on, :stock, :record, keyword_init: true)
+  KIND_ORDER = { "exit" => 0, "line_change" => 1, "entry" => 2 }.freeze
 
   class << self
     def call(params)
@@ -21,7 +22,7 @@ class StockTradeEventsQuery
     raise ArgumentError, "event_kind は all / entry / exit です" unless %w[all entry exit].include?(event_kind)
 
     settled = (@params[:settled].presence || "all").to_s
-    raise ArgumentError, "settled は all / yes / no です" unless %w[all yes no].include?(settled)
+    raise ArgumentError, "settled は all / yes / no / none です" unless %w[all yes no none].include?(settled)
 
     ai_script_id = parse_optional_id(@params[:ai_script_id])
     from_d = parse_optional_date(@params[:from])
@@ -31,46 +32,31 @@ class StockTradeEventsQuery
     stock_scope = stock_scope.search_by_term(@params[:q]) if @params[:q].present?
     stock_sub = stock_scope.select(:id)
 
-    rows = []
-    exit_scope_for_pl = StockExit.none
+    rel = TradeEvent.where(stock_id: stock_sub).where(trade_type: trade_type, judgment_type: judgment_type)
+    rel = apply_ai_axis!(rel, judgment_type:, ai_script_id:)
+    rel = rel.where.not(kind: :line_change)
+    rel = rel.where(kind: :entry) if event_kind == "entry"
+    rel = rel.where(kind: :exit) if event_kind == "exit"
+    rel = apply_settled_scope(rel, settled)
+    rel = apply_date_range(rel, from_d, to_d)
 
-    if event_kind != "exit"
-      es = Entry.where(stock_id: stock_sub).where(trade_type: trade_type, judgment_type: judgment_type)
-      es = apply_ai_axis!(es, judgment_type:, ai_script_id:)
-      es = apply_settled_scope(es, settled, traded_col: :traded_at)
-      es = apply_date_range_entries(es, from_d, to_d)
-      es.includes(:stock).find_each do |e|
-        rows << build_row("entry", e, sort_on_entry(e), e.stock)
-      end
+    rows = rel.includes(:stock).to_a.map do |event|
+      build_row(event.kind, event, event.traded_at&.to_s || event.created_at.to_date.to_s, event.stock)
     end
 
-    if event_kind != "entry"
-      xs = StockExit.where(stock_id: stock_sub).where(trade_type: trade_type, judgment_type: judgment_type)
-      xs = apply_ai_axis!(xs, judgment_type:, ai_script_id:)
-      xs = apply_settled_scope(xs, settled, traded_col: :traded_at)
-      xs = apply_date_range_exits(xs, from_d, to_d)
-      exit_scope_for_pl = xs
-      xs.includes(:stock).find_each do |x|
-        rows << build_row("exit", x, sort_on_exit(x), x.stock)
-      end
-    end
+    rows.sort! do |a, b|
+      date_cmp = b.sort_on.to_s <=> a.sort_on.to_s
+      next date_cmp unless date_cmp.zero?
 
-    if event_kind == "all"
-      ls = LineChange.where(stock_id: stock_sub).where(trade_type: trade_type, judgment_type: judgment_type)
-      ls = apply_ai_axis!(ls, judgment_type:, ai_script_id:)
-      ls = apply_line_settled(ls, settled)
-      ls = apply_date_range_lines(ls, from_d, to_d)
-      ls.includes(:stock).find_each do |l|
-        rows << build_row("line_change", l, l.changed_on.to_s, l.stock)
-      end
-    end
+      kind_cmp = KIND_ORDER.fetch(a.kind, 9) <=> KIND_ORDER.fetch(b.kind, 9)
+      next kind_cmp unless kind_cmp.zero?
 
-    rows.sort_by! { |r| [ r.sort_on.to_s, r.id.to_i ] }
-    rows.reverse!
+      a.id.to_i <=> b.id.to_i
+    end
 
     total_pl =
       if event_kind != "entry"
-        StockRealizedPl.total_for_exits(filter_exits_for_pl(exit_scope_for_pl, judgment_type, ai_script_id))
+        Position.where(stock_id: stock_sub, trade_type: trade_type, judgment_type: judgment_type).sum(:realized_pnl)
       else
         BigDecimal("0")
       end
@@ -113,52 +99,22 @@ class StockTradeEventsQuery
     end
   end
 
-  def apply_settled_scope(rel, settled, traded_col:)
+  def apply_settled_scope(rel, settled)
     case settled
-    when "yes" then rel.where.not(traded_col => nil)
-    when "no" then rel.where(traded_col => nil)
+    when "yes" then rel.where.not(actual_price: nil).where.not(quantity: nil)
+    when "no" then rel.where(actual_price: nil)
+    when "none" then rel.none
     else rel
     end
   end
 
-  def apply_line_settled(rel, settled)
-    settled == "no" ? rel.none : rel
-  end
-
-  def apply_date_range_entries(rel, from_d, to_d)
-    rel = rel.where("COALESCE(entries.traded_at, DATE(entries.created_at)) >= ?", from_d) if from_d
-    rel = rel.where("COALESCE(entries.traded_at, DATE(entries.created_at)) <= ?", to_d) if to_d
+  def apply_date_range(rel, from_d, to_d)
+    rel = rel.where("trade_events.executed_at >= ?", from_d.in_time_zone.beginning_of_day) if from_d
+    rel = rel.where("trade_events.executed_at <= ?", to_d.in_time_zone.end_of_day) if to_d
     rel
-  end
-
-  def apply_date_range_exits(rel, from_d, to_d)
-    rel = rel.where("COALESCE(exits.traded_at, DATE(exits.created_at)) >= ?", from_d) if from_d
-    rel = rel.where("COALESCE(exits.traded_at, DATE(exits.created_at)) <= ?", to_d) if to_d
-    rel
-  end
-
-  def apply_date_range_lines(rel, from_d, to_d)
-    rel = rel.where("line_changes.changed_on >= ?", from_d) if from_d
-    rel = rel.where("line_changes.changed_on <= ?", to_d) if to_d
-    rel
-  end
-
-  def sort_on_entry(e)
-    (e.traded_at || e.created_at.to_date).to_s
-  end
-
-  def sort_on_exit(x)
-    (x.traded_at || x.created_at.to_date).to_s
   end
 
   def build_row(kind, record, sort_on, stock)
     Row.new(kind: kind, id: record.id, sort_on: sort_on, stock: stock, record: record)
-  end
-
-  def filter_exits_for_pl(scope, judgment_type, ai_script_id)
-    return scope if judgment_type.to_s == "human"
-    return scope.where(ai_script_id: ai_script_id) if ai_script_id.present?
-
-    scope
   end
 end

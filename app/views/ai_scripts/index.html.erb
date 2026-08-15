@@ -14,7 +14,7 @@
             <tr class="border-b border-slate-200 text-slate-500">
               <th class="py-2 pr-3">バージョン名</th>
               <th class="py-2 pr-3">プロンプト（先頭）</th>
-              <th class="py-2 pr-3">操作</th>
+              <th class="py-2 pr-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -23,8 +23,8 @@
                 <td class="py-2 pr-3 font-medium"><%= script.version_name %></td>
                 <td class="max-w-md truncate py-2 pr-3 text-slate-600"><%= script.prompt.to_s.truncate(120) %></td>
                 <td class="py-2 pr-3 whitespace-nowrap">
-                  <%= link_to "編集", edit_ai_script_path(script), class: "text-indigo-600 hover:underline mr-2" %>
-                  <%= button_to "削除", ai_script_path(script), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: "text-rose-600 hover:underline cursor-pointer text-sm" %>
+                  <%= link_to "編集", edit_ai_script_path(script), class: btn_classes(:secondary, extra: "px-2.5 py-1 text-xs") %>
+                  <%= button_to "削除", ai_script_path(script), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: btn_classes(:danger, extra: "px-2.5 py-1 text-xs") %>
                 </td>
               </tr>
             <% end %>

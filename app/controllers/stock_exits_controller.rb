@@ -3,13 +3,15 @@
 class StockExitsController < ApplicationController
   include StockTimelineRedirect
   include RejectsOmittedAiTrades
+  include TradeEventCrud
 
   before_action :set_exit, only: [ :show, :edit, :update, :destroy ]
   before_action :load_context, only: [ :new, :create, :show, :edit, :update ]
   before_action :reject_omitted_ai_judgment!
 
   def new
-    @exit = StockExit.new(
+    @exit = TradeEvent.new(
+      kind: :exit,
       stock_id: @stock&.id,
       trade_type: @trade_type,
       judgment_type: @judgment_type,
@@ -18,11 +20,17 @@ class StockExitsController < ApplicationController
   end
 
   def create
-    @exit = StockExit.new(exit_params)
-    if @exit.save
+    begin
+      @exit = TradeEventRegistrar.new(stock: Stock.find(exit_params[:stock_id])).call(
+        kind: :exit,
+        executed_at: exit_params[:traded_at].presence && executed_at_from(exit_params[:traded_at]),
+        **event_attrs_from(exit_params)
+      )
       redirect_to stock_timeline_path_for_record(@exit), notice: "イグジットを記録しました。"
-    else
-      load_context_from_exit(@exit)
+    rescue ActiveRecord::RecordInvalid => e
+      @exit = e.record
+      load_context_from_exit(@exit) if @exit.stock
+      load_context unless @stock
       flash.now[:alert] = @exit.errors.full_messages.join(" ")
       render :new, status: :unprocessable_entity
     end
@@ -35,7 +43,7 @@ class StockExitsController < ApplicationController
   end
 
   def update
-    if @exit.update(exit_params)
+    if update_trade_event!(@exit, event_attrs_from(exit_params), executed_at_from(exit_params[:traded_at]))
       redirect_to stock_timeline_path_for_record(@exit), notice: "イグジットを保存しました。"
     else
       load_context_from_exit(@exit)
@@ -46,20 +54,20 @@ class StockExitsController < ApplicationController
 
   def destroy
     path = stock_timeline_path_for_record(@exit)
-    @exit.destroy!
+    destroy_trade_event!(@exit)
     redirect_to path, notice: "イグジットを削除しました。"
   end
 
   private
 
   def set_exit
-    @exit = StockExit.includes(:stock).find(params[:id])
+    @exit = TradeEvent.exit.includes(:stock).find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to stocks_path, alert: "イグジットが見つかりません。"
   end
 
   def load_context
-    if @exit
+    if @exit&.stock
       load_context_from_exit(@exit)
     else
       @stock = Stock.find_by(id: params[:stock_id]) if params[:stock_id].present?
@@ -84,13 +92,5 @@ class StockExitsController < ApplicationController
       :expected_price, :actual_price, :shares, :traded_at,
       :exit_reason, :review_result, :review_missed, :review_learning, :memo
     ])
-  end
-
-  def parse_optional_id(v)
-    return nil if v.blank?
-
-    Integer(v)
-  rescue ArgumentError, TypeError
-    nil
   end
 end

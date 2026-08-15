@@ -8,7 +8,7 @@
 <% form_url = local_assigns.fetch(:form_url) %>
 <% form_method = local_assigns.fetch(:form_method, :post) %>
 
-<%= form_with model: record, url: form_url, method: form_method, class: "space-y-3 text-sm" do |form| %>
+<%= form_with model: record, scope: :entry, url: form_url, method: form_method, class: "space-y-3 text-sm" do |form| %>
   <%= form.hidden_field :stock_id, value: stock.id %>
   <%= form.hidden_field :trade_type, value: trade_type %>
   <%= form.hidden_field :judgment_type, value: judgment_type %>
@@ -33,19 +33,20 @@
   </label>
   <label class="block">
     <span class="text-slate-700">株数</span>
-    <%= form.number_field :shares, min: 1, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.number_field :shares, min: 1, step: 1, inputmode: "numeric", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
   </label>
   <label class="block">
     <span class="text-slate-700">予定価格</span>
-    <%= form.text_field :expected_price, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.number_field :expected_price, min: 0, step: :any, inputmode: "decimal", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
   </label>
   <label class="block">
     <span class="text-slate-700">約定価格</span>
-    <%= form.text_field :actual_price, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.number_field :actual_price, min: 0, step: :any, inputmode: "decimal", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
   </label>
   <label class="block">
     <span class="text-slate-700">約定日</span>
-    <%= form.date_field :traded_at, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.date_field :traded_at, max: Date.current.iso8601, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <p class="mt-1 text-xs text-slate-500">予定価格か約定価格のどちらかは必須。約定するときは株数・約定価格・約定日をセット。約定日は今日以前のみ</p>
   </label>
   <label class="block">
     <span class="text-slate-700">メモ</span>
@@ -57,11 +58,11 @@
       <legend class="px-1 text-sm font-medium text-slate-700">初期ライン（任意）</legend>
       <label class="mt-2 block">
         <span class="text-slate-600">損切</span>
-        <%= text_field_tag "entry[initial_line][stop_loss]", nil, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+        <%= number_field_tag "entry[initial_line][stop_loss]", nil, min: 0, step: :any, inputmode: "decimal", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
       </label>
       <label class="mt-2 block">
         <span class="text-slate-600">利確</span>
-        <%= text_field_tag "entry[initial_line][target_price]", nil, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+        <%= number_field_tag "entry[initial_line][target_price]", nil, min: 0, step: :any, inputmode: "decimal", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
       </label>
     </fieldset>
   <% end %>
