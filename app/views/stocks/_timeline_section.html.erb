@@ -29,29 +29,6 @@
     <% end %>
   <% end %>
 
-  <% if @current_position && @current_position[:shares].to_i.positive? %>
-    <% pos = @current_position[:record] %>
-    <div class="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-sm">
-      <div class="inline-block align-top">
-        <p class="font-medium text-indigo-900">現在の保有</p>
-        <p class="mt-1 text-slate-700">
-          <%= format_shares(@current_position[:shares]) %>株
-          / 平均取得: <%= format_decimal(@current_position[:avg_price]).presence || "—" %>
-        </p>
-      </div>
-      <% if @current_line || pos&.current_stop.present? %>
-        <span class="inline-block w-2"></span>
-        <div class="inline-block align-top">
-          <p class="font-medium text-indigo-900">現在のライン<%= @current_line ? "（#{@current_line.traded_at&.iso8601}）" : "" %></p>
-          <p class="mt-1 text-slate-700">
-            損切: <%= format_decimal(@current_line&.stop_loss || pos&.current_stop).presence || "—" %>
-            / 利確: <%= format_decimal(@current_line&.take_profit || pos&.current_target).presence || "—" %>
-          </p>
-        </div>
-      <% end %>
-    </div>
-  <% end %>
-
   <% groups = @timeline_groups.presence || [ { position: nil, rows: @timeline_rows } ] %>
   <% if groups.all? { |g| g[:rows].blank? } %>
     <p class="text-sm text-slate-500">イベントがありません</p>
@@ -63,7 +40,7 @@
           <div class="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             <% if position.open? %>
               建玉（保有中）
-              <%= format_shares(position.entry_quantity).presence || "—" %>株
+              <%= format_shares(position.quantity).presence || "—" %>株
               / 平均取得 <%= format_decimal(position.average_cost).presence || "—" %>
               / 損切 <%= format_decimal(position.current_stop).presence || "—" %>
               / 利確 <%= format_decimal(position.current_target).presence || "—" %>

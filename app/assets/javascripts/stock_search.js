@@ -71,12 +71,24 @@
       var li = document.createElement("li")
       var a = document.createElement("a")
       a.href = row.url
-      a.className = "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm hover:bg-slate-50"
+      a.className = "flex flex-wrap items-center gap-2 rounded-lg px-3 py-2.5 text-sm hover:bg-slate-50"
       if (index === selectedIndex) a.className += " bg-indigo-50"
-      a.innerHTML = '<span class="font-mono">' + escapeHtml(row.code) + '</span><span class="font-medium">' + escapeHtml(row.name) + "</span>"
+      a.innerHTML = '<span class="font-mono">' + escapeHtml(row.code) + '</span><span class="font-medium">' + escapeHtml(row.name) + "</span>" + badgesHtml(row)
       li.appendChild(a)
       list.appendChild(li)
     })
+  }
+
+  function badgesHtml(row) {
+    var html = ""
+    if (row.holding) {
+      html += '<span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">エントリー中</span>'
+    } else if (row.watching) {
+      html += '<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">監視中</span>'
+    } else if (row.virtual_holding) {
+      html += '<span class="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">仮想エントリー中</span>'
+    }
+    return html
   }
 
   function escapeHtml(value) {
