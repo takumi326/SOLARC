@@ -85,6 +85,7 @@ Rails.application.routes.draw do
     resources :industries, only: [ :index, :create ]
     resources :ai_scripts, path: "ai-scripts", only: [ :index, :new, :create, :edit, :update, :destroy ]
     resource :stock_trade_rule, path: "trade-rules", only: [ :show, :edit, :update ]
+    resource :stock_setting, path: "settings", only: [ :show, :update ]
   end
 
   get "stocks/import", to: "stocks#import_new", as: :new_import_stocks

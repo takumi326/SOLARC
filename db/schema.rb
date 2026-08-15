@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_15_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_15_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -259,9 +259,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_100000) do
     t.index ["stock_id", "status"], name: "index_positions_on_stock_id_and_status"
     t.index ["stock_id", "trade_type", "judgment_type", "ai_script_id", "status"], name: "index_positions_on_stock_axis_status"
     t.index ["stock_id"], name: "index_positions_on_stock_id"
-    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying, 'ai'::character varying]::text[])", name: "positions_judgment_type_check"
+    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying::text, 'ai'::character varying::text])", name: "positions_judgment_type_check"
     t.check_constraint "status = ANY (ARRAY[0, 1])", name: "positions_status_check"
-    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying, 'virtual'::character varying]::text[])", name: "positions_trade_type_check"
+    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying::text, 'virtual'::character varying::text])", name: "positions_trade_type_check"
   end
 
   create_table "stock_daily_notes", force: :cascade do |t|
@@ -284,6 +284,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_100000) do
     t.datetime "updated_at", null: false
     t.index ["stock_id", "noted_on"], name: "index_stock_notes_on_stock_id_and_noted_on"
     t.index ["stock_id"], name: "index_stock_notes_on_stock_id"
+  end
+
+  create_table "stock_settings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "tradingview_chart_id", limit: 40, default: "8WvKf6oB", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "stock_trade_rules", force: :cascade do |t|
@@ -353,9 +359,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_100000) do
     t.index ["position_id"], name: "index_trade_events_on_position_id"
     t.index ["stock_id", "trade_type", "judgment_type"], name: "idx_on_stock_id_trade_type_judgment_type_41ea4a30b3"
     t.index ["stock_id"], name: "index_trade_events_on_stock_id"
-    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying, 'ai'::character varying]::text[])", name: "trade_events_judgment_type_check"
+    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying::text, 'ai'::character varying::text])", name: "trade_events_judgment_type_check"
     t.check_constraint "kind = ANY (ARRAY[0, 1, 2])", name: "trade_events_kind_check"
-    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying, 'virtual'::character varying]::text[])", name: "trade_events_trade_type_check"
+    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying::text, 'virtual'::character varying::text])", name: "trade_events_trade_type_check"
   end
 
   create_table "transactions", force: :cascade do |t|
