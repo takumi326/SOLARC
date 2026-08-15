@@ -60,6 +60,8 @@ RSpec.describe "Stocks", type: :request do
       expect(response.body).not_to include("メモを保存")
       expect(response.body).to include("取引タイムライン")
       expect(response.body).to include("買い理由")
+      expect(response.body).to include("チャート")
+      expect(response.body).not_to include("TradingView で開く")
       expect(response.body).not_to include("観察履歴")
     end
 

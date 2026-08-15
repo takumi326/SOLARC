@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 class Stock < ApplicationRecord
-  TRADINGVIEW_CHART_ID = "g045YVx7"
-
   belongs_to :industry
   has_many :stock_notes, dependent: :destroy
   has_many :entries, dependent: :destroy
@@ -91,7 +89,7 @@ class Stock < ApplicationRecord
 
   def self.tradingview_url(code)
     c = code.to_s.strip
-    "https://jp.tradingview.com/chart/#{TRADINGVIEW_CHART_ID}/?symbol=TSE%3A#{c}"
+    "https://jp.tradingview.com/chart/#{StockSetting.tradingview_chart_id}/?symbol=TSE%3A#{c}"
   end
 
   def tradingview_url
