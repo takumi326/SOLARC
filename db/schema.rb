@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_13_070001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_15_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -241,6 +241,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_070001) do
     t.check_constraint "method_type::text = ANY (ARRAY['card'::character varying::text, 'bank_debit'::character varying::text, 'bank_withdrawal'::character varying::text])", name: "payment_methods_method_type_check"
   end
 
+  create_table "positions", force: :cascade do |t|
+    t.bigint "ai_script_id"
+    t.decimal "average_cost", precision: 12, scale: 2
+    t.datetime "closed_at"
+    t.datetime "created_at", null: false
+    t.decimal "initial_stop", precision: 12, scale: 2
+    t.decimal "initial_target", precision: 12, scale: 2
+    t.string "judgment_type", limit: 20, null: false
+    t.datetime "opened_at", null: false
+    t.integer "quantity", default: 0, null: false
+    t.decimal "realized_pnl", precision: 14, scale: 2, default: "0.0", null: false
+    t.integer "status", default: 0, null: false
+    t.bigint "stock_id", null: false
+    t.string "trade_type", limit: 20, null: false
+    t.datetime "updated_at", null: false
+    t.index ["stock_id", "status"], name: "index_positions_on_stock_id_and_status"
+    t.index ["stock_id", "trade_type", "judgment_type", "ai_script_id", "status"], name: "index_positions_on_stock_axis_status"
+    t.index ["stock_id"], name: "index_positions_on_stock_id"
+    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying, 'ai'::character varying]::text[])", name: "positions_judgment_type_check"
+    t.check_constraint "status = ANY (ARRAY[0, 1])", name: "positions_status_check"
+    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying, 'virtual'::character varying]::text[])", name: "positions_trade_type_check"
+  end
+
   create_table "stock_daily_notes", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "hypothesis"
@@ -303,6 +326,38 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_070001) do
     t.index ["industry_id"], name: "index_stocks_on_industry_id"
   end
 
+  create_table "trade_events", force: :cascade do |t|
+    t.decimal "actual_price", precision: 12, scale: 2
+    t.bigint "ai_script_id"
+    t.datetime "created_at", null: false
+    t.text "entry_reason"
+    t.datetime "executed_at", null: false
+    t.text "exit_reason"
+    t.decimal "expected_price", precision: 12, scale: 2
+    t.string "judgment_type", limit: 20, null: false
+    t.integer "kind", null: false
+    t.text "memo"
+    t.bigint "position_id"
+    t.integer "quantity"
+    t.text "reason"
+    t.text "review_learning"
+    t.text "review_missed"
+    t.string "review_result", limit: 20
+    t.text "scenario"
+    t.bigint "stock_id", null: false
+    t.decimal "stop_loss", precision: 12, scale: 2
+    t.decimal "take_profit", precision: 12, scale: 2
+    t.string "trade_type", limit: 20, null: false
+    t.datetime "updated_at", null: false
+    t.index ["position_id", "executed_at", "id"], name: "index_trade_events_on_position_id_and_executed_at_and_id"
+    t.index ["position_id"], name: "index_trade_events_on_position_id"
+    t.index ["stock_id", "trade_type", "judgment_type"], name: "idx_on_stock_id_trade_type_judgment_type_41ea4a30b3"
+    t.index ["stock_id"], name: "index_trade_events_on_stock_id"
+    t.check_constraint "judgment_type::text = ANY (ARRAY['human'::character varying, 'ai'::character varying]::text[])", name: "trade_events_judgment_type_check"
+    t.check_constraint "kind = ANY (ARRAY[0, 1, 2])", name: "trade_events_kind_check"
+    t.check_constraint "trade_type::text = ANY (ARRAY['real'::character varying, 'virtual'::character varying]::text[])", name: "trade_events_trade_type_check"
+  end
+
   create_table "transactions", force: :cascade do |t|
     t.decimal "amount", precision: 15, null: false
     t.datetime "created_at", null: false
@@ -337,8 +392,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_13_070001) do
   add_foreign_key "line_changes", "ai_scripts"
   add_foreign_key "line_changes", "stocks"
   add_foreign_key "minor_categories", "major_categories"
+  add_foreign_key "positions", "stocks"
   add_foreign_key "stock_notes", "stocks"
   add_foreign_key "stock_watch_items", "stock_watch_batches"
   add_foreign_key "stock_watch_items", "stocks"
   add_foreign_key "stocks", "industries"
+  add_foreign_key "trade_events", "positions"
+  add_foreign_key "trade_events", "stocks"
 end

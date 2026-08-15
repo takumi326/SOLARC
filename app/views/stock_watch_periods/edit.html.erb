@@ -1,13 +1,13 @@
 <div class="space-y-4">
   <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <h2 class="text-xl font-bold">監視期間を追加</h2>
+    <h2 class="text-xl font-bold">監視期間を編集</h2>
     <p class="mt-1 text-sm text-slate-600"><%= @stock.code %> <%= @stock.name %></p>
 
     <%= render "form",
-               form_url: stock_stock_watch_periods_path(@stock),
-               form_method: :post,
+               form_url: stock_stock_watch_period_path(@stock, @item),
+               form_method: :patch,
                starts_on: @starts_on,
                ends_on: @ends_on,
-               submit_label: "追加" %>
+               submit_label: "保存" %>
   </section>
 </div>

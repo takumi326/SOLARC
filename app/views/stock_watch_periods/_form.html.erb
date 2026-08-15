@@ -1,0 +1,14 @@
+<%= form_with url: form_url, method: form_method, class: "mt-4 space-y-4" do %>
+  <div class="grid gap-3 sm:grid-cols-2">
+    <label class="flex flex-col gap-1 text-sm">
+      <span class="font-medium text-slate-700">監視開始</span>
+      <%= date_field_tag :starts_on, starts_on.iso8601, class: "rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+    </label>
+    <label class="flex flex-col gap-1 text-sm">
+      <span class="font-medium text-slate-700">監視終了</span>
+      <%= date_field_tag :ends_on, ends_on.iso8601, class: "rounded-lg border border-slate-300 px-3 py-2 text-sm" %>
+    </label>
+  </div>
+
+  <%= submit_tag submit_label, class: btn_classes(:primary) %>
+<% end %>

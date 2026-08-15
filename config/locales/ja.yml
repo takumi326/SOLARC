@@ -1,6 +1,12 @@
 ja:
   hello: "こんにちは"
 
+  errors:
+    messages:
+      not_a_number: "は数値で入力してください"
+      greater_than: "は0より大きい数値で入力してください"
+      not_an_integer: "は整数で入力してください"
+
   enums:
     major_category:
       kind:
@@ -52,3 +58,16 @@ ja:
         closing_day: "締め日（未入力は月末締め）"
         debit_day: "引き落とし日"
         ledger_charge_timing: "実績を載せる月（当月／翌月）"
+      entry:
+        expected_price: "予定価格"
+        actual_price: "約定価格"
+        traded_at: "約定日"
+        shares: "株数"
+      stock_exit:
+        expected_price: "予定価格"
+        actual_price: "約定価格"
+        traded_at: "約定日"
+        shares: "株数"
+      line_change:
+        stop_loss: "損切"
+        target_price: "利確"

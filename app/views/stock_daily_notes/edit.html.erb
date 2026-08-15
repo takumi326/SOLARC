@@ -1,9 +1,4 @@
-<div class="mx-auto max-w-3xl space-y-4">
-  <p class="text-sm text-slate-500">
-    <%= link_to "毎日の記録", stock_daily_notes_path, class: "text-indigo-600 hover:underline" %>
-    <span> / <%= StockDailyPromptBuilder::FIELD_LABELS[@field] %>を編集</span>
-  </p>
-
+<div class="space-y-4">
   <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <h2 class="text-xl font-bold"><%= StockDailyPromptBuilder::FIELD_LABELS[@field] %>を編集</h2>
     <p class="mt-2 text-sm text-slate-700">

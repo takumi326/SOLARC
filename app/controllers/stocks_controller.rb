@@ -22,7 +22,6 @@ class StocksController < ApplicationController
   end
 
   def show
-    @stock_notes = @stock.stock_notes.order(noted_on: :desc, id: :desc)
     @watch_items = @stock.stock_watch_items.includes(:stock_watch_batch).joins(:stock_watch_batch)
                          .order("stock_watch_batches.starts_on DESC, stock_watch_batches.id DESC")
     load_timeline_context!
@@ -109,7 +108,9 @@ class StocksController < ApplicationController
       ai_script_id: parse_optional_id(@ai_script_id)
     )
     @timeline_rows = result[:rows]
+    @timeline_groups = result[:groups]
     @current_line = result[:current_line]
+    @current_position = result[:position]
   end
 
   def reject_omitted_ai_timeline!

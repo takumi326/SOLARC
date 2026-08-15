@@ -40,8 +40,8 @@ module ApplicationHelper
     classes = case variant.to_sym
     when :primary then "#{base} bg-indigo-600 text-white hover:bg-indigo-500"
     when :secondary then "#{base} border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
-    when :danger then "#{base} border border-rose-300 text-rose-700 hover:bg-rose-50"
-    when :link then "#{base} border border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+    when :danger then "#{base} border border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
+    when :link then "#{base} border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
     else "#{base} border border-slate-300 text-slate-700 hover:bg-slate-50"
     end
     extra.present? ? "#{classes} #{extra}" : classes
@@ -133,16 +133,20 @@ module ApplicationHelper
     end
   end
 
+  def stock_event_heading(stock, suffix)
+    [ stock&.code, stock&.name, suffix ].compact.join(" ")
+  end
+
   def trade_event_kind_label(kind)
     case kind.to_s
-    when "entry" then "エントリー（買い）"
-    when "exit" then "イグジット（売り）"
+    when "entry" then "エントリー"
+    when "exit" then "イグジット"
     when "line_change" then "ライン変更"
     else kind.to_s
     end
   end
 
-  def trade_event_summary(row)
+  def trade_event_reason(row)
     record = row.record
     case row.kind.to_s
     when "entry" then record.entry_reason.to_s.truncate(80)
@@ -150,6 +154,36 @@ module ApplicationHelper
     when "line_change" then record.reason.to_s.truncate(80)
     else ""
     end
+  end
+
+  def trade_display_price(record)
+    return unless record.respond_to?(:actual_price)
+
+    if record.actual_price.present? && record.actual_price.to_d.positive?
+      [ record.actual_price, false ]
+    elsif record.expected_price.present? && record.expected_price.to_d.positive?
+      [ record.expected_price, true ]
+    end
+  end
+
+  def trade_price_planned?(record)
+    pair = trade_display_price(record)
+    pair.present? && pair[1]
+  end
+
+  def trade_kind_cell(row)
+    parts = [ trade_event_kind_label(row.kind) ]
+    if trade_price_planned?(row.record)
+      parts << content_tag(:span, "予定", class: "ml-1 inline-flex rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800")
+    end
+    safe_join(parts)
+  end
+
+  def trade_price_cell(record)
+    pair = trade_display_price(record)
+    return "—" if pair.nil?
+
+    format_decimal(pair[0])
   end
 
   def timeline_tab_label(trade_type, judgment_type)
@@ -198,9 +232,12 @@ module ApplicationHelper
   end
 
   def format_decimal(value)
-    return "" if value.blank?
+    return "" if value.nil?
 
-    value.to_s("F")
+    n = value.to_d
+    return "" unless n.finite?
+
+    n.round(0, BigDecimal::ROUND_HALF_UP).to_i.to_s
   end
 
   def format_date_value(value)

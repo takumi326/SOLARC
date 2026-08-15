@@ -29,19 +29,20 @@
   </label>
   <label class="block">
     <span class="text-slate-700">株数</span>
-    <%= form.number_field :shares, min: 1, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.number_field :shares, min: 1, step: 1, inputmode: "numeric", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
   </label>
   <label class="block">
     <span class="text-slate-700">予定価格</span>
-    <%= form.text_field :expected_price, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.number_field :expected_price, min: 0, step: :any, inputmode: "decimal", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
   </label>
   <label class="block">
     <span class="text-slate-700">約定価格</span>
-    <%= form.text_field :actual_price, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.number_field :actual_price, min: 0, step: :any, inputmode: "decimal", class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
   </label>
   <label class="block">
     <span class="text-slate-700">約定日</span>
-    <%= form.date_field :traded_at, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <%= form.date_field :traded_at, max: Date.current.iso8601, class: "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" %>
+    <p class="mt-1 text-xs text-slate-500">予定価格か約定価格のどちらかは必須。約定するときは株数・約定価格・約定日をセット。約定日は今日以前のみ</p>
   </label>
   <label class="block">
     <span class="text-slate-700">レビュー</span>

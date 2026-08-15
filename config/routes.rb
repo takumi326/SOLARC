@@ -95,7 +95,7 @@ Rails.application.routes.draw do
       get :timeline
     end
     resources :stock_notes, only: [ :new, :create, :edit, :update, :destroy ]
-    resources :stock_watch_periods, only: [ :new, :create, :destroy ], path: "watch-periods"
+    resources :stock_watch_periods, only: [ :new, :create, :edit, :update, :destroy ], path: "watch-periods"
   end
 
   resources :entries, only: [ :new, :create, :show, :edit, :update, :destroy ]

@@ -1,23 +1,18 @@
 <div class="space-y-4">
-  <p class="text-sm text-slate-500">
-    <%= link_to "株一覧", stocks_path, class: "text-indigo-600 hover:underline" %>
-    <span> / </span>
-    <span class="text-slate-800"><%= @stock.name %></span>
-  </p>
-
   <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 class="text-xl font-bold">
-          <span class="font-mono text-slate-500"><%= @stock.code %></span>
-          <%= @stock.name %>
-        </h2>
-        <p class="mt-1 text-sm text-slate-600">
-          <%= @stock.industry.name %>
-          <% if @stock.watched? %>
-            <span class="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">監視中</span>
+        <h2 class="flex flex-wrap items-center gap-2 text-xl font-bold">
+          <span>
+            <%= @stock.code %> <%= @stock.name %>（<%= @stock.industry.name %>）
+          </span>
+          <% holding = @current_position && @current_position[:shares].to_i.positive? %>
+          <% if holding %>
+            <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">エントリー中</span>
+          <% elsif @stock.currently_watched? %>
+            <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">監視中</span>
           <% end %>
-        </p>
+        </h2>
       </div>
       <a href="<%= @stock.tradingview_url %>" target="_blank" rel="noreferrer" class="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white hover:bg-slate-800">
         TradingView で開く
@@ -29,7 +24,7 @@
         <span class="font-medium text-slate-700">銘柄設定</span>
         <%= link_to "編集",
                     edit_stock_path(@stock, trade_type: @trade_type, judgment_type: @judgment_type, ai_script_id: @ai_script_id),
-                    class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
+                    class: btn_classes(:secondary, extra: "px-2.5 py-1 text-xs") %>
       </div>
       <dl class="grid gap-1 text-slate-700">
         <div class="flex gap-2">
@@ -49,10 +44,13 @@
           <% @watch_items.each do |item| %>
             <li class="flex flex-wrap items-center justify-between gap-2">
               <span class="text-slate-800"><%= item.stock_watch_batch.watch_period_label %></span>
-              <%= button_to "削除", stock_stock_watch_period_path(@stock, item),
-                    method: :delete,
-                    form: { data: { turbo_confirm: "この監視期間を削除しますか？" }, class: "inline" },
-                    class: btn_classes(:danger, extra: "px-2.5 py-1 text-xs") %>
+              <div class="flex flex-wrap items-center gap-2">
+                <%= link_to "編集", edit_stock_stock_watch_period_path(@stock, item), class: btn_classes(:secondary, extra: "px-2.5 py-1 text-xs") %>
+                <%= button_to "削除", stock_stock_watch_period_path(@stock, item),
+                      method: :delete,
+                      form: { data: { turbo_confirm: "この監視期間を削除しますか？" }, class: "inline" },
+                      class: btn_classes(:danger, extra: "px-2.5 py-1 text-xs") %>
+              </div>
             </li>
           <% end %>
         </ul>
@@ -60,42 +58,6 @@
         <p class="text-slate-500">まだありません</p>
       <% end %>
     </div>
-  </section>
-
-  <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <div class="mb-3 flex items-center justify-between gap-2">
-      <h3 class="text-lg font-semibold">観察履歴</h3>
-      <%= link_to "追加", new_stock_stock_note_path(@stock), class: btn_primary_classes %>
-    </div>
-    <% if @stock_notes.empty? %>
-      <p class="text-sm text-slate-500">まだありません</p>
-    <% else %>
-      <div class="overflow-x-auto rounded-lg border border-slate-200">
-        <table class="w-full min-w-0 border-collapse text-sm">
-          <thead class="bg-slate-50 text-left text-xs text-slate-500">
-            <tr>
-              <th class="border-b border-slate-200 px-3 py-2 font-semibold whitespace-nowrap">日付</th>
-              <th class="border-b border-slate-200 px-3 py-2 font-semibold">タイトル</th>
-              <th class="border-b border-slate-200 px-3 py-2 font-semibold whitespace-nowrap">操作</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <% @stock_notes.each do |note| %>
-              <tr>
-                <td class="px-3 py-2.5 align-middle font-medium whitespace-nowrap tabular-nums text-slate-700"><%= note.noted_on.iso8601 %></td>
-                <td class="min-w-0 px-3 py-2.5 align-middle text-slate-800"><%= note.title.presence || content_tag(:span, "（無題）", class: "text-slate-400") %></td>
-                <td class="px-3 py-2.5 text-right align-middle whitespace-nowrap">
-                  <div class="inline-flex flex-wrap items-center justify-end gap-2">
-                    <%= link_to "編集", edit_stock_stock_note_path(@stock, note), class: btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>
-                    <%= button_to "削除", stock_stock_note_path(@stock, note), method: :delete, form: { data: { turbo_confirm: "削除しますか？" }, class: "inline" }, class: btn_classes(:danger, extra: "px-2.5 py-1 text-xs") %>
-                  </div>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% end %>
   </section>
 
   <%= render "timeline_section" %>

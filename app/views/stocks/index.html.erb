@@ -45,43 +45,31 @@
       <table class="min-w-full text-left text-sm">
         <thead>
           <tr class="border-b border-slate-200 text-slate-500">
-            <th class="py-2 pr-3 text-center">監視</th>
-            <th class="py-2 pr-3 text-center">エントリー</th>
-            <th class="py-2 pr-3">コード</th>
-            <th class="py-2 pr-3">銘柄名</th>
+            <th class="py-2 pr-3">銘柄</th>
             <th class="py-2 pr-3">業種</th>
-            <th class="py-2 pr-3 text-right">保有株数（実）</th>
-            <th class="py-2 pr-3">チャート</th>
-            <th class="py-2 pr-3">操作</th>
+            <th class="py-2 pr-3"></th>
           </tr>
         </thead>
         <tbody>
           <% @stocks.each do |stock| %>
-            <% flags = @stock_flags.fetch(stock.id, { watched: false, entered: false }) %>
+            <% flags = @stock_flags.fetch(stock.id, { watching: false, holding: false }) %>
             <tr class="border-b border-slate-100">
-              <td class="py-2 pr-3 text-center">
-                <% if flags[:watched] %>
-                  <span class="font-semibold text-emerald-600" title="<%= @period_active ? "期間内に監視" : "監視中" %>">○</span>
-                <% else %>
-                  <span class="text-slate-300" title="<%= @period_active ? "期間内に監視なし" : "監視なし" %>">—</span>
-                <% end %>
+              <td class="py-2 pr-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <%= link_to stock_path(stock), class: "text-indigo-600 hover:underline" do %>
+                    <span class="font-mono"><%= stock.code %></span>
+                    <span class="font-medium"><%= stock.name %></span>
+                  <% end %>
+                  <% if flags[:holding] %>
+                    <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">エントリー中</span>
+                  <% elsif flags[:watching] %>
+                    <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">監視中</span>
+                  <% end %>
+                </div>
               </td>
-              <td class="py-2 pr-3 text-center">
-                <% if flags[:entered] %>
-                  <span class="font-semibold text-indigo-600" title="<%= @period_active ? "期間内にエントリー" : "エントリーあり" %>">○</span>
-                <% else %>
-                  <span class="text-slate-300" title="<%= @period_active ? "期間内にエントリーなし" : "エントリーなし" %>">—</span>
-                <% end %>
-              </td>
-              <td class="py-2 pr-3 font-mono"><%= stock.code %></td>
-              <td class="py-2 pr-3 font-medium"><%= stock.name %></td>
               <td class="py-2 pr-3 text-slate-600"><%= stock.industry.name %></td>
-              <td class="py-2 pr-3 text-right tabular-nums"><%= stock.holding_shares_real %></td>
-              <td class="py-2 pr-3">
-                <a href="<%= stock.tradingview_url %>" target="_blank" rel="noreferrer" class="text-indigo-600 hover:underline">TradingView</a>
-              </td>
-              <td class="py-2 pr-3">
-                <%= link_to "詳細", stock_path(stock), class: "inline-flex items-center justify-center rounded-md border border-indigo-200 bg-white px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50" %>
+              <td class="py-2 pr-3 whitespace-nowrap">
+                <a href="<%= stock.tradingview_url %>" target="_blank" rel="noreferrer" class="<%= btn_classes(:link, extra: "px-2.5 py-1 text-xs") %>">チャート</a>
               </td>
             </tr>
           <% end %>
