@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe "Stocks", type: :request do
   describe "GET /stocks" do
-    it "shows stocks with any entry" do
+    it "shows stocks with an open real position" do
       stock = create_test_stock
       create_test_entry(stock: stock)
 
@@ -10,38 +10,47 @@ RSpec.describe "Stocks", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("株一覧")
       expect(response.body).to include(stock.name)
+      expect(response.body).to include("エントリー中")
     end
 
-    it "shows stocks with virtual entry only" do
+    it "shows virtual holding stocks" do
       stock = create_test_stock(code: "1111", name: "仮想のみ")
       create_test_entry(stock: stock, trade_type: "virtual", shares: 10)
 
       get stocks_path
       expect(response.body).to include("仮想のみ")
+      expect(response.body).to include("仮想エントリー中")
     end
 
-    it "shows stocks even when fully exited" do
+    it "shows currently watched stocks" do
+      stock = create_test_stock(code: "4444", name: "監視銘柄")
+      create_test_watch_period(stock: stock)
+
+      get stocks_path
+      expect(response.body).to include("4444")
+      expect(response.body).to include("監視中")
+    end
+
+    it "hides fully exited stocks" do
       stock = create_test_stock(code: "2222", name: "全決済済")
       create_test_entry(stock: stock, shares: 10)
       create_test_exit(stock: stock, shares: 10, actual_price: 1000, exit_reason: "売却")
 
       get stocks_path
-      expect(response.body).to include("全決済済")
+      expect(response.body).not_to include("全決済済")
     end
 
-    it "hides stocks without entries when not searching" do
-      stock = create_test_stock(code: "3333", name: "ゼロエントリー銘柄")
+    it "hides stocks that are not watched or holding" do
+      create_test_stock(code: "3333", name: "ゼロエントリー銘柄")
 
       get stocks_path
       expect(response.body).not_to include("3333")
       expect(response.body).not_to include("ゼロエントリー銘柄")
     end
 
-    it "searches by query" do
-      stock = create_test_stock(code: "9984", name: "ソフトバンクG")
-      get stocks_path, params: { q: "9984" }
-      expect(response).to have_http_status(:ok)
-      expect(response.body).to include("ソフトバンクG")
+    it "does not show a search field" do
+      get stocks_path
+      expect(response.body).not_to include("コード・銘柄名で検索")
     end
   end
 
@@ -108,7 +117,7 @@ RSpec.describe "Stocks", type: :request do
       get stock_path(stock)
       expect(response.body).to include("現在の保有")
       expect(response.body).to include("100株")
-      expect(response.body).to include("1234")
+      expect(response.body).to include("1,234")
       expect(response.body).to include("株数")
       expect(response.body).to include("価格")
     end
@@ -149,265 +158,21 @@ RSpec.describe "Stocks", type: :request do
     end
   end
 
-  describe "GET /stocks with filters" do
-    it "shows watched stocks without entries" do
-      stock = create_test_stock(code: "4444", name: "監視銘柄")
-      create_test_watch_period(stock: stock)
+  describe "GET /stocks/lookup" do
+    it "returns matching stocks as JSON" do
+      stock = create_test_stock(code: "9984", name: "ソフトバンクG")
 
-      get stocks_path
-      expect(response.body).to include("監視銘柄")
+      get lookup_stocks_path, params: { q: "9984" }, as: :json
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body).to include(hash_including("code" => "9984", "name" => "ソフトバンクG", "url" => stock_path(stock)))
     end
 
-    it "shows watched or entered stocks by default" do
-      both = create_test_stock(code: "1212", name: "監視エントリー両方")
-      create_test_watch_period(stock: both)
-      create_test_entry(stock: both)
-      watched_only = create_test_stock(code: "1313", name: "監視だけの銘柄")
-      create_test_watch_period(stock: watched_only)
-      entered_only = create_test_stock(code: "1414", name: "エントリーだけの銘柄")
-      create_test_entry(stock: entered_only)
+    it "returns an empty list when query is blank" do
+      create_test_stock(code: "9984", name: "ソフトバンクG")
 
-      get stocks_path
-      expect(response.body).to include("監視エントリー両方")
-      expect(response.body).to include("監視だけの銘柄")
-      expect(response.body).to include("エントリーだけの銘柄")
-    end
-
-    it "filters to watching only" do
-      watched = create_test_stock(code: "5555", name: "第五監視銘柄")
-      create_test_watch_period(stock: watched)
-      entered = create_test_stock(code: "6666", name: "第六エントリー銘柄")
-      create_test_entry(stock: entered)
-
-      get stocks_path, params: { watch: "1", entry: "0" }
-      expect(response.body).to include("5555")
-      expect(response.body).to include("第五監視銘柄")
-      expect(response.body).not_to include("6666")
-      expect(response.body).not_to include("第六エントリー銘柄")
-    end
-
-    it "filters to entered only" do
-      watched = create_test_stock(code: "5555", name: "第五監視銘柄")
-      create_test_watch_period(stock: watched)
-      entered = create_test_stock(code: "6666", name: "第六エントリー銘柄")
-      create_test_entry(stock: entered)
-
-      get stocks_path, params: { watch: "0", entry: "1" }
-      expect(response.body).to include("6666")
-      expect(response.body).not_to include("5555")
-    end
-
-    it "shows no stocks when every checkbox is off" do
-      stock = create_test_stock(code: "5555", name: "第五監視銘柄")
-      create_test_watch_period(stock: stock)
-
-      get stocks_path, params: { watch: "0", entry: "0", virtual: "0" }
-      expect(response.body).not_to include("第五監視銘柄")
-      expect(response.body).to include("監視・エントリー・仮想エントリーのいずれかを選んでください")
-    end
-
-    it "shows virtual entry stocks by default and under the 仮想エントリー checkbox" do
-      stock = create_test_stock(code: "1111", name: "仮想のみ")
-      create_test_entry(stock: stock, trade_type: "virtual", shares: 10)
-
-      get stocks_path
-      expect(response.body).to include("仮想のみ")
-
-      get stocks_path, params: { watch: "0", entry: "0", virtual: "1" }
-      expect(response.body).to include("仮想のみ")
-    end
-
-    it "hides virtual entry stocks when only エントリー is checked" do
-      stock = create_test_stock(code: "1111", name: "仮想のみ")
-      create_test_entry(stock: stock, trade_type: "virtual", shares: 10)
-
-      get stocks_path, params: { watch: "0", entry: "1", virtual: "0" }
-      expect(response.body).not_to include("仮想のみ")
-    end
-
-    it "hides real entry stocks when only 仮想エントリー is checked" do
-      real = create_test_stock(code: "6666", name: "実エントリー銘柄")
-      create_test_entry(stock: real)
-      virtual = create_test_stock(code: "1111", name: "仮想のみ")
-      create_test_entry(stock: virtual, trade_type: "virtual", shares: 10)
-
-      get stocks_path, params: { watch: "0", entry: "0", virtual: "1" }
-      expect(response.body).to include("仮想のみ")
-      expect(response.body).not_to include("実エントリー銘柄")
-    end
-
-    it "shows エントリー中 and not 監視中 when holding even if watched" do
-      watching = create_test_stock(code: "5555", name: "監視銘柄")
-      create_test_watch_period(stock: watching, starts_on: Date.current, ends_on: Date.current)
-      holding = create_test_stock(code: "6666", name: "エントリー銘柄")
-      create_test_watch_period(stock: holding, starts_on: Date.current, ends_on: Date.current)
-      create_test_entry(stock: holding, shares: 100)
-
-      get stocks_path
-      html = response.body
-      watching_idx = html.index("5555")
-      holding_idx = html.index("6666")
-      watching_slice = html[watching_idx, 400]
-      holding_slice = html[holding_idx, 400]
-      expect(watching_slice).to include("監視中")
-      expect(watching_slice).not_to include("エントリー中")
-      expect(holding_slice).to include("エントリー中")
-      expect(holding_slice).not_to include("監視中")
-    end
-
-    it "keeps stocks watched or entered within the selected period" do
-      watched = create_test_stock(code: "1010", name: "期間監視")
-      entered = create_test_stock(code: "2020", name: "期間エントリー")
-      other = create_test_stock(code: "3030", name: "期間外")
-      starts_on = Date.new(2026, 8, 10)
-      ends_on = Date.new(2026, 8, 14)
-      batch = StockWatchBatch.create!(imported_on: starts_on, starts_on: starts_on, ends_on: ends_on)
-      StockWatchItem.create!(stock_watch_batch: batch, stock: watched, source_label: "ロング")
-      create_test_entry(stock: entered, traded_at: Date.new(2026, 8, 12))
-      create_test_entry(stock: other, traded_at: Date.new(2026, 7, 1))
-
-      get stocks_path, params: {
-        period_starts_on: starts_on.iso8601,
-        period_ends_on: ends_on.iso8601
-      }
-
-      expect(response.body).to include("期間監視")
-      expect(response.body).to include("期間エントリー")
-      expect(response.body).not_to include("期間外")
-    end
-
-    it "keeps the submitted dates in the period inputs" do
-      get stocks_path, params: {
-        period_starts_on: "2026-08-10",
-        period_ends_on: "2026-08-14"
-      }
-
-      expect(response.body).to include(%(name="period_starts_on"))
-      expect(response.body).to include(%(name="period_ends_on"))
-      expect(response.body).to include(%(type="date"))
-      expect(response.body).to include(%(value="2026-08-10"))
-      expect(response.body).to include(%(value="2026-08-14"))
-      expect(response.body).not_to include("監視期間（開始）")
-      expect(response.body).not_to include("監視期間（終了）")
-      expect(response.body).not_to include("最近の監視期間")
-      expect(response.body).not_to include("並び順")
-      expect(response.body).not_to include("期間を解除")
-      expect(response.body).not_to include("期間: ")
-    end
-
-    it "keeps a one-sided date in the period inputs" do
-      get stocks_path, params: { period_starts_on: "2026-08-10" }
-
-      expect(response.body).to include(%(value="2026-08-10"))
-    end
-
-    it "filters from the start date onward when only 開始日 is given" do
-      inside = create_test_stock(code: "1010", name: "開始日以降")
-      before = create_test_stock(code: "2020", name: "開始日より前")
-      create_test_entry(stock: inside, traded_at: Date.new(2026, 8, 12))
-      create_test_entry(stock: before, traded_at: Date.new(2026, 7, 1))
-
-      get stocks_path, params: { period_starts_on: "2026-08-10" }
-
-      expect(response.body).to include("開始日以降")
-      expect(response.body).not_to include("開始日より前")
-    end
-
-    it "filters up to the end date when only 終了日 is given" do
-      inside = create_test_stock(code: "1010", name: "終了日以前")
-      later = create_test_stock(code: "2020", name: "終了日より後")
-      create_test_entry(stock: inside, traded_at: Date.new(2026, 7, 1))
-      create_test_entry(stock: later, traded_at: Date.new(2026, 8, 15))
-
-      get stocks_path, params: { period_ends_on: "2026-08-14" }
-
-      expect(response.body).to include("終了日以前")
-      expect(response.body).not_to include("終了日より後")
-    end
-
-    it "keeps an inverted range in the inputs without filtering by it" do
-      stock = create_test_stock(code: "1010", name: "逆転期間銘柄")
-      create_test_entry(stock: stock, traded_at: Date.new(2026, 7, 1))
-
-      get stocks_path, params: {
-        period_starts_on: "2026-08-14",
-        period_ends_on: "2026-08-10"
-      }
-
-      expect(response.body).to include(%(value="2026-08-14"))
-      expect(response.body).to include(%(value="2026-08-10"))
-      expect(response.body).to include("逆転期間銘柄")
-    end
-
-    it "filters watch periods from the start date onward" do
-      inside = create_test_stock(code: "3030", name: "以降監視")
-      before = create_test_stock(code: "4040", name: "以前監視")
-      inside_batch = StockWatchBatch.create!(imported_on: Date.new(2026, 8, 10), starts_on: Date.new(2026, 8, 10), ends_on: Date.new(2026, 8, 14))
-      before_batch = StockWatchBatch.create!(imported_on: Date.new(2026, 7, 1), starts_on: Date.new(2026, 7, 1), ends_on: Date.new(2026, 7, 3))
-      StockWatchItem.create!(stock_watch_batch: inside_batch, stock: inside, source_label: "ロング")
-      StockWatchItem.create!(stock_watch_batch: before_batch, stock: before, source_label: "ロング")
-
-      get stocks_path, params: { period_starts_on: "2026-08-10", watch: "1", entry: "0", virtual: "0" }
-
-      expect(response.body).to include("以降監視")
-      expect(response.body).not_to include("以前監視")
-    end
-
-    it "filters to watched only within the selected period" do
-      watched = create_test_stock(code: "4141", name: "期間監視だけ")
-      entered = create_test_stock(code: "5151", name: "期間エントリーだけ")
-      starts_on = Date.new(2026, 8, 10)
-      ends_on = Date.new(2026, 8, 14)
-      batch = StockWatchBatch.create!(imported_on: starts_on, starts_on: starts_on, ends_on: ends_on)
-      StockWatchItem.create!(stock_watch_batch: batch, stock: watched, source_label: "ロング")
-      create_test_entry(stock: entered, traded_at: Date.new(2026, 8, 11))
-
-      get stocks_path, params: {
-        period_starts_on: starts_on.iso8601,
-        period_ends_on: ends_on.iso8601,
-        watch: "1",
-        entry: "0"
-      }
-
-      expect(response.body).to include("期間監視だけ")
-      expect(response.body).not_to include("期間エントリーだけ")
-    end
-
-    it "filters to entered only within the selected period" do
-      watched = create_test_stock(code: "4040", name: "監視だけ")
-      entered = create_test_stock(code: "5050", name: "エントリーだけ")
-      starts_on = Date.new(2026, 8, 10)
-      ends_on = Date.new(2026, 8, 14)
-      batch = StockWatchBatch.create!(imported_on: starts_on, starts_on: starts_on, ends_on: ends_on)
-      StockWatchItem.create!(stock_watch_batch: batch, stock: watched, source_label: "ロング")
-      create_test_entry(stock: entered, traded_at: Date.new(2026, 8, 11))
-
-      get stocks_path, params: {
-        period_starts_on: starts_on.iso8601,
-        period_ends_on: ends_on.iso8601,
-        watch: "0",
-        entry: "1"
-      }
-
-      expect(response.body).to include("エントリーだけ")
-      expect(response.body).not_to include("監視だけ")
-    end
-
-    it "sorts watched stocks first then by code within the selected period" do
-      watched = create_test_stock(code: "2222", name: "期間監視")
-      entered = create_test_stock(code: "1111", name: "期間エントリー")
-      starts_on = Date.new(2026, 8, 10)
-      ends_on = Date.new(2026, 8, 14)
-      batch = StockWatchBatch.create!(imported_on: starts_on, starts_on: starts_on, ends_on: ends_on)
-      StockWatchItem.create!(stock_watch_batch: batch, stock: watched, source_label: "ロング")
-      create_test_entry(stock: entered, traded_at: Date.new(2026, 8, 11))
-
-      get stocks_path, params: {
-        period_starts_on: starts_on.iso8601,
-        period_ends_on: ends_on.iso8601
-      }
-
-      expect(response.body.index("期間監視")).to be < response.body.index("期間エントリー")
+      get lookup_stocks_path, params: { q: "" }, as: :json
+      expect(response.parsed_body).to eq([])
     end
   end
 

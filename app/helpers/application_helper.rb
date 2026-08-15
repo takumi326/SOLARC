@@ -141,7 +141,7 @@ module ApplicationHelper
     case kind.to_s
     when "entry" then "エントリー"
     when "exit" then "イグジット"
-    when "line_change" then "ライン変更"
+    when "line_change" then "ライン設定"
     else kind.to_s
     end
   end
@@ -237,7 +237,22 @@ module ApplicationHelper
     n = value.to_d
     return "" unless n.finite?
 
-    n.round(0, BigDecimal::ROUND_HALF_UP).to_i.to_s
+    n.round(0, BigDecimal::ROUND_HALF_UP).to_i.to_fs(:delimited)
+  end
+
+  def format_shares(value)
+    return "" if value.nil?
+
+    value.to_i.to_fs(:delimited)
+  end
+
+  def format_r_multiple(value)
+    return "" if value.nil?
+
+    n = value.to_d
+    return "" unless n.finite?
+
+    number_with_precision(n, precision: 2, delimiter: ",", separator: ".")
   end
 
   def format_date_value(value)

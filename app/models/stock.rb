@@ -37,14 +37,18 @@ class Stock < ApplicationRecord
   }
 
   scope :entered_in_period, lambda { |starts_on, ends_on|
-    where(id: TradeEvent.entry.real.human.dated_between(starts_on, ends_on).select(:stock_id))
+    where(id: Position.open.real.human.where("quantity > 0").overlapping(starts_on, ends_on).select(:stock_id))
   }
 
   scope :virtual_entered_in_period, lambda { |starts_on, ends_on|
-    where(id: virtual_entry_scope.dated_between(starts_on, ends_on).select(:stock_id))
+    where(id: virtual_position_scope.open.where("quantity > 0").overlapping(starts_on, ends_on).select(:stock_id))
   }
 
   # AI 取引がオミットのときは仮想でも人間判断のみを対象にする
+  def self.virtual_position_scope
+    AiTradeFeatures.enabled? ? Position.virtual : Position.virtual.human
+  end
+
   def self.virtual_entry_scope
     AiTradeFeatures.enabled? ? TradeEvent.entry.virtual : TradeEvent.entry.virtual.human
   end
@@ -56,7 +60,7 @@ class Stock < ApplicationRecord
   }
 
   scope :with_current_flags, lambda {
-    entered_sql = TradeEvent.entry.real.human.where("trade_events.stock_id = stocks.id").select("1").to_sql
+    entered_sql = Position.open.real.human.where("positions.stock_id = stocks.id").where("positions.quantity > 0").select("1").to_sql
     select("stocks.*", "stocks.watched AS period_watched", "(EXISTS (#{entered_sql})) AS current_entered")
   }
 
@@ -69,15 +73,20 @@ class Stock < ApplicationRecord
   end
 
   def self.entered_in_period_exists_sql(starts_on, ends_on)
-    TradeEvent.entry.real.human
-      .where("trade_events.stock_id = stocks.id")
-      .dated_between(starts_on, ends_on)
+    Position.open.real.human
+      .where("positions.stock_id = stocks.id")
+      .where("positions.quantity > 0")
+      .overlapping(starts_on, ends_on)
       .select("1")
       .to_sql
   end
 
   scope :with_real_holdings, lambda {
     where(id: Position.open.real.human.where("quantity > 0").select(:stock_id))
+  }
+
+  scope :with_virtual_holdings, lambda {
+    where(id: virtual_position_scope.open.where("quantity > 0").select(:stock_id))
   }
 
   scope :search_by_term, lambda { |q|

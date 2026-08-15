@@ -1,0 +1,13 @@
+<div id="stock-search" data-lookup-url="<%= lookup_stocks_path %>" role="dialog" aria-modal="true" aria-labelledby="stock-search-title" style="display:none;position:fixed;inset:0;z-index:80;align-items:flex-start;justify-content:center;padding:18vh 24px 24px;background:rgba(15,23,42,0.55);">
+  <div id="stock-search-panel" style="width:min(36rem,100%);overflow:hidden;border-radius:16px;background:#ffffff;color:#0f172a;color-scheme:light;box-shadow:0 25px 50px -12px rgba(15,23,42,0.35);">
+    <div class="flex items-center justify-between gap-3" style="padding:20px 24px 12px;">
+      <h2 id="stock-search-title" class="text-base font-semibold" style="color:#0f172a">銘柄を検索</h2>
+      <button type="button" id="stock-search-close" class="rounded-lg px-2 py-1 text-lg leading-none" style="color:#64748b" aria-label="閉じる">×</button>
+    </div>
+    <div style="padding:0 24px 20px;">
+      <input id="stock-search-input" type="search" autocomplete="off" placeholder="コード・銘柄名" aria-label="コード・銘柄名" style="box-sizing:border-box;width:100%;border:1px solid #94a3b8;border-radius:10px;padding:12px 14px;font-size:16px;line-height:1.4;color:#0f172a;background:#ffffff;outline:none;">
+    </div>
+    <ul id="stock-search-results" class="max-h-72 overflow-auto"></ul>
+    <p id="stock-search-empty" class="hidden text-center text-sm" style="color:#64748b;padding:8px 24px 24px;">一致する銘柄はありません</p>
+  </div>
+</div>

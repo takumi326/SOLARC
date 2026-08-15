@@ -72,8 +72,10 @@ RSpec.describe PositionRebuilder do
     expect(stock.positions.order(:opened_at, :id).pluck(:quantity, :status, :realized_pnl)).to eq(ids.map { |r| r[1..] })
   end
 
-  it "calculates R-multiple from initial_stop" do
-    record(:entry, quantity: 100, actual_price: 1000, entry_reason: "e", initial_stop: 900)
+  it "calculates R-multiple from the first line setting" do
+    record(:entry, quantity: 100, actual_price: 1000, entry_reason: "e")
+    record(:line_change, stop_loss: 900)
+    record(:line_change, stop_loss: 950)
     record(:exit, quantity: 100, actual_price: 1100, exit_reason: "x")
     pos = stock.positions.closed.first
 

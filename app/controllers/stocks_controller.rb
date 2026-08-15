@@ -8,17 +8,17 @@ class StocksController < ApplicationController
   before_action :reject_omitted_ai_timeline!, only: [ :show, :timeline, :edit, :update ]
 
   def index
-    result = StockIndexQuery.call(params)
+    result = StockIndexQuery.call
     @stocks = result.stocks
     @stock_flags = result.stock_flags
-    @q = result.q
-    @watch = result.watch
-    @entry = result.entry
-    @virtual = result.virtual
-    @period_starts_on = result.period_starts_on
-    @period_ends_on = result.period_ends_on
-    @period_active = result.period_active
-    @searching = result.searching
+  end
+
+  def lookup
+    q = params[:q].to_s.strip
+    stocks = q.blank? ? Stock.none : Stock.search_by_term(q).includes(:industry).ordered.limit(20)
+    render json: stocks.map { |stock|
+      { code: stock.code, name: stock.name, url: stock_path(stock) }
+    }
   end
 
   def show
