@@ -90,7 +90,7 @@
             <% group[:rows].each do |row| %>
               <tr class="border-b border-slate-100">
                 <td class="py-2 pr-4 tabular-nums"><%= row.sort_on %></td>
-                <td class="py-2 pr-4 whitespace-nowrap"><%= trade_kind_cell(row) %></td>
+                <td class="py-2 pr-4 whitespace-nowrap" title="<%= trade_event_reason(row) %>"><%= trade_kind_cell(row) %></td>
                 <td class="py-2 pr-4 text-right tabular-nums whitespace-nowrap"><%= format_shares(row.record.try(:shares)).presence || "—" %></td>
                 <td class="py-2 pr-10 text-right tabular-nums whitespace-nowrap"><%= trade_price_cell(row.record) %></td>
                 <td class="py-2 whitespace-nowrap" style="width: 1%">
