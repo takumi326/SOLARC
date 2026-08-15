@@ -9,6 +9,13 @@ class StockWatchBatch < ApplicationRecord
 
   scope :imported_between, ->(range) { where(imported_on: range) }
   scope :covering, ->(date) { where("starts_on <= ? AND ends_on >= ?", date, date) }
+  # 期間は片側だけの指定も許す（開始のみ = それ以降 / 終了のみ = それ以前）
+  scope :overlapping, lambda { |starts_on, ends_on|
+    scope = all
+    scope = scope.where(ends_on: starts_on..) if starts_on.present?
+    scope = scope.where(starts_on: ..ends_on) if ends_on.present?
+    scope
+  }
   scope :recent, -> { order(imported_on: :desc, id: :desc) }
 
   def watch_period_label

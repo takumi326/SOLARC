@@ -10,26 +10,32 @@
     </div>
 
     <div class="mb-4 flex flex-wrap items-end gap-3">
-      <%= form_with url: stocks_path, method: :get, class: "flex flex-wrap items-end gap-2" do %>
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-slate-600">検索（コード・銘柄名）</span>
-          <%= text_field_tag :q, @q, class: "w-48 rounded-lg border border-slate-300 px-2 py-1.5", placeholder: "例: 7203" %>
-        </label>
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-slate-600">表示</span>
-          <%= select_tag :filter,
-                         options_for_select([ [ "監視またはエントリー済", "" ], [ "監視のみ", "watching" ] ], @filter),
-                         class: "rounded-lg border border-slate-300 px-2 py-1.5" %>
-        </label>
-        <label class="flex flex-col gap-1 text-sm">
-          <span class="text-slate-600">業種</span>
-          <%= select_tag :industry_id,
-                         options_from_collection_for_select(@industries, :id, :name, @industry_id),
-                         include_blank: "すべて",
-                         class: "rounded-lg border border-slate-300 px-2 py-1.5" %>
-        </label>
+      <%= form_with url: stocks_path, method: :get, class: "flex flex-wrap items-center gap-2" do %>
+        <%= text_field_tag :q, @q, class: "w-56 rounded-lg border border-slate-300 px-2 py-1.5 text-sm", placeholder: "コード・銘柄名で検索", aria: { label: "コード・銘柄名で検索" } %>
+        <div class="flex items-center gap-3 text-sm">
+          <label class="inline-flex items-center gap-1.5">
+            <%= hidden_field_tag :watch, "0", id: nil %>
+            <%= check_box_tag :watch, "1", @watch, id: "stock_filter_watch" %>
+            <span>監視</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5">
+            <%= hidden_field_tag :entry, "0", id: nil %>
+            <%= check_box_tag :entry, "1", @entry, id: "stock_filter_entry" %>
+            <span>エントリー</span>
+          </label>
+          <label class="inline-flex items-center gap-1.5">
+            <%= hidden_field_tag :virtual, "0", id: nil %>
+            <%= check_box_tag :virtual, "1", @virtual, id: "stock_filter_virtual" %>
+            <span>仮想エントリー</span>
+          </label>
+        </div>
+        <div class="flex items-center gap-1.5 text-sm">
+          <%= date_field_tag :period_starts_on, @period_starts_on&.iso8601, class: "rounded-lg border border-slate-300 px-2 py-1.5 text-sm", aria: { label: "期間の開始日" } %>
+          <span class="text-slate-400">〜</span>
+          <%= date_field_tag :period_ends_on, @period_ends_on&.iso8601, class: "rounded-lg border border-slate-300 px-2 py-1.5 text-sm", aria: { label: "期間の終了日" } %>
+        </div>
         <%= submit_tag "絞り込み", class: "rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-700 cursor-pointer" %>
-        <% if @searching || @filter.present? || @industry_id.present? %>
+        <% if @searching || !@watch || !@entry || !@virtual || @period_starts_on || @period_ends_on %>
           <%= link_to "クリア", stocks_path, class: btn_secondary_classes %>
         <% end %>
       <% end %>
@@ -40,6 +46,7 @@
         <thead>
           <tr class="border-b border-slate-200 text-slate-500">
             <th class="py-2 pr-3 text-center">監視</th>
+            <th class="py-2 pr-3 text-center">エントリー</th>
             <th class="py-2 pr-3">コード</th>
             <th class="py-2 pr-3">銘柄名</th>
             <th class="py-2 pr-3">業種</th>
@@ -50,12 +57,20 @@
         </thead>
         <tbody>
           <% @stocks.each do |stock| %>
+            <% flags = @stock_flags.fetch(stock.id, { watched: false, entered: false }) %>
             <tr class="border-b border-slate-100">
               <td class="py-2 pr-3 text-center">
-                <% if stock.watched? %>
-                  <span class="font-semibold text-emerald-600" title="監視中">○</span>
+                <% if flags[:watched] %>
+                  <span class="font-semibold text-emerald-600" title="<%= @period_active ? "期間内に監視" : "監視中" %>">○</span>
                 <% else %>
-                  <span class="text-slate-300" title="監視なし">—</span>
+                  <span class="text-slate-300" title="<%= @period_active ? "期間内に監視なし" : "監視なし" %>">—</span>
+                <% end %>
+              </td>
+              <td class="py-2 pr-3 text-center">
+                <% if flags[:entered] %>
+                  <span class="font-semibold text-indigo-600" title="<%= @period_active ? "期間内にエントリー" : "エントリーあり" %>">○</span>
+                <% else %>
+                  <span class="text-slate-300" title="<%= @period_active ? "期間内にエントリーなし" : "エントリーなし" %>">—</span>
                 <% end %>
               </td>
               <td class="py-2 pr-3 font-mono"><%= stock.code %></td>
@@ -74,12 +89,14 @@
       </table>
       <% if @stocks.empty? %>
         <p class="py-6 text-center text-sm text-slate-500">
-          <% if @searching %>
+          <% if !@watch && !@entry && !@virtual %>
+            監視・エントリー・仮想エントリーのいずれかを選んでください
+          <% elsif @searching %>
             「<%= @q %>」に一致する銘柄はありません
-          <% elsif @filter == "watching" %>
-            監視中の銘柄がありません
+          <% elsif @period_active %>
+            この期間に該当する銘柄がありません
           <% else %>
-            表示対象の銘柄がありません。監視を ON にするかエントリーしてください。CSV 登録銘柄は検索できます。
+            該当する銘柄がありません
           <% end %>
         </p>
       <% end %>
