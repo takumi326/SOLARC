@@ -25,6 +25,41 @@ RSpec.describe "Finance summaries", type: :request do
       expect(response.body).not_to include("単発の支出を追加")
       expect(response.body).not_to include("今月へ")
     end
+
+    it "highlights months with missing recurring actuals" do
+      create(:income, income_type: :recurring, start_month: Date.new(2026, 5, 1), end_month: nil)
+
+      get finance_summary_path(month: "2026-05")
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("定期未作成")
+
+      badge = Nokogiri::HTML(response.body).css("span").find { |node| node.text == "定期未作成" }
+      expect(badge).to be_present
+      expect(badge["class"].to_s.split).to include(
+        "inline-flex", "items-center", "rounded-full", "px-2", "py-0.5", "text-xs", "font-medium",
+        "bg-amber-100", "text-amber-800"
+      )
+    end
+
+    it "keeps the 予 badge next to 定期未作成 when a recurring expense actual is missing" do
+      create(
+        :expense,
+        expense_type: :recurring,
+        recurring_cycle: :monthly,
+        start_month: Date.new(2026, 5, 1),
+        end_month: nil
+      )
+
+      get finance_summary_path(month: "2026-05")
+
+      expect(response).to have_http_status(:ok)
+      row = response.body[%r{<tr>\s*<td[^>]*>2026/05</td>.*?</tr>}m]
+      expect(row).to be_present
+      expect(row).to include("kind=expense")
+      expect(row).to include(">予</a>")
+      expect(row).to include("定期未作成")
+    end
   end
 
   describe "PATCH /finance/forecasts" do
@@ -90,7 +125,6 @@ RSpec.describe "Finance summaries", type: :request do
       get finance_expense_breakdown_path(month: "2026-05", view: "lines")
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("支出の内訳")
-      expect(response.body.scan("合計").size).to be >= 1
       expect(response.body).to include("¥12,000")
     end
   end

@@ -28,9 +28,8 @@
               <td class="px-2 py-2 whitespace-nowrap sm:px-3">
                 <span class="inline-flex items-center gap-2">
                   <span><%= format_yen(row.income.amount) %></span>
-                  <% if row.income.mode == "実" %>
-                    <%= finance_mode_badge("実") %>
-                  <% end %>
+                  <%= finance_mode_badge("実") if row.income.mode == "実" %>
+                  <%= finance_missing_sync_badge if row.missing_recurring_income_actual? %>
                 </span>
               </td>
               <td class="px-2 py-2 whitespace-nowrap sm:px-3">
@@ -38,11 +37,13 @@
                   <%= link_to finance_expense_breakdown_path(month: format_month_input(row.month_date)), class: "inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-slate-100/80" do %>
                     <span><%= format_yen(row.expense.amount) %></span>
                     <%= finance_mode_badge("実") %>
+                    <%= finance_missing_sync_badge if row.missing_recurring_expense_actual? %>
                   <% end %>
                 <% else %>
                   <span class="inline-flex items-center gap-2">
                     <span><%= format_yen(row.expense.amount) %></span>
                     <%= finance_mode_badge("予", path: edit_finance_forecast_path(kind: "expense", month: row.month_date)) %>
+                    <%= finance_missing_sync_badge if row.missing_recurring_expense_actual? %>
                   </span>
                 <% end %>
               </td>

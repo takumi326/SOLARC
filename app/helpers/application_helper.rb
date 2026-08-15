@@ -47,13 +47,20 @@ module ApplicationHelper
     extra.present? ? "#{classes} #{extra}" : classes
   end
 
+  FINANCE_BADGE_BASE = "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium"
+
   def finance_mode_badge(mode, path: nil, label: nil)
-    pill = mode == "実" ? "rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700" : "rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700"
+    palette = mode == "実" ? "border-slate-300 bg-slate-200 text-slate-700" : "border-indigo-200 bg-indigo-100 text-indigo-700"
+    pill = "#{FINANCE_BADGE_BASE} #{palette}"
     if path
       link_to mode, path, class: pill, aria: { label: label }
     else
       tag.span(mode, class: pill)
     end
+  end
+
+  def finance_missing_sync_badge
+    tag.span("定期未作成", class: "#{FINANCE_BADGE_BASE} border-amber-300 bg-amber-100 text-amber-800")
   end
 
   def breakdown_tab_class(active)
