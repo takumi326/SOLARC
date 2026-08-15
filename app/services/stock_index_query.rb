@@ -10,13 +10,12 @@ class StockIndexQuery
   end
 
   def call(starts_on: nil, ends_on: nil)
-    stocks = if starts_on.present? && ends_on.present?
+    if starts_on.present? && ends_on.present?
       watch_period_stocks(starts_on, ends_on)
     else
-      holding_stocks
+      stocks = holding_stocks
+      Result.new(stocks: stocks, stock_flags: flags_for(stocks))
     end
-
-    Result.new(stocks: stocks, stock_flags: flags_for(stocks, watch_starts_on: starts_on, watch_ends_on: ends_on))
   end
 
   def holding_stocks
@@ -27,7 +26,19 @@ class StockIndexQuery
     ids = StockWatchItem.joins(:stock_watch_batch)
       .where(stock_watch_batches: { starts_on: starts_on, ends_on: ends_on })
       .select(:stock_id)
-    Stock.includes(:industry).where(id: ids).with_current_flags.order(Arel.sql("current_entered DESC, stocks.code ASC")).to_a
+    stocks_for_ids(ids, watch_starts_on: starts_on, watch_ends_on: ends_on)
+  end
+
+  def current_watch_stocks
+    ids = StockWatchItem.joins(:stock_watch_batch)
+      .merge(StockWatchBatch.covering(Time.zone.today))
+      .select(:stock_id)
+    stocks_for_ids(ids)
+  end
+
+  def stocks_for_ids(ids, watch_starts_on: nil, watch_ends_on: nil)
+    stocks = Stock.includes(:industry).where(id: ids).with_current_flags.order(Arel.sql("current_entered DESC, stocks.code ASC")).to_a
+    Result.new(stocks: stocks, stock_flags: flags_for(stocks, watch_starts_on: watch_starts_on, watch_ends_on: watch_ends_on))
   end
 
   def lookup(q, limit: 20)

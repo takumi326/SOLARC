@@ -247,6 +247,8 @@ RSpec.describe "Stocks", type: :request do
   describe "GET /stocks" do
     it "shows import shortcuts in the header" do
       get stocks_path
+      expect(response.body).to include("需給/決算を分析")
+      expect(response.body).to include(%(href="#{stock_fundamentals_path}"))
       expect(response.body).to include("銘柄取込")
       expect(response.body).to include("監視銘柄取込")
       expect(response.body).to include(%(href="#{new_import_stocks_path}"))

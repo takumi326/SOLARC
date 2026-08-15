@@ -3,6 +3,7 @@
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
       <h2 class="text-xl font-bold"><%= @watch_period_label.present? ? "監視銘柄（#{@watch_period_label}）" : "株一覧" %></h2>
       <div class="flex flex-wrap items-center gap-2">
+        <%= link_to "需給/決算を分析", (@watch_starts_on.present? && @watch_ends_on.present? ? stock_fundamentals_path(starts_on: @watch_starts_on, ends_on: @watch_ends_on) : stock_fundamentals_path), class: btn_secondary_classes %>
         <%= link_to "業種を管理", industries_path, class: btn_secondary_classes %>
         <%= link_to "銘柄取込", new_import_stocks_path, class: btn_secondary_classes %>
         <%= link_to "監視銘柄取込", new_stock_watchlist_path, class: btn_secondary_classes %>

@@ -38,4 +38,6 @@ class UserPreference < ApplicationRecord
             if: -> { self.class.column_names.include?("stock_daily_result_prompt") }
   validates :stock_daily_sector_prompt, length: { maximum: 500_000 }, allow_nil: true,
             if: -> { self.class.column_names.include?("stock_daily_sector_prompt") }
+  validates :stock_fundamentals_prompt, length: { maximum: 500_000 }, allow_nil: true,
+            if: -> { self.class.column_names.include?("stock_fundamentals_prompt") }
 end
