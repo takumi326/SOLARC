@@ -4,18 +4,30 @@ class StockIndexQuery
   Result = Data.define(:stocks, :stock_flags)
 
   class << self
-    def call
-      new.call
+    def call(...)
+      new.call(...)
     end
   end
 
-  def call
-    sets = [ Stock.watched, Stock.with_real_holdings, Stock.with_virtual_holdings ]
-    scope = Stock.includes(:industry).where(id: sets.reduce { |combined, set| combined.or(set) }.select(:id))
-    scope = scope.with_current_flags.order(Arel.sql("current_entered DESC, stocks.watched DESC, stocks.code ASC"))
-    stocks = scope.to_a
+  def call(starts_on: nil, ends_on: nil)
+    stocks = if starts_on.present? && ends_on.present?
+      watch_period_stocks(starts_on, ends_on)
+    else
+      holding_stocks
+    end
 
-    Result.new(stocks: stocks, stock_flags: flags_for(stocks))
+    Result.new(stocks: stocks, stock_flags: flags_for(stocks, watch_starts_on: starts_on, watch_ends_on: ends_on))
+  end
+
+  def holding_stocks
+    Stock.includes(:industry).with_real_holdings.with_current_flags.order(Arel.sql("current_entered DESC, stocks.code ASC")).to_a
+  end
+
+  def watch_period_stocks(starts_on, ends_on)
+    ids = StockWatchItem.joins(:stock_watch_batch)
+      .where(stock_watch_batches: { starts_on: starts_on, ends_on: ends_on })
+      .select(:stock_id)
+    Stock.includes(:industry).where(id: ids).with_current_flags.order(Arel.sql("current_entered DESC, stocks.code ASC")).to_a
   end
 
   def lookup(q, limit: 20)
@@ -34,16 +46,17 @@ class StockIndexQuery
     3
   end
 
-  def flags_for(stocks)
+  def flags_for(stocks, watch_starts_on: nil, watch_ends_on: nil)
     return {} if stocks.empty?
 
     ids = stocks.map(&:id)
-    watching_ids = StockWatchItem.joins(:stock_watch_batch)
-      .merge(StockWatchBatch.covering(Time.zone.today))
-      .where(stock_id: ids)
-      .distinct
-      .pluck(:stock_id)
-      .to_set
+    watching_rel = StockWatchItem.joins(:stock_watch_batch).where(stock_id: ids)
+    watching_rel = if watch_starts_on.present? && watch_ends_on.present?
+      watching_rel.where(stock_watch_batches: { starts_on: watch_starts_on, ends_on: watch_ends_on })
+    else
+      watching_rel.merge(StockWatchBatch.covering(Time.zone.today))
+    end
+    watching_ids = watching_rel.distinct.pluck(:stock_id).to_set
 
     holding_by_stock = Position.open.real.human.where(stock_id: ids).where("quantity > 0").group(:stock_id).sum(:quantity)
     virtual_rel = Position.open.virtual.where(stock_id: ids).where("quantity > 0")
