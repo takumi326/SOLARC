@@ -5,6 +5,12 @@
       <%= link_to "戻る", finance_summary_path(month: @month_input), class: btn_classes(:secondary) %>
     </div>
 
+    <% expense_total = @dashboard[:expense_line_items].sum { |row| row[:amount].to_d } %>
+    <p class="mb-3 text-sm text-slate-700">
+      合計
+      <span class="ml-2 text-lg font-semibold text-rose-600"><%= format_yen(expense_total) %></span>
+    </p>
+
     <div class="mb-3 inline-flex flex-wrap rounded-full bg-slate-100 p-0.5 text-xs">
       <%= link_to "支払方法別", finance_expense_breakdown_path(month: @month_input, view: "payment"), class: breakdown_tab_class(@view == "payment") %>
       <%= link_to "カテゴリ別", finance_expense_breakdown_path(month: @month_input, view: "category"), class: breakdown_tab_class(@view == "category") %>
@@ -22,7 +28,7 @@
     <% if @dashboard[:expense_by_payment].empty? && @dashboard[:expense_by_category_groups].empty? && @dashboard[:expense_line_items].empty? %>
       <p class="mt-2 text-xs text-slate-500">
         <% if @expense_mode == "予" %>
-          この月は実績ベースの支出内訳がまだありません。上部の支出合計は予測です。
+          この月は実績ベースの支出内訳がまだありません。
         <% else %>
           実績取引はある設定ですが、内訳を表示できませんでした。
         <% end %>
