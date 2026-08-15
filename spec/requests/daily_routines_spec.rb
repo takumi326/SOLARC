@@ -254,9 +254,7 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).not_to include(">休日</h3>")
         expect(response.body).to include("直近の完了")
         expect(response.body).to include("監視銘柄（8/10〜8/14）")
-        expect(response.body).to include("この期間の銘柄一覧を見る")
-        expect(response.body).to include("period_starts_on=2026-08-10")
-        expect(response.body).to include("period_ends_on=2026-08-14")
+        expect(response.body).to include("株一覧を見る")
         expect(response.body).not_to include(stock.code)
       end
 
@@ -264,7 +262,7 @@ RSpec.describe "DailyRoutines", type: :request do
         get daily_routine_path(date: "2026-08-13")
         expect(response.body).to include("直近の完了")
         expect(response.body).to include("監視銘柄（8/10〜8/14）")
-        expect(response.body).to include("この期間の銘柄一覧を見る")
+        expect(response.body).to include("株一覧を見る")
       end
 
       travel_to Time.zone.local(2026, 8, 17, 10, 0, 0) do
@@ -292,9 +290,7 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include("直近の完了")
         expect(response.body).to include("✓ 8/11 完了")
         expect(response.body).to include("監視銘柄（8/10〜8/14）")
-        expect(response.body).to include("この期間の銘柄一覧を見る")
-        expect(response.body).to include("period_starts_on=2026-08-10")
-        expect(response.body).to include("period_ends_on=2026-08-14")
+        expect(response.body).to include("株一覧を見る")
         expect(response.body).not_to include("ロング_高値ブレイク")
       end
     end

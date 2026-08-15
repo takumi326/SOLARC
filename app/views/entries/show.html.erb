@@ -19,7 +19,7 @@
       </div>
       <div class="grid grid-cols-[7.5rem_1fr] gap-x-4 py-2.5 sm:grid-cols-[9rem_1fr]">
         <dt class="font-medium text-slate-600">株数</dt>
-        <dd class="text-slate-900"><%= @entry.shares || "—" %></dd>
+        <dd class="text-slate-900"><%= format_shares(@entry.shares).presence || "—" %></dd>
       </div>
       <div class="grid grid-cols-[7.5rem_1fr] gap-x-4 py-2.5 sm:grid-cols-[9rem_1fr]">
         <dt class="font-medium text-slate-600">予定価格</dt>

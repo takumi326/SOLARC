@@ -27,7 +27,7 @@ class LineChangesController < ApplicationController
         executed_at: executed_at_from(line_change_params[:changed_on]),
         **event_attrs_from(line_change_params)
       )
-      redirect_to stock_timeline_path_for_record(@line_change), notice: "ライン変更を記録しました。"
+      redirect_to stock_timeline_path_for_record(@line_change), notice: "ライン設定を記録しました。"
     rescue ActiveRecord::RecordInvalid => e
       @line_change = e.record
       load_context_from_line_change(@line_change) if @line_change.stock
@@ -45,7 +45,7 @@ class LineChangesController < ApplicationController
 
   def update
     if update_trade_event!(@line_change, event_attrs_from(line_change_params), executed_at_from(line_change_params[:changed_on]))
-      redirect_to stock_timeline_path_for_record(@line_change), notice: "ライン変更を保存しました。"
+      redirect_to stock_timeline_path_for_record(@line_change), notice: "ライン設定を保存しました。"
     else
       load_context_from_line_change(@line_change)
       flash.now[:alert] = @line_change.errors.full_messages.join(" ")
@@ -56,7 +56,7 @@ class LineChangesController < ApplicationController
   def destroy
     path = stock_timeline_path_for_record(@line_change)
     destroy_trade_event!(@line_change)
-    redirect_to path, notice: "ライン変更を削除しました。"
+    redirect_to path, notice: "ライン設定を削除しました。"
   end
 
   private
@@ -64,7 +64,7 @@ class LineChangesController < ApplicationController
   def set_line_change
     @line_change = TradeEvent.line_change.includes(:stock).find(params[:id])
   rescue ActiveRecord::RecordNotFound
-    redirect_to stocks_path, alert: "ライン変更が見つかりません。"
+    redirect_to stocks_path, alert: "ライン設定が見つかりません。"
   end
 
   def load_context

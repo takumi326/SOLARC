@@ -7,7 +7,9 @@
             <%= @stock.code %> <%= @stock.name %>（<%= @stock.industry.name %>）
           </span>
           <% holding = @current_position && @current_position[:shares].to_i.positive? %>
-          <% if holding %>
+          <% if holding && @trade_type == "virtual" %>
+            <span class="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">仮想エントリー中</span>
+          <% elsif holding %>
             <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">エントリー中</span>
           <% elsif @stock.currently_watched? %>
             <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">監視中</span>

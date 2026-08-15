@@ -88,6 +88,7 @@ Rails.application.routes.draw do
     resource :stock_setting, path: "settings", only: [ :show, :update ]
   end
 
+  get "stocks/lookup", to: "stocks#lookup", as: :lookup_stocks, defaults: { format: :json }
   get "stocks/import", to: "stocks#import_new", as: :new_import_stocks
   post "stocks/import", to: "stocks#import", as: :import_stocks
   resources :stock_watchlists, only: [ :new, :create ], path: "stocks/watchlists"
