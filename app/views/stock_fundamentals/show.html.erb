@@ -31,13 +31,13 @@
     <%= hidden_field_tag :ends_on, @watch_ends_on&.iso8601 %>
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h3 class="text-base font-semibold">プロンプト</h3>
-      <button type="button" class="<%= btn_classes(:secondary) %>" data-copy-source="#stock-fundamentals-copy" data-copy-label="プロンプトコピー" data-copy-flash="プロンプトをコピーしました">プロンプトコピー</button>
+      <button type="button" class="<%= btn_classes(:secondary) %>" data-copy-source="#stock-fundamentals-prompt" data-copy-fill-source="#stock-fundamentals-watch-stocks" data-copy-fill-token="{{WATCH_STOCKS}}" data-copy-label="プロンプトコピー" data-copy-flash="プロンプトをコピーしました">プロンプトコピー</button>
     </div>
     <p class="text-xs text-slate-500">
       コピー時に <code class="rounded bg-slate-100 px-1">{{WATCH_STOCKS}}</code> へ監視銘柄（コード・銘柄名）を1回だけ差し込みます。保存するのはプレースホルダ付きの本文です。
     </p>
     <%= text_area_tag "stock_fundamentals[prompt]", @prompt, id: "stock-fundamentals-prompt", rows: 26, spellcheck: false, class: "w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed" %>
-    <textarea id="stock-fundamentals-copy" class="hidden" readonly><%= @copy_text %></textarea>
+    <script type="application/json" id="stock-fundamentals-watch-stocks"><%= raw json_escape(@stock_list_text.to_json) %></script>
     <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
       <%= submit_tag "保存", class: btn_primary_classes %>
     </div>

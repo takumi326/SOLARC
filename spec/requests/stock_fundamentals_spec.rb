@@ -19,7 +19,10 @@ RSpec.describe "Stock fundamentals analysis", type: :request do
     expect(response.body).to include("4444 本日監視")
     expect(response.body).to include(%(href="#{stock_path(watched)}"))
     expect(response.body).to include("# 対象監視銘柄")
-    expect(response.body).to match(/# 対象監視銘柄\s+4444 本日監視\s+⚑が1つ以上付いた銘柄/m)
+    expect(response.body).to include("data-copy-source=\"#stock-fundamentals-prompt\"")
+    expect(response.body).to include("data-copy-fill-token=\"{{WATCH_STOCKS}}\"")
+    expect(response.body).to match(/# 対象監視銘柄\s+\{\{WATCH_STOCKS\}\}\s+⚑が1つ以上付いた銘柄/m)
+    expect(response.body).to include("4444 本日監視")
     expect(response.body).not_to include("保有のみ")
     expect(response.body).not_to include("仮説プロンプト")
   end

@@ -43,7 +43,6 @@ class StockFundamentalsController < ApplicationController
     @prompt_body = StockFundamentalsPrompt.draft_for(preference)
     @stock_list_text = watch_stocks_list_text
     @prompt = @prompt_body
-    @copy_text = StockFundamentalsPrompt.fill(@prompt_body, @stock_list_text)
   end
 
   def watch_stocks_list_text
