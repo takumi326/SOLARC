@@ -15,9 +15,19 @@ class StocksController < ApplicationController
 
   def lookup
     q = params[:q].to_s.strip
-    stocks = q.blank? ? Stock.none : Stock.search_by_term(q).includes(:industry).ordered.limit(20)
+    query = StockIndexQuery.new
+    stocks = q.blank? ? [] : query.lookup(q)
+    flags = query.flags_for(stocks)
     render json: stocks.map { |stock|
-      { code: stock.code, name: stock.name, url: stock_path(stock) }
+      status = flags.fetch(stock.id, { watching: false, holding: false, virtual_holding: false })
+      {
+        code: stock.code,
+        name: stock.name,
+        url: stock_path(stock),
+        holding: status[:holding],
+        virtual_holding: status[:virtual_holding],
+        watching: status[:watching]
+      }
     }
   end
 

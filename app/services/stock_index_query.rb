@@ -15,12 +15,26 @@ class StockIndexQuery
     scope = scope.with_current_flags.order(Arel.sql("current_entered DESC, stocks.watched DESC, stocks.code ASC"))
     stocks = scope.to_a
 
-    Result.new(stocks: stocks, stock_flags: current_status_flags(stocks))
+    Result.new(stocks: stocks, stock_flags: flags_for(stocks))
   end
 
-  private
+  def lookup(q, limit: 20)
+    stocks = Stock.search_by_term(q).includes(:industry).to_a
+    flags = flags_for(stocks)
+    stocks.sort_by! { |stock| [ lookup_rank(flags[stock.id]), stock.code.to_s ] }
+    stocks.first(limit)
+  end
 
-  def current_status_flags(stocks)
+  def lookup_rank(status)
+    status ||= {}
+    return 0 if status[:holding]
+    return 1 if status[:watching]
+    return 2 if status[:virtual_holding]
+
+    3
+  end
+
+  def flags_for(stocks)
     return {} if stocks.empty?
 
     ids = stocks.map(&:id)

@@ -101,13 +101,14 @@ RSpec.describe "Stocks", type: :request do
       expect(response.body).not_to include("エントリー中")
     end
 
-    it "hides holdings summary when there are no remaining shares" do
+    it "hides open holding label when there are no remaining shares" do
       stock = create_test_stock
       create_test_entry(stock: stock, shares: 10, actual_price: 1000)
       create_test_exit(stock: stock, shares: 10, actual_price: 1000, exit_reason: "全部")
 
       get stock_path(stock)
-      expect(response.body).not_to include("現在の保有")
+      expect(response.body).not_to include("建玉（保有中）")
+      expect(response.body).to include("建玉（決済済）")
     end
 
     it "shows current holding shares and average price on the timeline" do
@@ -115,7 +116,7 @@ RSpec.describe "Stocks", type: :request do
       create_test_entry(stock: stock, shares: 100, actual_price: 1234, entry_reason: "押し目")
 
       get stock_path(stock)
-      expect(response.body).to include("現在の保有")
+      expect(response.body).to include("建玉（保有中）")
       expect(response.body).to include("100株")
       expect(response.body).to include("1,234")
       expect(response.body).to include("株数")
@@ -165,7 +166,41 @@ RSpec.describe "Stocks", type: :request do
       get lookup_stocks_path, params: { q: "9984" }, as: :json
       expect(response).to have_http_status(:ok)
       body = response.parsed_body
-      expect(body).to include(hash_including("code" => "9984", "name" => "ソフトバンクG", "url" => stock_path(stock)))
+      expect(body).to include(hash_including(
+        "code" => "9984",
+        "name" => "ソフトバンクG",
+        "url" => stock_path(stock),
+        "holding" => false,
+        "virtual_holding" => false,
+        "watching" => false
+      ))
+    end
+
+    it "includes holding and watching flags" do
+      holding = create_test_stock(code: "6501", name: "日立製作所")
+      watching = create_test_stock(code: "6503", name: "三菱電機")
+      create_test_entry(stock: holding)
+      create_test_watch_period(stock: watching)
+
+      get lookup_stocks_path, params: { q: "650" }, as: :json
+      expect(response.parsed_body).to include(
+        hash_including("code" => "6501", "holding" => true, "watching" => false),
+        hash_including("code" => "6503", "holding" => false, "watching" => true)
+      )
+    end
+
+    it "orders by エントリー中, 監視中, 仮想エントリー中, then others" do
+      other = create_test_stock(code: "1000", name: "その他")
+      virtual = create_test_stock(code: "1001", name: "仮想")
+      watching = create_test_stock(code: "1002", name: "監視")
+      holding = create_test_stock(code: "1099", name: "実保有")
+      create_test_entry(stock: holding)
+      create_test_watch_period(stock: watching)
+      create_test_entry(stock: virtual, trade_type: "virtual")
+
+      get lookup_stocks_path, params: { q: "10" }, as: :json
+      codes = response.parsed_body.map { |row| row["code"] }
+      expect(codes).to eq(%w[1099 1002 1001 1000])
     end
 
     it "returns an empty list when query is blank" do
