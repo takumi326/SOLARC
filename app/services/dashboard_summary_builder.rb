@@ -32,7 +32,7 @@ class DashboardSummaryBuilder
   def expense_line_items
     expense_rows
       .preload(expense: [ :payment_method, { minor_category: :major_category } ])
-      .order(Arel.sql("payment_methods.name ASC, expenses.id ASC"))
+      .order(Arel.sql("major_categories.name ASC, minor_categories.name ASC, expenses.id ASC"))
       .map do |et|
         e = et.expense
         {

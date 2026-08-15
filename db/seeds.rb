@@ -52,8 +52,7 @@ fiscal_start = Date.new(fiscal_year_start_year, 4, 1)
   month = fiscal_start.advance(months: i)
 
   [
-    { kind: :expense, amount: 200_000 },
-    { kind: :income, amount: 335_000 }
+    { kind: :expense, amount: 200_000 }
   ].each do |attrs|
     forecast = Forecast.find_or_initialize_by(kind: attrs[:kind], month: month)
     forecast.amount = attrs[:amount]

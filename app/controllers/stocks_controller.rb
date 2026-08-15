@@ -8,23 +8,17 @@ class StocksController < ApplicationController
   before_action :reject_omitted_ai_timeline!, only: [ :show, :timeline, :edit, :update ]
 
   def index
-    @q = params[:q].to_s.strip
-    @filter = params[:filter].to_s
-    @industry_id = params[:industry_id].presence
-    @searching = @q.present?
-
-    scope = Stock.includes(:industry).ordered
-    scope = scope.search_by_term(@q) if @searching
-
-    unless @searching
-      scope = @filter == "watching" ? scope.watched : scope.listable
-    end
-
-    scope = scope.watched if @searching && @filter == "watching"
-    scope = scope.where(industry_id: @industry_id) if @industry_id.present?
-
-    @stocks = scope
-    @industries = Industry.order(:name)
+    result = StockIndexQuery.call(params)
+    @stocks = result.stocks
+    @stock_flags = result.stock_flags
+    @q = result.q
+    @watch = result.watch
+    @entry = result.entry
+    @virtual = result.virtual
+    @period_starts_on = result.period_starts_on
+    @period_ends_on = result.period_ends_on
+    @period_active = result.period_active
+    @searching = result.searching
   end
 
   def show

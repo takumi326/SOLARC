@@ -32,14 +32,14 @@ class FinanceSummariesController < ApplicationController
   end
 
   def edit_forecast
-    @kind = params[:kind].presence_in(%w[income expense]) || "expense"
+    @kind = "expense"
     @month = parse_month_param(params[:month])
     @forecast = Forecast.find_or_initialize_by(kind: @kind, month: @month)
     @return_month = month_input_value(@month)
   end
 
   def update_forecast
-    @kind = params.dig(:forecast, :kind).presence_in(%w[income expense]) || "expense"
+    @kind = "expense"
     @month = parse_month_param(params.dig(:forecast, :month))
     amount = params.dig(:forecast, :amount).to_d
     if !amount.finite? || amount.negative?
@@ -78,7 +78,7 @@ class FinanceSummariesController < ApplicationController
         row = rows_by_index[idx.to_s] || rows_by_index[idx]
         next if row.blank?
 
-        %w[income expense].each do |kind|
+        %w[expense].each do |kind|
           amount = row[kind].to_d
           raise ArgumentError, "金額は0以上で入力してください" unless amount.finite? && amount >= 0
 

@@ -1,62 +1,5 @@
 <div class="space-y-4">
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-    <div class="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
-      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-        <%= link_to "<", finance_summary_path(month: add_months_to_input(@month_input, -1)), class: btn_classes(:secondary, extra: "px-2 py-1") %>
-        <h2 class="text-lg font-bold sm:text-xl"><%= @month_input.tr("-", "年") %>月</h2>
-        <%= link_to ">", finance_summary_path(month: add_months_to_input(@month_input, 1)), class: btn_classes(:secondary, extra: "px-2 py-1") %>
-        <%= link_to "今月へ", finance_summary_path(month: format_month_input(Date.current)), class: btn_classes(:secondary) %>
-        <%= form_with url: finance_summary_path, method: :get, class: "inline-flex" do %>
-          <input type="month" name="month" value="<%= @month_input %>" class="rounded-lg border border-slate-300 px-3 py-1 text-sm" onchange="this.form.requestSubmit()" />
-        <% end %>
-      </div>
-      <div class="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto">
-        <%= link_to "＋ 単発の支出を追加", new_finance_one_time_expense_path(month: @month_input), class: btn_classes(:primary, extra: "w-full sm:w-auto") %>
-        <%= link_to "取込", finance_import_path, class: btn_classes(:link, extra: "w-full sm:w-auto") %>
-      </div>
-    </div>
-
-    <% selected = @year_summary.selected_row %>
-    <div class="mt-4 grid gap-3 sm:grid-cols-3">
-      <article class="rounded-xl border border-slate-200 bg-indigo-50 p-4">
-        <p class="text-xs font-medium text-indigo-700">月末予想残高（予）</p>
-        <p class="mt-1 text-xl font-bold text-indigo-700 sm:text-2xl"><%= format_yen(@year_summary.expected_balance) %></p>
-        <p class="mt-1 text-xs text-indigo-700">前月比 <%= format_yen_delta(@year_summary.last_month_diff) %></p>
-      </article>
-
-      <article class="rounded-xl border border-slate-200 bg-emerald-50 p-4">
-        <div class="flex items-center justify-between">
-          <p class="text-xs font-medium text-emerald-700">収入</p>
-          <% if selected&.income&.mode == "予" %>
-            <%= finance_mode_badge("予", path: edit_finance_forecast_path(kind: "income", month: @month), label: "収入の予測を編集") %>
-          <% else %>
-            <%= finance_mode_badge("実") %>
-          <% end %>
-        </div>
-        <p class="mt-1 text-lg font-semibold text-emerald-700"><%= format_yen(selected&.income&.amount || 0) %></p>
-      </article>
-
-      <article class="rounded-xl border border-slate-200 bg-rose-50 p-4">
-        <% if selected&.expense&.mode == "実" %>
-          <%= link_to finance_expense_breakdown_path(month: @month_input), class: "block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2" do %>
-            <div class="flex items-center justify-between">
-              <p class="text-xs font-medium text-rose-700">支出</p>
-              <%= finance_mode_badge("実") %>
-            </div>
-            <p class="mt-1 text-lg font-semibold text-rose-700"><%= format_yen(selected.expense.amount) %></p>
-          <% end %>
-        <% else %>
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-medium text-rose-700">支出</p>
-            <%= finance_mode_badge("予", path: edit_finance_forecast_path(kind: "expense", month: @month), label: "支出の予測を編集") %>
-          </div>
-          <p class="mt-1 text-lg font-semibold text-rose-700"><%= format_yen(selected&.expense&.amount || 0) %></p>
-        <% end %>
-      </article>
-    </div>
-  </section>
-
-  <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
     <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="text-lg font-semibold leading-tight">
         今年度サマリ（<%= format_month_label(@year_summary.fiscal_months.first) %>〜<%= format_month_label(@year_summary.fiscal_months.last) %>）
@@ -64,6 +7,7 @@
       <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
         <%= button_to "定期実績を作成", finance_sync_recurring_path(month: @month_input), method: :post, class: btn_classes(:secondary, extra: "w-full sm:w-auto") %>
         <%= link_to "予測をまとめて編集", edit_finance_bulk_forecasts_path(month: @month_input), class: btn_classes(:secondary, extra: "w-full sm:w-auto") %>
+        <%= link_to "取込", finance_import_path, class: btn_classes(:link, extra: "w-full sm:w-auto") %>
       </div>
     </div>
 
@@ -84,11 +28,8 @@
               <td class="px-2 py-2 whitespace-nowrap sm:px-3">
                 <span class="inline-flex items-center gap-2">
                   <span><%= format_yen(row.income.amount) %></span>
-                  <% if row.income.mode == "予" %>
-                    <%= finance_mode_badge("予", path: edit_finance_forecast_path(kind: "income", month: row.month_date)) %>
-                  <% else %>
-                    <%= finance_mode_badge("実") %>
-                  <% end %>
+                  <%= finance_mode_badge("実") if row.income.mode == "実" %>
+                  <%= finance_missing_sync_badge if row.missing_recurring_income_actual? %>
                 </span>
               </td>
               <td class="px-2 py-2 whitespace-nowrap sm:px-3">
@@ -96,11 +37,13 @@
                   <%= link_to finance_expense_breakdown_path(month: format_month_input(row.month_date)), class: "inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-slate-100/80" do %>
                     <span><%= format_yen(row.expense.amount) %></span>
                     <%= finance_mode_badge("実") %>
+                    <%= finance_missing_sync_badge if row.missing_recurring_expense_actual? %>
                   <% end %>
                 <% else %>
                   <span class="inline-flex items-center gap-2">
                     <span><%= format_yen(row.expense.amount) %></span>
                     <%= finance_mode_badge("予", path: edit_finance_forecast_path(kind: "expense", month: row.month_date)) %>
+                    <%= finance_missing_sync_badge if row.missing_recurring_expense_actual? %>
                   </span>
                 <% end %>
               </td>

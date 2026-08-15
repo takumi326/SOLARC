@@ -1,14 +1,17 @@
 <div class="space-y-4">
   <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div class="mb-4 flex items-center justify-between gap-2">
-      <h2 class="text-xl font-bold">支出の内訳（<%= format_month_label(@month) %>）</h2>
+      <h2 class="flex flex-wrap items-baseline gap-x-3 text-xl font-bold">
+        <span>支出の内訳（<%= format_month_label(@month) %>）</span>
+        <span class="text-lg font-semibold text-rose-600"><%= format_yen(@dashboard[:expense_line_items].sum { |row| row[:amount].to_d }) %></span>
+      </h2>
       <%= link_to "戻る", finance_summary_path(month: @month_input), class: btn_classes(:secondary) %>
     </div>
 
     <div class="mb-3 inline-flex flex-wrap rounded-full bg-slate-100 p-0.5 text-xs">
       <%= link_to "支払方法別", finance_expense_breakdown_path(month: @month_input, view: "payment"), class: breakdown_tab_class(@view == "payment") %>
       <%= link_to "カテゴリ別", finance_expense_breakdown_path(month: @month_input, view: "category"), class: breakdown_tab_class(@view == "category") %>
-      <%= link_to "一覧（単発含む）", finance_expense_breakdown_path(month: @month_input, view: "lines"), class: breakdown_tab_class(@view == "lines") %>
+      <%= link_to "一覧", finance_expense_breakdown_path(month: @month_input, view: "lines"), class: breakdown_tab_class(@view == "lines") %>
     </div>
 
     <% if @view == "payment" %>
@@ -22,7 +25,7 @@
     <% if @dashboard[:expense_by_payment].empty? && @dashboard[:expense_by_category_groups].empty? && @dashboard[:expense_line_items].empty? %>
       <p class="mt-2 text-xs text-slate-500">
         <% if @expense_mode == "予" %>
-          この月は実績ベースの支出内訳がまだありません。上部の支出合計は予測です。
+          この月は実績ベースの支出内訳がまだありません。
         <% else %>
           実績取引はある設定ですが、内訳を表示できませんでした。
         <% end %>

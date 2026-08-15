@@ -1,10 +1,10 @@
 <div class="space-y-4">
   <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <h2 class="text-xl font-bold"><%= format_month_label(@month) %>の<%= @kind == "income" ? "収入" : "支出" %>予測を編集</h2>
+    <h2 class="text-xl font-bold"><%= format_month_label(@month) %>の支出予測を編集</h2>
     <p class="mt-1 text-xs text-slate-500">同じ月・種別の予測は上書きされます。</p>
 
     <%= form_with url: finance_forecast_path, method: :patch, class: "mt-4 space-y-3" do %>
-      <input type="hidden" name="forecast[kind]" value="<%= @kind %>" />
+      <input type="hidden" name="forecast[kind]" value="expense" />
       <input type="hidden" name="forecast[month]" value="<%= month_input_value(@month) %>" />
       <label class="block text-sm">
         <span class="text-slate-600">金額</span>

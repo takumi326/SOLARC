@@ -20,11 +20,61 @@ class Stock < ApplicationRecord
     where(id: Entry.select(:stock_id).distinct)
   }
 
+  scope :with_real_human_entries, lambda {
+    where(id: Entry.real.human.select(:stock_id))
+  }
+
+  scope :with_virtual_entries, lambda {
+    where(id: virtual_entry_scope.select(:stock_id))
+  }
+
   scope :watched, -> { where(watched: true) }
 
-  scope :listable, lambda {
-    where(watched: true).or(where(id: Entry.select(:stock_id).distinct))
+  scope :watched_in_period, lambda { |starts_on, ends_on|
+    where(id: StockWatchItem.joins(:stock_watch_batch)
+      .merge(StockWatchBatch.overlapping(starts_on, ends_on))
+      .select(:stock_id))
   }
+
+  scope :entered_in_period, lambda { |starts_on, ends_on|
+    where(id: Entry.real.human.dated_between(starts_on, ends_on).select(:stock_id))
+  }
+
+  scope :virtual_entered_in_period, lambda { |starts_on, ends_on|
+    where(id: virtual_entry_scope.dated_between(starts_on, ends_on).select(:stock_id))
+  }
+
+  # AI 取引がオミットのときは仮想でも人間判断のみを対象にする
+  def self.virtual_entry_scope
+    AiTradeFeatures.enabled? ? Entry.virtual : Entry.virtual.human
+  end
+
+  scope :with_period_flags, lambda { |starts_on, ends_on|
+    watched_sql = watched_in_period_exists_sql(starts_on, ends_on)
+    entered_sql = entered_in_period_exists_sql(starts_on, ends_on)
+    select("stocks.*", "(EXISTS (#{watched_sql})) AS period_watched", "(EXISTS (#{entered_sql})) AS period_entered")
+  }
+
+  scope :with_current_flags, lambda {
+    entered_sql = Entry.real.human.where("entries.stock_id = stocks.id").select("1").to_sql
+    select("stocks.*", "stocks.watched AS period_watched", "(EXISTS (#{entered_sql})) AS current_entered")
+  }
+
+  def self.watched_in_period_exists_sql(starts_on, ends_on)
+    StockWatchItem.joins(:stock_watch_batch)
+      .where("stock_watch_items.stock_id = stocks.id")
+      .merge(StockWatchBatch.overlapping(starts_on, ends_on))
+      .select("1")
+      .to_sql
+  end
+
+  def self.entered_in_period_exists_sql(starts_on, ends_on)
+    Entry.real.human
+      .where("entries.stock_id = stocks.id")
+      .dated_between(starts_on, ends_on)
+      .select("1")
+      .to_sql
+  end
 
   scope :with_real_holdings, lambda {
     where(<<-SQL.squish)

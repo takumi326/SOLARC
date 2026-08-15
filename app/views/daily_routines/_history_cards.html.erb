@@ -5,10 +5,10 @@
       <span class="text-sm font-bold">✓ <%= record.completed_on.strftime("%-m/%-d") %> 完了</span>
     </div>
     <div class="p-4">
-      <%= link_to stocks_path(filter: "watching"),
+      <%= link_to stocks_path(period_starts_on: record.starts_on.iso8601, period_ends_on: record.ends_on.iso8601),
             class: "block rounded-lg px-3 py-2 text-sm font-medium no-underline hover:opacity-80",
             style: "background-color:#ffffff;color:#1d4ed8;border:1px solid #93c5fd;text-decoration:underline;text-underline-offset:2px;" do %>
-        監視のみの一覧を見る →
+        この期間の銘柄一覧を見る →
       <% end %>
     </div>
   </article>

@@ -12,13 +12,10 @@ class FillMissingForecastsService
 
     12.times do |i|
       month_date = fiscal_start.advance(months: i)
-      %i[expense income].each do |kind|
-        next if Forecast.exists?(kind: kind, month: month_date)
+      next if Forecast.exists?(kind: :expense, month: month_date)
 
-        amount = kind == :expense ? defaults.expense_amount : defaults.income_amount
-        Forecast.create!(kind: kind, month: month_date, amount: amount)
-        created_count += 1
-      end
+      Forecast.create!(kind: :expense, month: month_date, amount: defaults.expense_amount)
+      created_count += 1
     end
 
     Result.new(created_count: created_count)
