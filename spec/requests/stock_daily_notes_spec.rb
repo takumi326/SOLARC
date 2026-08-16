@@ -17,6 +17,22 @@ RSpec.describe "StockDailyNotes", type: :request do
       expect(response.body).to include("保存済み記録")
       expect(response.body).to include("プロンプトコピー")
     end
+
+    it "marks empty result as × like the routine evening check" do
+      StockDailyNote.create!(
+        owner_key: "development",
+        recorded_on: Date.new(2026, 8, 17),
+        hypothesis: "朝の仮説",
+        result: "",
+        sector_research: ""
+      )
+
+      get stock_daily_notes_path
+      expect(response.body).to include('title="仮説あり"')
+      expect(response.body).to include('title="結果なし"')
+      expect(response.body).to include('title="セクター調べなし"')
+      expect(response.body).not_to include('title="結果あり"')
+    end
   end
 
   describe "GET /stocks/daily/detail" do

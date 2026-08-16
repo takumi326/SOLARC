@@ -42,8 +42,14 @@ module StockDailyNotesHelper
     )
   end
 
-  def stock_daily_field_filled?(text)
-    text.to_s.strip.present?
+  # ルーチンの完了判定と同じく、保存済み本文の有無だけを見る（空欄時のデフォルト雛形は「なし」）
+  def stock_daily_field_filled?(note, field)
+    case field.to_s
+    when "hypothesis" then note.hypothesis.to_s.strip.present?
+    when "result" then note.result.to_s.strip.present?
+    when "sector" then note.sector_research.to_s.strip.present?
+    else false
+    end
   end
 
   def render_stock_daily_markdown(body)

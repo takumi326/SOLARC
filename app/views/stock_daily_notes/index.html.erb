@@ -48,8 +48,7 @@
                   <%= note.recorded_on.iso8601 %>
                 </td>
                 <% %w[hypothesis result sector].each do |field| %>
-                  <% body = stock_field_value(note, field) %>
-                  <% filled = stock_daily_field_filled?(body) %>
+                  <% filled = stock_daily_field_filled?(note, field) %>
                   <td class="w-28 min-w-28 border-b border-slate-100 px-1 py-2.5 align-top sm:w-32 sm:min-w-32 sm:py-3 sm:align-middle">
                     <div class="mx-auto flex max-w-full flex-nowrap items-center justify-center gap-1.5">
                       <span class="shrink-0 text-base font-semibold tabular-nums leading-none <%= filled ? 'text-emerald-600' : 'text-slate-400' %>" title="<%= filled ? "#{StockDailyPromptBuilder::FIELD_LABELS[field]}あり" : "#{StockDailyPromptBuilder::FIELD_LABELS[field]}なし" %>">
