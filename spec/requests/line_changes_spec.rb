@@ -6,7 +6,8 @@ RSpec.describe "LineChanges", type: :request do
   let(:stock) { create_test_stock }
 
   it "creates a line change nested under line_change params" do
-    create_test_entry(stock: stock, shares: 100, actual_price: 1000)
+    # エントリーは正午固定。ライン変更は「現在時刻」で記録されるため、午前だと建玉検索に失敗する
+    create_test_entry(stock: stock, shares: 100, actual_price: 1000, traded_at: Date.current - 1)
 
     post line_changes_path, params: {
       line_change: {
