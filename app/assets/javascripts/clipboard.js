@@ -42,6 +42,19 @@ document.addEventListener("click", function (event) {
     var sourceEl = document.querySelector(source)
     if (sourceEl) text = copyValueFrom(sourceEl)
   }
+  var fillsSource = button.getAttribute("data-copy-fills-source")
+  if (fillsSource) {
+    var fillsEl = document.querySelector(fillsSource)
+    if (fillsEl) {
+      var fills = {}
+      try { fills = JSON.parse(fillsEl.textContent) } catch (e) { fills = {} }
+      Object.keys(fills).forEach(function (token) {
+        if (!token || text.indexOf(token) === -1) return
+        var value = fills[token] == null ? "" : String(fills[token])
+        text = text.split(token).join(value)
+      })
+    }
+  }
   var fillSource = button.getAttribute("data-copy-fill-source")
   var fillToken = button.getAttribute("data-copy-fill-token")
   if (fillSource && fillToken && text.indexOf(fillToken) !== -1) {

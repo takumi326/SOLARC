@@ -35,15 +35,19 @@
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h3 class="text-base font-semibold">プロンプト</h3>
       <div class="flex flex-wrap items-center gap-2">
-        <button type="button" class="<%= btn_classes(:secondary) %>" data-copy-source="#stock-fundamentals-prompt" data-copy-fill-source="#stock-fundamentals-watch-stocks" data-copy-fill-token="{{WATCH_STOCKS}}" data-copy-label="プロンプトコピー" data-copy-flash="プロンプトをコピーしました">プロンプトコピー</button>
+        <button type="button" class="<%= btn_classes(:secondary) %>" data-copy-source="#stock-fundamentals-prompt" data-copy-fills-source="#stock-fundamentals-copy-fills" data-copy-label="プロンプトコピー" data-copy-flash="プロンプトをコピーしました">プロンプトコピー</button>
         <%= link_to "需給を取得", "https://www.jpx.co.jp/markets/statistics-equities/margin/05.html", target: "_blank", rel: "noopener noreferrer", class: btn_classes(:secondary) %>
       </div>
     </div>
     <p class="text-xs text-slate-500">
-      コピー時に <code class="rounded bg-slate-100 px-1">{{WATCH_STOCKS}}</code> へ監視銘柄（コード・銘柄名）を1回だけ差し込みます。保存するのはプレースホルダ付きの本文です。
+      コピー時に
+      <code class="rounded bg-slate-100 px-1">{{WATCH_STOCKS}}</code>（銘柄）、
+      <code class="rounded bg-slate-100 px-1">{{WATCH_PERIOD}}</code>（監視期間）、
+      <code class="rounded bg-slate-100 px-1">{{TODAY}}</code>（今日）
+      を差し込みます。保存するのはプレースホルダ付きの本文です。
     </p>
     <%= text_area_tag "stock_fundamentals[prompt]", @prompt, id: "stock-fundamentals-prompt", rows: 26, spellcheck: false, class: "w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed" %>
-    <script type="application/json" id="stock-fundamentals-watch-stocks"><%= raw json_escape(@stock_list_text.to_json) %></script>
+    <script type="application/json" id="stock-fundamentals-copy-fills"><%= raw json_escape(@copy_fills.to_json) %></script>
     <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
       <%= submit_tag "保存", class: btn_primary_classes %>
     </div>
