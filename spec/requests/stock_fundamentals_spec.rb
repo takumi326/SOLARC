@@ -16,8 +16,11 @@ RSpec.describe "Stock fundamentals analysis", type: :request do
     expect(response.body).to include("調査対象は「# 対象監視銘柄」")
     expect(response.body).to include("{{WATCH_STOCKS}}")
     expect(response.body).to include("プロンプトコピー")
+    expect(response.body).to include("需給を取得")
+    expect(response.body).to include("https://www.jpx.co.jp/markets/statistics-equities/margin/05.html")
     expect(response.body).to include("4444 本日監視")
     expect(response.body).to include(%(href="#{stock_path(watched)}"))
+    expect(response.body).to include("1件")
     expect(response.body).to include("# 対象監視銘柄")
     expect(response.body).to include("data-copy-source=\"#stock-fundamentals-prompt\"")
     expect(response.body).to include("data-copy-fill-token=\"{{WATCH_STOCKS}}\"")
@@ -35,6 +38,9 @@ RSpec.describe "Stock fundamentals analysis", type: :request do
 
     get stock_fundamentals_path(starts_on: "2026-08-10", ends_on: "2026-08-14")
     expect(response.body).to include("監視銘柄（8/10〜8/14）")
+    expect(response.body).to include("<details")
+    expect(response.body).to include("<summary")
+    expect(response.body).to include("1件")
     expect(response.body).to include("期間監視")
     expect(response.body).not_to include("別期間")
   end

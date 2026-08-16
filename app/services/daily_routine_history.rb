@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# やることカードの外で、直近の完了を見返す履歴。監視銘柄は取込日〜監視終了日（土日含む）。
+# やることカードの外で、直近の完了を見返す履歴。監視期間カードは取込完了後〜監視終了日（土日含む）に出す。
 class DailyRoutineHistory
   HolidayRecord = Data.define(:watch_period_label, :completed_on, :starts_on, :ends_on)
   MonthRecord = Data.define(:month, :label, :imported_on)
@@ -27,7 +27,7 @@ class DailyRoutineHistory
         .map do |(starts_on, ends_on), batches|
           completed_on = batches.map(&:imported_on).max
           HolidayRecord.new(
-            watch_period_label: period_label(completed_on, ends_on),
+            watch_period_label: period_label(starts_on, ends_on),
             completed_on: completed_on,
             starts_on: starts_on,
             ends_on: ends_on

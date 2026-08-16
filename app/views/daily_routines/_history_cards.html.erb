@@ -1,7 +1,7 @@
 <% @routine_history.holiday_records.each do |record| %>
   <article class="overflow-hidden rounded-xl" style="border:2px solid #2563eb;background-color:#eff6ff;">
     <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-2" style="background-color:#2563eb;color:#ffffff;">
-      <h4 class="text-base font-bold">監視銘柄（<%= record.watch_period_label %>）</h4>
+      <h4 class="text-base font-bold">監視期間（<%= record.watch_period_label %>）</h4>
       <span class="text-sm font-bold">✓ <%= record.completed_on.strftime("%-m/%-d") %> 完了</span>
     </div>
     <div class="p-4">
