@@ -3,6 +3,8 @@
 # 需給/決算リスク洗い出し用。毎日の記録・実績取込のプロンプトとは別。
 class StockFundamentalsPrompt
   WATCH_STOCKS = "{{WATCH_STOCKS}}"
+  WATCH_PERIOD = "{{WATCH_PERIOD}}"
+  TODAY = "{{TODAY}}"
 
   DEFAULT = <<~PROMPT.chomp
     # 目的
@@ -30,6 +32,10 @@ class StockFundamentalsPrompt
     - X6: 直近3ヶ月に業績下方修正あり
     - X7: 立会外分売・大株主の売却方針が公表されている
 
+    # 日付
+    調査日: #{TODAY}
+    監視期間: #{WATCH_PERIOD}
+
     # 対象監視銘柄
     #{WATCH_STOCKS}
 
@@ -55,11 +61,14 @@ class StockFundamentalsPrompt
     stored.present? ? stored : DEFAULT
   end
 
-  def self.fill(prompt, stock_list_text)
+  def self.fill(prompt, values)
     text = prompt.to_s
-    replacement = stock_list_text.to_s.rstrip
-    return "#{text.rstrip}\n\n# 対象監視銘柄\n#{replacement}" unless text.include?(WATCH_STOCKS)
+    replacements = values.is_a?(Hash) ? values : { WATCH_STOCKS => values }
+    replacements.each do |token, value|
+      next if token.blank? || !text.include?(token)
 
-    text.sub(WATCH_STOCKS, replacement)
+      text = text.gsub(token, value.to_s)
+    end
+    text
   end
 end
