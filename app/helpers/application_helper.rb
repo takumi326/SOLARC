@@ -281,6 +281,12 @@ module ApplicationHelper
     value.respond_to?(:to_date) ? value.to_date.iso8601 : value.to_s
   end
 
+  # 前の暦週の月〜金（監視期間と同じ取引週）
+  def previous_weekday_range(date = Time.zone.today)
+    monday = date.to_date.beginning_of_week(:monday) - 7
+    monday..(monday + 4)
+  end
+
   def btn_primary_classes
     "rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 cursor-pointer"
   end

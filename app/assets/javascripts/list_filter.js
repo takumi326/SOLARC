@@ -16,6 +16,19 @@
 
     var empty = document.querySelector(input.getAttribute("data-list-empty") || "")
     if (empty) empty.classList.toggle("hidden", visible !== 0 || rows.length === 0)
+
+    var sumEl = document.querySelector(input.getAttribute("data-list-sum") || "")
+    if (sumEl) {
+      var total = 0
+      rows.forEach(function (row) {
+        if (row.classList.contains("hidden")) return
+        total += parseFloat(row.getAttribute("data-pl") || "0")
+      })
+      var rounded = Math.round(total)
+      sumEl.textContent = rounded.toLocaleString("en-US")
+      sumEl.classList.toggle("text-emerald-700", rounded >= 0)
+      sumEl.classList.toggle("text-rose-700", rounded < 0)
+    }
   }
 
   document.addEventListener("input", function (event) {
