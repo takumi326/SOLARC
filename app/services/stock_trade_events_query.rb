@@ -2,7 +2,7 @@
 
 class StockTradeEventsQuery
   Result = Struct.new(:rows, :total_realized_pl, keyword_init: true)
-  Row = Struct.new(:kind, :id, :sort_on, :stock, :record, keyword_init: true)
+  Row = Struct.new(:kind, :id, :sort_on, :stock, :record, :realized_pl, keyword_init: true)
   KIND_ORDER = { "exit" => 0, "line_change" => 1, "entry" => 2 }.freeze
 
   class << self
@@ -40,8 +40,11 @@ class StockTradeEventsQuery
     rel = apply_settled_scope(rel, settled)
     rel = apply_date_range(rel, from_d, to_d)
 
-    rows = rel.includes(:stock).to_a.map do |event|
-      build_row(event.kind, event, event.traded_at&.to_s || event.created_at.to_date.to_s, event.stock)
+    events = rel.includes(:stock).to_a
+    pl_by_id = exit_realized_pl_by_id(events)
+    rows = events.map do |event|
+      pl = event.exit? ? pl_by_id.fetch(event.id, BigDecimal("0")) : BigDecimal("0")
+      build_row(event.kind, event, event.traded_at&.to_s || event.created_at.to_date.to_s, event.stock, pl)
     end
 
     rows.sort! do |a, b|
@@ -54,14 +57,7 @@ class StockTradeEventsQuery
       a.id.to_i <=> b.id.to_i
     end
 
-    total_pl =
-      if event_kind != "entry"
-        Position.where(stock_id: stock_sub, trade_type: trade_type, judgment_type: judgment_type).sum(:realized_pnl)
-      else
-        BigDecimal("0")
-      end
-
-    Result.new(rows: rows, total_realized_pl: total_pl)
+    Result.new(rows: rows, total_realized_pl: rows.sum(BigDecimal("0"), &:realized_pl))
   end
 
   private
@@ -114,7 +110,39 @@ class StockTradeEventsQuery
     rel
   end
 
-  def build_row(kind, record, sort_on, stock)
-    Row.new(kind: kind, id: record.id, sort_on: sort_on, stock: stock, record: record)
+  def exit_realized_pl_by_id(events)
+    position_ids = events.map(&:position_id).compact.uniq
+    return {} if position_ids.empty?
+
+    TradeEvent.where(position_id: position_ids).chronological.group_by(&:position_id)
+              .each_with_object({}) { |(_id, history), acc| acc.merge!(replay_exit_pl(history)) }
+  end
+
+  def replay_exit_pl(events)
+    qty = 0
+    avg = BigDecimal("0")
+    contribs = {}
+
+    events.each do |event|
+      case event.kind.to_sym
+      when :entry
+        next unless event.settled?
+
+        new_qty = qty + event.quantity
+        avg = ((avg * qty) + (event.actual_price.to_d * event.quantity)) / new_qty
+        qty = new_qty
+      when :exit
+        next unless event.settled?
+
+        contribs[event.id] = (event.actual_price.to_d - avg) * event.quantity
+        qty -= event.quantity
+      end
+    end
+
+    contribs
+  end
+
+  def build_row(kind, record, sort_on, stock, realized_pl)
+    Row.new(kind: kind, id: record.id, sort_on: sort_on, stock: stock, record: record, realized_pl: realized_pl)
   end
 end

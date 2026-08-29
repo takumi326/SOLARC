@@ -82,5 +82,27 @@ RSpec.describe StockTradeEventsQuery do
       result = described_class.call(trade_type: "real", judgment_type: "human", event_kind: "all")
       expect(result.rows.map(&:kind)).to eq([ "entry" ])
     end
+
+    it "totals realized pl only for exits in the date range" do
+      last_week = create_test_stock(code: "7203", name: "トヨタ")
+      this_week = create_test_stock(code: "6758", name: "ソニー")
+      create_test_entry(stock: last_week, traded_at: Date.new(2026, 8, 10), shares: 100, actual_price: 1000)
+      create_test_exit(stock: last_week, traded_at: Date.new(2026, 8, 19), shares: 100, actual_price: 1111, exit_reason: "前週決済")
+      create_test_entry(stock: this_week, traded_at: Date.new(2026, 8, 24), shares: 100, actual_price: 1000)
+      create_test_exit(stock: this_week, traded_at: Date.new(2026, 8, 26), shares: 100, actual_price: 900, exit_reason: "今週決済")
+
+      all = described_class.call(trade_type: "real", judgment_type: "human", event_kind: "all")
+      expect(all.total_realized_pl).to eq(BigDecimal("1100"))
+
+      ranged = described_class.call(
+        trade_type: "real",
+        judgment_type: "human",
+        event_kind: "all",
+        from: "2026-08-17",
+        to: "2026-08-21"
+      )
+      expect(ranged.rows.map { |row| row.record.exit_reason }).to eq([ "前週決済" ])
+      expect(ranged.total_realized_pl).to eq(BigDecimal("11100"))
+    end
   end
 end

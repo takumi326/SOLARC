@@ -3,7 +3,7 @@
     <h2 class="mb-3 text-xl font-bold"><%= @config[:title] %></h2>
 
     <div class="mb-4 flex flex-wrap items-center gap-2">
-      <input type="search" autocomplete="off" placeholder="コード・銘柄名で検索" aria-label="コード・銘柄名で検索" data-list-filter="#trades-table" data-list-empty="#trades-filter-empty" class="w-56 rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+      <input type="search" autocomplete="off" placeholder="コード・銘柄名で検索" aria-label="コード・銘柄名で検索" data-list-filter="#trades-table" data-list-empty="#trades-filter-empty" data-list-sum="#trades-pl-total" class="w-56 rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
       <%= form_with url: stock_trades_path(mode: @mode), method: :get, class: "flex flex-wrap items-center gap-2" do %>
         <div class="flex items-center gap-1.5 text-sm">
           <%= date_field_tag :from, @from.presence, class: "rounded-lg border border-slate-300 px-2 py-1.5 text-sm", aria: { label: "期間の開始日" } %>
@@ -15,11 +15,16 @@
         <% end %>
         <%= submit_tag "絞り込み", class: "rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-700 cursor-pointer" %>
       <% end %>
+      <% last_week = previous_weekday_range %>
+      <% last_week_selected = @from == last_week.begin.iso8601 && @to == last_week.end.iso8601 %>
+      <%= link_to "前週で絞り込み",
+            stock_trades_path({ mode: @mode, from: last_week.begin.iso8601, to: last_week.end.iso8601, ai_script_id: @ai_script_id }.compact),
+            class: btn_classes(last_week_selected ? :primary : :secondary) %>
     </div>
 
     <p class="mb-3 text-lg font-semibold tabular-nums">
       合計損益:
-      <span class="<%= @result.total_realized_pl >= 0 ? 'text-emerald-700' : 'text-rose-700' %>">
+      <span id="trades-pl-total" class="<%= @result.total_realized_pl >= 0 ? 'text-emerald-700' : 'text-rose-700' %>">
         <%= format_decimal(@result.total_realized_pl) %>
       </span>
     </p>
@@ -38,7 +43,7 @@
         </thead>
         <tbody>
           <% @result.rows.each do |row| %>
-            <tr class="border-b border-slate-100" data-search="<%= "#{row.stock.code} #{row.stock.name}" %>">
+            <tr class="border-b border-slate-100" data-search="<%= "#{row.stock.code} #{row.stock.name}" %>" data-pl="<%= row.realized_pl.to_d.to_s('F') %>">
               <td class="py-2 pr-2">
                 <%= link_to stock_path(row.stock), class: "text-indigo-600 hover:underline" do %>
                   <span class="font-mono"><%= row.stock.code %></span>
