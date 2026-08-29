@@ -16,10 +16,6 @@
     else
       "background-color:#{incomplete_accent};color:#ffffff;"
     end
-  condition_border = slot.completed ? complete_accent : incomplete_accent
-  condition_style =
-    "background-color:#ffffff;color:#1d4ed8;border:1px solid #{condition_border};" \
-    "text-decoration:underline;text-underline-offset:2px;"
 %>
 <article class="overflow-hidden rounded-xl" style="<%= card_style %>">
   <div class="flex items-center justify-between gap-2 px-4 py-2" style="<%= status_style %>">
@@ -30,8 +26,33 @@
   </div>
 
   <div class="p-4">
-    <%= link_to daily_routine_slot_path(slot), class: "mb-3 block rounded-lg px-3 py-2 text-sm font-medium leading-relaxed hover:opacity-80", style: condition_style do %>
-      完了条件：<%= slot.completion_hint %>
+    <% if slot.completion_checks.any? %>
+      <p class="mb-2 text-xs font-semibold text-slate-600">完了条件</p>
+      <ul class="mb-3 space-y-2">
+      <% slot.completion_checks.each do |check| %>
+        <%
+          check_accent = check.completed ? complete_accent : incomplete_accent
+          box_style =
+            if check.completed
+              "background-color:#{complete_accent};border:2px solid #{complete_accent};color:#ffffff;"
+            else
+              "background-color:#ffffff;border:2px solid #{incomplete_accent};color:transparent;"
+            end
+          row_style =
+            "background-color:#ffffff;color:#1d4ed8;border:1px solid #{check_accent};" \
+            "text-decoration:underline;text-underline-offset:2px;"
+        %>
+        <li>
+          <%= link_to daily_routine_check_path(slot, check),
+                class: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium leading-relaxed hover:opacity-80",
+                style: row_style,
+                aria: { label: "#{check.label}（#{check.completed ? '完了' : '未完了'}）" } do %>
+            <span class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs font-bold" style="<%= box_style %>" aria-hidden="true">✓</span>
+            <%= check.label %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
     <% end %>
 
     <ol class="space-y-2 text-sm text-slate-800">

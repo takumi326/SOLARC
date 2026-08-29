@@ -4,10 +4,11 @@ class DailyRoutineCalendar
   DayCell = Data.define(:date, :in_month, :selected, :today, :status, :off_day)
   MonthView = Data.define(:month, :weeks, :prev_month, :next_month)
 
-  def initialize(owner_key:, month:, selected_date:)
+  def initialize(owner_key:, month:, selected_date:, preference: nil)
     @owner_key = owner_key
     @month = month.to_date.beginning_of_month
     @selected_date = selected_date.to_date
+    @preference = preference
   end
 
   def call
@@ -23,6 +24,7 @@ class DailyRoutineCalendar
       .where(imported_on: padded)
       .pluck(:imported_on)
       .to_set
+    watched_dates = watched_dates_in(padded)
 
     grid_start = @month.beginning_of_week(:sunday)
     grid_end = @month.end_of_month.end_of_week(:sunday)
@@ -48,7 +50,9 @@ class DailyRoutineCalendar
               note: notes[cell_date],
               classifier: classifier,
               watchlist_imported_in_period: watchlist_imported,
-              imported_months: imported_months
+              imported_months: imported_months,
+              preference: preference,
+              has_watched_stocks: watched_dates.include?(cell_date)
             ).day_status
           else
             :outside
@@ -74,6 +78,26 @@ class DailyRoutineCalendar
   end
 
   private
+
+  def preference
+    @preference ||= UserPreference.find_or_initialize_by(owner_key: @owner_key)
+  end
+
+  def watched_dates_in(range)
+    dates = Set.new
+    StockWatchBatch.joins(:stock_watch_items)
+      .overlapping(range.begin, range.end)
+      .distinct
+      .pluck(:starts_on, :ends_on)
+      .each do |starts_on, ends_on|
+        from = [ starts_on, range.begin ].max
+        to = [ ends_on, range.end ].min
+        next if from > to
+
+        (from..to).each { |day| dates.add(day) }
+      end
+    dates
+  end
 
   # 表示月のセルが参照しうる「終わった月」をまとめて引く
   def tracked_months

@@ -4,8 +4,14 @@ class DailyRoutinesController < ApplicationController
   def show
     @date = parse_date(params[:date]) || Date.current
     @month = parse_month(params[:month]) || @date.beginning_of_month
+    @preference = UserPreference.find_or_initialize_by(owner_key: preference_owner_key)
     @classifier = DailyRoutineDayClassifier.new(owner_key: preference_owner_key)
-    @status = DailyRoutineStatus.new(owner_key: preference_owner_key, date: @date, classifier: @classifier)
+    @status = DailyRoutineStatus.new(
+      owner_key: preference_owner_key,
+      date: @date,
+      classifier: @classifier,
+      preference: @preference
+    )
     @slots = @status.call
     @off_day = @status.off_day?
     @weekend = @classifier.weekend?(@date)
@@ -13,7 +19,8 @@ class DailyRoutinesController < ApplicationController
     @calendar = DailyRoutineCalendar.new(
       owner_key: preference_owner_key,
       month: @month,
-      selected_date: @date
+      selected_date: @date,
+      preference: @preference
     ).call
     @routine_history = DailyRoutineHistory.new(
       owner_key: preference_owner_key,
@@ -40,6 +47,22 @@ class DailyRoutinesController < ApplicationController
     redirect_to daily_routine_path(date: date.iso8601), notice: "#{date.strftime("%-m/%-d")} の休み指定を解除しました。"
   end
 
+  def update_slot_setting
+    slot = params[:slot].to_s
+    unless DailyRoutineItem::TOGGLEABLE_SLOTS.include?(slot)
+      redirect_to slot_setting_redirect_path, alert: "不正な枠です。"
+      return
+    end
+
+    enabled = ActiveModel::Type::Boolean.new.cast(params[:enabled])
+    preference = UserPreference.find_or_initialize_by(owner_key: preference_owner_key)
+    preference.set_daily_routine_slot_enabled!(slot, enabled)
+
+    label = DailyRoutineItem::SLOT_LABELS.fetch(slot)
+    notice = enabled ? "#{label}のルーチンをオンにしました。" : "#{label}のルーチンをオフにしました。"
+    redirect_to slot_setting_redirect_path, notice: notice
+  end
+
   private
 
   def parse_date(value)
@@ -56,5 +79,14 @@ class DailyRoutinesController < ApplicationController
     Date.strptime(value.to_s, "%Y-%m")
   rescue ArgumentError, TypeError
     nil
+  end
+
+  def slot_setting_redirect_path
+    if params[:from] == "settings"
+      daily_routine_settings_path
+    else
+      date = parse_date(params[:date]) || Date.current
+      daily_routine_path(date: date.iso8601)
+    end
   end
 end

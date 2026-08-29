@@ -106,12 +106,32 @@ module ApplicationHelper
   end
 
   # ルーチンカードの「完了条件」から、その条件を満たしに行く画面へ飛ばす
+  def daily_routine_check_path(slot, check)
+    case check.key
+    when :daily_note then daily_note_check_path(slot, check)
+    when :watched_stocks
+      date = slot.date.iso8601
+      stocks_path(starts_on: date, ends_on: date)
+    when :holiday_watchlist then new_stock_watchlist_path(date: slot.date&.iso8601)
+    when :month_end_import then finance_import_path(prompt_month: slot.month.strftime("%Y-%m"))
+    else daily_routine_slot_path(slot)
+    end
+  end
+
   def daily_routine_slot_path(slot)
     case slot.slot
     when "holiday" then new_stock_watchlist_path(date: slot.date&.iso8601)
     when "month_end" then finance_import_path(prompt_month: slot.month.strftime("%Y-%m"))
     else daily_note_slot_path(slot)
     end
+  end
+
+  def daily_note_check_path(slot, check)
+    date = slot.date.iso8601
+    return stock_daily_note_detail_path(date: date) if check.completed
+
+    field = slot.slot == "weekday_morning" ? "hypothesis" : "result"
+    edit_stock_daily_note_path(date: date, field: field)
   end
 
   def daily_note_slot_path(slot)

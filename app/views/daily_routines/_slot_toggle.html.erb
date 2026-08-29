@@ -1,0 +1,14 @@
+<%
+  enabled = preference.daily_routine_slot_enabled?(slot)
+  short = DailyRoutineItem::TOGGLE_SHORT_LABELS.fetch(slot)
+  label =
+    if local_assigns[:full_label]
+      enabled ? "このルーチンをオフ" : "このルーチンをオン"
+    else
+      enabled ? "#{short}をオフ" : "#{short}をオン"
+    end
+  toggle_params = { slot: slot, enabled: (!enabled).to_s }
+  toggle_params[:date] = date.iso8601 if local_assigns[:date]
+  toggle_params[:from] = from if local_assigns[:from]
+%>
+<%= button_to label, slot_setting_daily_routine_path, method: :patch, params: toggle_params, class: btn_classes(:secondary) %>

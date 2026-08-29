@@ -2,6 +2,7 @@
 
 class DailyRoutineItem < ApplicationRecord
   SLOTS = %w[weekday_morning weekday_evening holiday month_end].freeze
+  TOGGLEABLE_SLOTS = %w[weekday_morning weekday_evening].freeze
 
   SLOT_LABELS = {
     "weekday_morning" => "平日朝",
@@ -9,6 +10,18 @@ class DailyRoutineItem < ApplicationRecord
     "holiday" => "休日",
     "month_end" => "月末"
   }.freeze
+
+  TOGGLE_SHORT_LABELS = {
+    "weekday_morning" => "朝",
+    "weekday_evening" => "夜"
+  }.freeze
+
+  COMPLETION_CHECK_LABELS = {
+    "daily_note" => "毎日の確認",
+    "watched_stocks" => "今日監視銘柄がある"
+  }.freeze
+  SELECTABLE_COMPLETION_CHECKS = COMPLETION_CHECK_LABELS.keys.freeze
+  DEFAULT_COMPLETION_CHECKS = %w[daily_note].freeze
 
   DEFAULT_LABELS = {
     "weekday_morning" => [

@@ -1,16 +1,19 @@
 # frozen_string_literal: true
 
 class DailyRoutineStatus
-  SlotStatus = Data.define(:slot, :label, :completed, :items, :emphasized, :completion_hint,
+  CompletionCheck = Data.define(:key, :label, :completed)
+
+  SlotStatus = Data.define(:slot, :label, :completed, :items, :emphasized, :completion_checks,
                            :month, :date) do
-    def initialize(month: nil, date: nil, **) = super
+    def initialize(month: nil, date: nil, completion_checks: [], **) = super
   end
 
   # これより前の月は取り込み記録が無いため対象外にする
   TRACKING_START_MONTH = Date.new(2026, 7, 1)
 
   def initialize(owner_key:, date: Date.current, note: nil, has_watchlist_import: nil, classifier: nil,
-                 watchlist_imported_in_period: nil, imported_months: nil)
+                 watchlist_imported_in_period: nil, imported_months: nil, preference: nil,
+                 has_watched_stocks: nil)
     @owner_key = owner_key
     @date = date
     @note = note
@@ -18,6 +21,8 @@ class DailyRoutineStatus
     @classifier = classifier || DailyRoutineDayClassifier.new(owner_key: owner_key)
     @watchlist_imported_in_period = watchlist_imported_in_period
     @given_imported_months = imported_months
+    @preference = preference
+    @has_watched_stocks = has_watched_stocks
   end
 
   def call
@@ -27,15 +32,17 @@ class DailyRoutineStatus
 
     statuses = DailyRoutineItem::SLOTS.filter_map do |slot|
       next if slot == "month_end"
+      next unless slot_enabled?(slot)
 
+      checks = completion_checks_for(slot)
       SlotStatus.new(
         slot: slot,
         label: DailyRoutineItem::SLOT_LABELS.fetch(slot),
-        completed: completed?(slot),
+        completed: checks.all?(&:completed),
         items: items_by_slot[slot] || [],
         # 休日は未完了なら休み期間中ずっと、完了後は完了日だけ出す（履歴）
         emphasized: slot == "holiday" ? holiday_card_visible? : emphasized.include?(slot),
-        completion_hint: completion_hint_for(slot),
+        completion_checks: checks,
         date: @date
       )
     end
@@ -115,33 +122,96 @@ class DailyRoutineStatus
 
   def month_end_statuses(items)
     due_months.map do |month|
+      imported = imported_on(month).present?
+      checks = [
+        CompletionCheck.new(
+          key: :month_end_import,
+          label: "翌月以降に#{month.strftime("%-m月")}分の支払いを取り込んでいる",
+          completed: imported
+        )
+      ]
       SlotStatus.new(
         slot: "month_end",
         label: "#{month.strftime("%-m月")}末",
-        completed: imported_on(month).present?,
+        completed: imported,
         items: items,
         emphasized: true,
-        completion_hint: "翌月以降に#{month.strftime("%-m月")}分の支払いを取り込んでいる",
+        completion_checks: checks,
         month: month
       )
     end
   end
 
   def day_slots
-    off_day? ? %w[holiday] : %w[weekday_morning weekday_evening]
+    return %w[holiday] if off_day?
+
+    DailyRoutineItem::TOGGLEABLE_SLOTS.select { |slot| slot_enabled?(slot) }
+  end
+
+  def slot_enabled?(slot)
+    return true unless DailyRoutineItem::TOGGLEABLE_SLOTS.include?(slot)
+    return true unless current_or_future?
+
+    preference.daily_routine_slot_enabled?(slot)
+  end
+
+  def current_or_future?
+    @date >= Date.current
+  end
+
+  def preference
+    @preference ||= UserPreference.find_or_initialize_by(owner_key: @owner_key)
   end
 
   def completed?(slot)
+    completion_checks_for(slot).all?(&:completed)
+  end
+
+  def completion_checks_for(slot)
     case slot
-    when "weekday_morning"
-      note_field_present?(:hypothesis)
-    when "weekday_evening"
-      note_field_present?(:result)
+    when "weekday_morning", "weekday_evening"
+      weekday_completion_check_keys(slot).filter_map { |key| weekday_completion_check(slot, key) }
     when "holiday"
-      holiday_watchlist_imported?
+      [
+        CompletionCheck.new(
+          key: :holiday_watchlist,
+          label: "この休み期間（#{period_label}）に監視銘柄リストを取り込んでいる",
+          completed: holiday_watchlist_imported?
+        )
+      ]
     else
-      false
+      []
     end
+  end
+
+  def weekday_completion_check_keys(slot)
+    return DailyRoutineItem::DEFAULT_COMPLETION_CHECKS unless current_or_future?
+
+    preference.daily_routine_completion_check_keys(slot)
+  end
+
+  def weekday_completion_check(slot, key)
+    case key.to_s
+    when "daily_note"
+      CompletionCheck.new(key: :daily_note, label: DailyRoutineItem::COMPLETION_CHECK_LABELS.fetch("daily_note"),
+                          completed: daily_note_completed?(slot))
+    when "watched_stocks"
+      CompletionCheck.new(key: :watched_stocks, label: watched_stocks_label, completed: has_watched_stocks?)
+    end
+  end
+
+  def daily_note_completed?(slot)
+    note_field_present?(slot == "weekday_morning" ? :hypothesis : :result)
+  end
+
+  def has_watched_stocks?
+    return @has_watched_stocks unless @has_watched_stocks.nil?
+
+    StockWatchItem.joins(:stock_watch_batch).merge(StockWatchBatch.covering(@date)).exists?
+  end
+
+  def watched_stocks_label
+    @date == Date.current ? "今日監視銘柄がある" : "この日に監視銘柄がある"
   end
 
   def note
@@ -186,19 +256,6 @@ class DailyRoutineStatus
 
   def imported_months
     @imported_months ||= @given_imported_months || self.class.imported_months_for(tracked_months)
-  end
-
-  def completion_hint_for(slot)
-    case slot
-    when "weekday_morning"
-      "#{date_label}の毎日の記録に仮説がある"
-    when "weekday_evening"
-      "#{date_label}の毎日の記録に結果がある"
-    when "holiday"
-      "この休み期間（#{period_label}）に監視銘柄リストを取り込んでいる"
-    else
-      ""
-    end
   end
 
   def date_label
