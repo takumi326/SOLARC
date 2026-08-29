@@ -3,7 +3,7 @@
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div>
         <h2 class="text-xl font-bold">ルーチンの項目を編集</h2>
-        <p class="mt-1 text-xs text-slate-500">文言の追加・変更・並び替えができます。完了条件は変わりません。</p>
+        <p class="mt-1 text-xs text-slate-500">文言の追加・変更・並び替えができます。平日の朝・夜はオフにでき、完了条件も選べます。選んだ条件は今日以降に使います。</p>
       </div>
       <%= link_to "ダッシュボードへ", daily_routine_path, class: btn_classes(:secondary) %>
     </div>
@@ -12,7 +12,32 @@
       <% DailyRoutineItem::SLOTS.each do |slot| %>
         <% items = @items_by_slot[slot] || [] %>
         <div class="rounded-xl border border-slate-200 p-4">
-          <h3 class="mb-3 text-base font-semibold"><%= DailyRoutineItem::SLOT_LABELS[slot] %></h3>
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-base font-semibold"><%= DailyRoutineItem::SLOT_LABELS[slot] %></h3>
+            <% if DailyRoutineItem::TOGGLEABLE_SLOTS.include?(slot) %>
+              <%= render "daily_routines/slot_toggle", slot: slot, preference: @preference, from: "settings", full_label: true %>
+            <% end %>
+          </div>
+          <% if DailyRoutineItem::TOGGLEABLE_SLOTS.include?(slot) && !@preference.daily_routine_slot_enabled?(slot) %>
+            <p class="mb-3 text-xs text-slate-500">オフ中のため、ルーチン画面には表示されません。</p>
+          <% end %>
+
+          <% if DailyRoutineItem::TOGGLEABLE_SLOTS.include?(slot) %>
+            <%= form_with url: completion_checks_daily_routine_items_path, method: :patch, class: "mb-3 rounded-lg border border-slate-100 bg-slate-50 p-3" do %>
+              <%= hidden_field_tag :slot, slot %>
+              <%= hidden_field_tag "checks[]", "" %>
+              <p class="mb-2 text-xs font-semibold text-slate-600">完了条件</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <% DailyRoutineItem::COMPLETION_CHECK_LABELS.each do |key, check_label| %>
+                  <label class="inline-flex items-center gap-2 text-sm text-slate-800">
+                    <%= check_box_tag "checks[]", key, @preference.daily_routine_completion_check_enabled?(slot, key), id: "completion_#{slot}_#{key}" %>
+                    <%= check_label %>
+                  </label>
+                <% end %>
+                <%= submit_tag "保存", class: btn_classes(:secondary) %>
+              </div>
+            <% end %>
+          <% end %>
 
           <ul class="space-y-2">
             <% items.each_with_index do |item, index| %>

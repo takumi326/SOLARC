@@ -5,6 +5,7 @@ class DailyRoutineItemsController < ApplicationController
   before_action :set_item, only: %i[update destroy move_up move_down]
 
   def index
+    @preference = UserPreference.find_or_initialize_by(owner_key: preference_owner_key)
     @items_by_slot = DailyRoutineItem.for_owner(preference_owner_key).ordered.group_by(&:slot)
   end
 
@@ -44,6 +45,19 @@ class DailyRoutineItemsController < ApplicationController
 
   def move_down
     swap_with(1)
+  end
+
+  def update_completion_checks
+    slot = params[:slot].to_s
+    unless DailyRoutineItem::TOGGLEABLE_SLOTS.include?(slot)
+      redirect_to daily_routine_settings_path, alert: "不正な枠です。"
+      return
+    end
+
+    keys = Array(params[:checks]).map(&:to_s).reject(&:blank?)
+    preference = UserPreference.find_or_initialize_by(owner_key: preference_owner_key)
+    preference.set_daily_routine_completion_checks!(slot, keys)
+    redirect_to daily_routine_settings_path, notice: "#{DailyRoutineItem::SLOT_LABELS.fetch(slot)}の完了条件を保存しました。"
   end
 
   private

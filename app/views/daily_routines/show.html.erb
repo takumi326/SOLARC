@@ -26,6 +26,12 @@
           <%= @date.strftime("%Y/%m/%d") %>（<%= %w[日 月 火 水 木 金 土][@date.wday] %>）
         </span>
 
+        <% if @date >= Date.current %>
+          <% DailyRoutineItem::TOGGLEABLE_SLOTS.each do |slot| %>
+            <%= render "slot_toggle", slot: slot, preference: @preference, date: @date %>
+          <% end %>
+        <% end %>
+
         <% unless @weekend %>
           <% if @marked_off %>
             <%= button_to "休みを解除", off_days_daily_routine_path(date: @date.iso8601), method: :delete, class: btn_classes(:secondary) %>

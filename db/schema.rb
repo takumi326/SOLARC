@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_15_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_29_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -374,6 +374,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_180000) do
 
   create_table "user_preferences", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.jsonb "daily_routine_completion_checks", default: {}, null: false
     t.text "import_claude_prompt_template"
     t.text "import_merchant_rules"
     t.string "owner_key", limit: 255, null: false
@@ -382,6 +383,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_15_180000) do
     t.text "stock_daily_sector_prompt"
     t.text "stock_fundamentals_prompt"
     t.datetime "updated_at", null: false
+    t.boolean "weekday_evening_routine_enabled", default: true, null: false
+    t.boolean "weekday_morning_routine_enabled", default: true, null: false
     t.index ["owner_key"], name: "index_user_preferences_on_owner_key", unique: true
   end
 

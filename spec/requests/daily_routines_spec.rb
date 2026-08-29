@@ -3,6 +3,12 @@
 require "rails_helper"
 
 RSpec.describe "DailyRoutines", type: :request do
+  def enable_watched_stock_checks
+    pref = UserPreference.find_or_initialize_by(owner_key: "development")
+    DailyRoutineItem::TOGGLEABLE_SLOTS.each do |slot|
+      pref.set_daily_routine_completion_checks!(slot, %w[daily_note watched_stocks])
+    end
+  end
   describe "GET /daily-routine" do
     it "shows weekday slots on a weekday" do
       travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
@@ -12,9 +18,65 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include("ルーチン")
         expect(response.body).to include("平日朝")
         expect(response.body).to include("平日夜")
+        expect(response.body).to include("朝をオフ")
+        expect(response.body).to include("夜をオフ")
         expect(response.body).not_to include(">休日</h3>")
         expect(response.body).to include("この日を休みにする")
         expect(DailyRoutineItem.for_owner("development").count).to eq(24)
+      end
+    end
+
+    it "hides morning and evening cards when they are turned off" do
+      UserPreference.create!(
+        owner_key: "development",
+        weekday_morning_routine_enabled: false,
+        weekday_evening_routine_enabled: false
+      )
+
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include("朝をオン")
+        expect(response.body).to include("夜をオン")
+        expect(response.body).not_to include(">平日朝</h3>")
+        expect(response.body).not_to include(">平日夜</h3>")
+      end
+    end
+
+    it "hides only the morning card when morning is turned off" do
+      UserPreference.create!(owner_key: "development", weekday_morning_routine_enabled: false)
+
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response.body).not_to include(">平日朝</h3>")
+        expect(response.body).to include(">平日夜</h3>")
+        expect(response.body).to include("朝をオン")
+        expect(response.body).to include("夜をオフ")
+      end
+    end
+
+    it "keeps past completed weekdays even when evening is off and no stocks are watched" do
+      UserPreference.create!(owner_key: "development", weekday_evening_routine_enabled: false)
+      StockDailyNote.create!(
+        owner_key: "development",
+        recorded_on: Date.new(2026, 8, 14),
+        hypothesis: "仮説",
+        result: "結果"
+      )
+
+      travel_to Time.zone.local(2026, 8, 21, 10, 0, 0) do
+        get daily_routine_path(date: "2026-08-14")
+
+        expect(response.body).to include(">平日朝</h3>")
+        expect(response.body).to include(">平日夜</h3>")
+        expect(response.body).to include("✓ 完了")
+        expect(response.body).to include("毎日の確認")
+        expect(response.body).not_to include("今日監視銘柄がある")
+        expect(response.body).not_to include("この日に監視銘柄がある")
+        expect(response.body).not_to include("朝をオフ")
+        expect(response.body).not_to include("夜をオン")
       end
     end
 
@@ -29,7 +91,7 @@ RSpec.describe "DailyRoutines", type: :request do
       travel_to Time.zone.local(2026, 9, 1, 10, 0, 0) do
         get daily_routine_path
         expect(response.body).to include(">8月末</h3>")
-        expect(response.body).to include("完了条件：翌月以降に8月分の支払いを取り込んでいる")
+        expect(response.body).to include("翌月以降に8月分の支払いを取り込んでいる")
         expect(response.body).to include(%(href="#{finance_import_path(prompt_month: "2026-08")}"))
         expect(response.body).to include("カード明細を用意する")
       end
@@ -41,7 +103,7 @@ RSpec.describe "DailyRoutines", type: :request do
 
         expect(response).to have_http_status(:ok)
         expect(response.body).to include(">7月末</h3>")
-        expect(response.body).to include("完了条件：翌月以降に7月分の支払いを取り込んでいる")
+        expect(response.body).to include("翌月以降に7月分の支払いを取り込んでいる")
       end
     end
 
@@ -51,8 +113,8 @@ RSpec.describe "DailyRoutines", type: :request do
 
         expect(response.body).to include(">7月末</h3>")
         expect(response.body).to include(">8月末</h3>")
-        expect(response.body).to include("完了条件：翌月以降に7月分の支払いを取り込んでいる")
-        expect(response.body).to include("完了条件：翌月以降に8月分の支払いを取り込んでいる")
+        expect(response.body).to include("翌月以降に7月分の支払いを取り込んでいる")
+        expect(response.body).to include("翌月以降に8月分の支払いを取り込んでいる")
       end
     end
 
@@ -167,16 +229,33 @@ RSpec.describe "DailyRoutines", type: :request do
 
         get daily_routine_path
         expect(response).to have_http_status(:ok)
-        expect(response.body).to include("完了")
-        expect(response.body).to include("完了条件：")
+        expect(response.body).to include("✓ 完了")
+        expect(response.body).to include("毎日の確認")
+        expect(response.body).not_to include("今日監視銘柄がある")
       end
     end
 
-    it "shows completion hints for incomplete weekday slots" do
+    it "requires watched stocks when that completion check is selected" do
+      enable_watched_stock_checks
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        StockDailyNote.create!(
+          owner_key: "development",
+          recorded_on: Date.current,
+          hypothesis: "朝の仮説",
+          result: "夜の結果"
+        )
+
+        get daily_routine_path
+        expect(response.body).to include("未完了")
+        expect(response.body).to include("今日監視銘柄がある")
+      end
+    end
+
+    it "shows selected completion checkboxes for weekday slots" do
       travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
         get daily_routine_path
-        expect(response.body).to include("完了条件：今日の毎日の記録に仮説がある")
-        expect(response.body).to include("完了条件：今日の毎日の記録に結果がある")
+        expect(response.body).to include("毎日の確認")
+        expect(response.body).not_to include("今日監視銘柄がある")
       end
     end
 
@@ -189,6 +268,7 @@ RSpec.describe "DailyRoutines", type: :request do
         expect(response.body).to include(
           %(href="#{CGI.escapeHTML(edit_stock_daily_note_path(date: "2026-08-14", field: "result"))}")
         )
+        expect(response.body).not_to include("今日監視銘柄がある")
       end
     end
 
@@ -399,7 +479,7 @@ RSpec.describe "DailyRoutines", type: :request do
         get daily_routine_path(date: "2026-08-08")
         expect(response.body).to include(">休日</h3>")
         expect(response.body).to include("✓ 完了")
-        expect(response.body).to include("完了条件：この休み期間（8/8〜8/12）に監視銘柄リストを取り込んでいる")
+        expect(response.body).to include("この休み期間（8/8〜8/12）に監視銘柄リストを取り込んでいる")
       end
 
       travel_to Time.zone.local(2026, 8, 12, 10, 0, 0) do
@@ -421,7 +501,7 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("2026/08/05（水）")
       expect(response.body).to include("2026年8月")
-      expect(response.body).to include("完了条件：")
+      expect(response.body).to include("完了条件")
       expect(response.body).to include("今日")
       expect(response.body).to include("一部")
       expect(response.body).to include("未完了")
@@ -458,12 +538,58 @@ RSpec.describe "DailyRoutines", type: :request do
     end
   end
 
+  describe "slot toggle" do
+    it "turns off the morning routine" do
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        patch slot_setting_daily_routine_path, params: {
+          date: Date.current.iso8601,
+          slot: "weekday_morning",
+          enabled: "false"
+        }
+
+        expect(response).to redirect_to(daily_routine_path(date: Date.current.iso8601))
+        expect(UserPreference.find_by!(owner_key: "development").weekday_morning_routine_enabled).to be(false)
+        follow_redirect!
+        expect(response.body).not_to include(">平日朝</h3>")
+        expect(response.body).to include("平日朝のルーチンをオフにしました。")
+      end
+    end
+
+    it "turns the evening routine back on from settings" do
+      UserPreference.create!(owner_key: "development", weekday_evening_routine_enabled: false)
+
+      patch slot_setting_daily_routine_path, params: {
+        slot: "weekday_evening",
+        enabled: "true",
+        from: "settings"
+      }
+
+      expect(response).to redirect_to(daily_routine_settings_path)
+      expect(UserPreference.find_by!(owner_key: "development").weekday_evening_routine_enabled).to be(true)
+    end
+  end
+
   describe "GET /daily-routine/settings" do
     it "shows editable items" do
       get daily_routine_settings_path
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("ルーチンの項目を編集")
       expect(response.body).to include("ロイターの新着ニュース確認")
+      expect(response.body).to include("このルーチンをオフ")
+      expect(response.body).to include("毎日の確認")
+      expect(response.body).to include("今日監視銘柄がある")
+    end
+
+    it "saves selected completion checks for a slot" do
+      patch completion_checks_daily_routine_items_path, params: {
+        slot: "weekday_morning",
+        checks: [ "daily_note", "watched_stocks" ]
+      }
+
+      expect(response).to redirect_to(daily_routine_settings_path)
+      pref = UserPreference.find_by!(owner_key: "development")
+      expect(pref.daily_routine_completion_check_keys("weekday_morning")).to eq(%w[daily_note watched_stocks])
+      expect(pref.daily_routine_completion_check_keys("weekday_evening")).to eq(%w[daily_note])
     end
   end
 
