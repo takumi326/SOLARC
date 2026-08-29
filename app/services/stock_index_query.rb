@@ -31,7 +31,7 @@ class StockIndexQuery
 
   def current_watch_stocks
     ids = StockWatchItem.joins(:stock_watch_batch)
-      .merge(StockWatchBatch.covering(Time.zone.today))
+      .merge(StockWatchBatch.covering(StockWatchBatch.effective_watch_date))
       .select(:stock_id)
     stocks_for_ids(ids)
   end
@@ -65,7 +65,7 @@ class StockIndexQuery
     watching_rel = if watch_starts_on.present? && watch_ends_on.present?
       watching_rel.where(stock_watch_batches: { starts_on: watch_starts_on, ends_on: watch_ends_on })
     else
-      watching_rel.merge(StockWatchBatch.covering(Time.zone.today))
+      watching_rel.merge(StockWatchBatch.covering(StockWatchBatch.effective_watch_date))
     end
     watching_ids = watching_rel.distinct.pluck(:stock_id).to_set
 

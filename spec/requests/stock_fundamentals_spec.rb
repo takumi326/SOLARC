@@ -32,6 +32,38 @@ RSpec.describe "Stock fundamentals analysis", type: :request do
     expect(response.body).not_to include("仮説プロンプト")
   end
 
+  it "uses the weekday itself as the default watch date" do
+    friday_stock = create_test_stock(code: "1111", name: "金曜監視")
+    monday_stock = create_test_stock(code: "2222", name: "来週監視")
+    create_test_watch_period(stock: friday_stock, starts_on: Date.new(2026, 8, 24), ends_on: Date.new(2026, 8, 28))
+    create_test_watch_period(stock: monday_stock, starts_on: Date.new(2026, 8, 31), ends_on: Date.new(2026, 9, 4))
+
+    travel_to Time.zone.local(2026, 8, 28, 10, 0, 0) do
+      get stock_fundamentals_path
+      expect(response.body).to include("監視銘柄（8/28）")
+      expect(response.body).to include("金曜監視")
+      expect(response.body).not_to include("来週監視")
+      expect(response.body).to include(%("{{WATCH_PERIOD}}":"8/24〜8/28"))
+    end
+  end
+
+  it "uses next Monday as the default watch date on weekends" do
+    friday_stock = create_test_stock(code: "1111", name: "金曜監視")
+    monday_stock = create_test_stock(code: "2222", name: "来週監視")
+    create_test_watch_period(stock: friday_stock, starts_on: Date.new(2026, 8, 24), ends_on: Date.new(2026, 8, 28))
+    create_test_watch_period(stock: monday_stock, starts_on: Date.new(2026, 8, 31), ends_on: Date.new(2026, 9, 4))
+
+    [ Time.zone.local(2026, 8, 29, 10, 0, 0), Time.zone.local(2026, 8, 30, 10, 0, 0) ].each do |at|
+      travel_to at do
+        get stock_fundamentals_path
+        expect(response.body).to include("監視銘柄（8/31）")
+        expect(response.body).to include("来週監視")
+        expect(response.body).not_to include("金曜監視")
+        expect(response.body).to include(%("{{WATCH_PERIOD}}":"8/31〜9/4"))
+      end
+    end
+  end
+
   it "shows watch stocks for the requested period" do
     watched = create_test_stock(code: "4444", name: "期間監視")
     other = create_test_stock(code: "5555", name: "別期間")

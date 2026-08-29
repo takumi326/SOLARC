@@ -36,15 +36,15 @@ class StockWatchBatch < ApplicationRecord
       .sort
   end
 
+  # 平日はその日、土日は翌月曜（次の取引日）。
+  def self.effective_watch_date(from_date = Time.zone.today)
+    date = from_date.to_date
+    date.saturday? || date.sunday? ? date.next_occurring(:monday) : date
+  end
+
   # 平日の取込 → その週の月〜金。土日（休日ルーチン）→ 翌週の月〜金。
   def self.default_watch_range(from_date = Time.zone.today)
-    date = from_date.to_date
-    monday =
-      if date.saturday? || date.sunday?
-        date.next_occurring(:monday)
-      else
-        date.beginning_of_week(:monday)
-      end
+    monday = effective_watch_date(from_date).beginning_of_week(:monday)
     monday..(monday + 4)
   end
 

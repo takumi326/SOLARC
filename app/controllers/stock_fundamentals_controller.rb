@@ -59,13 +59,17 @@ class StockFundamentalsController < ApplicationController
     starts_on = @watch_starts_on
     ends_on = @watch_ends_on
     if starts_on.blank? || ends_on.blank?
-      periods = StockWatchBatch.covering(Time.zone.today).distinct.pluck(:starts_on, :ends_on).uniq.sort
+      periods = StockWatchBatch.covering(effective_watch_date).distinct.pluck(:starts_on, :ends_on).uniq.sort
       return "（なし）" if periods.empty?
 
       return periods.map { |starts, ends| format_period_label(starts, ends) }.join("、")
     end
 
     format_period_label(starts_on, ends_on)
+  end
+
+  def effective_watch_date
+    StockWatchBatch.effective_watch_date
   end
 
   def format_period_label(starts_on, ends_on)
@@ -85,9 +89,11 @@ class StockFundamentalsController < ApplicationController
   end
 
   def watch_period_label
-    return nil if @watch_starts_on.blank? || @watch_ends_on.blank?
-
-    format_period_label(@watch_starts_on, @watch_ends_on)
+    if @watch_starts_on.present? && @watch_ends_on.present?
+      format_period_label(@watch_starts_on, @watch_ends_on)
+    else
+      format_period_label(effective_watch_date, effective_watch_date)
+    end
   end
 
   def period_query_params
