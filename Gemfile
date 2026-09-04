@@ -35,7 +35,7 @@ group :development, :test do
 end
 
 gem "propshaft", "~> 1.3"
-gem "tailwindcss-rails", "~> 4.4"
+gem "tailwindcss-rails", "~> 4.6"
 gem "omniauth-google-oauth2", "~> 1.2"
 gem "omniauth-rails_csrf_protection", "~> 2.0"
 gem "kramdown", "~> 2.5"
