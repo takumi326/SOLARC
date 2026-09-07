@@ -34,5 +34,20 @@ RSpec.describe DashboardSummaryBuilder do
 
       expect(labels).to eq([ [ "A大", "A小" ], [ "B大", "B小1" ], [ "B大", "B小2" ] ])
     end
+
+    it "returns income breakdown rows for the month" do
+      month = Date.new(2026, 5, 1)
+      major = create(:major_category, kind: :income, name: "給与")
+      minor = create(:minor_category, major_category: major, name: "本業")
+      income = create(:income, minor_category: minor, start_month: month, end_month: month)
+      tx = Transaction.create!(month: month, amount: 250_000)
+      IncomeTransaction.create!(income: income, ledger_transaction: tx)
+
+      result = described_class.new(month: month).call
+
+      expect(result[:income_line_items].size).to eq(1)
+      expect(result[:income_line_items].first[:amount]).to eq(250_000)
+      expect(result[:income_by_category_groups].first[:major]).to eq("給与")
+    end
   end
 end

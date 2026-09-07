@@ -14,7 +14,36 @@ RSpec.describe "Finance summaries", type: :request do
     it "shows selected month from param" do
       get finance_summary_path(month: "2026-05")
       expect(response).to have_http_status(:ok)
-      expect(response.body).to include('value="2026-05"')
+      expect(response.body).to include("2026/05")
+    end
+
+    it "defaults the month-end form to the current month" do
+      travel_to Time.zone.local(2026, 8, 31, 10, 0, 0) do
+        get finance_summary_path(month: "2026-05")
+        month_input = Nokogiri::HTML(response.body).at_css('input[name="monthly_balance[month]"]')
+        expect(month_input["value"]).to eq("2026-08")
+      end
+    end
+
+    it "prefills the month-end form from the month_end param" do
+      get finance_summary_path(month: "2026-05", month_end: "2026-09")
+      month_input = Nokogiri::HTML(response.body).at_css('input[name="monthly_balance[month]"]')
+      expect(month_input["value"]).to eq("2026-09")
+    end
+
+    it "shows a delete button when a monthly balance exists for the form month" do
+      travel_to Time.zone.local(2026, 8, 31, 10, 0, 0) do
+        MonthlyBalance.create!(month: Date.new(2026, 8, 1), amount: 238_218)
+        get finance_summary_path
+        expect(response.body).to include("この月の月末残高を削除しますか？")
+      end
+    end
+
+    it "hides the delete button when no monthly balance exists for the form month" do
+      travel_to Time.zone.local(2026, 8, 31, 10, 0, 0) do
+        get finance_summary_path
+        expect(response.body).not_to include("この月の月末残高を削除しますか？")
+      end
     end
 
     it "keeps import next to bulk forecast edit and hides the old month bar" do
@@ -60,6 +89,15 @@ RSpec.describe "Finance summaries", type: :request do
       expect(row).to include(">予</a>")
       expect(row).to include("定期未作成")
     end
+
+    it "links income forecasts to the income forecast editor" do
+      get finance_summary_path(month: "2026-05")
+
+      expect(response).to have_http_status(:ok)
+      row = response.body[%r{<tr>\s*<td[^>]*>2026/05</td>.*?</tr>}m]
+      expect(row).to include("kind=income")
+      expect(row).to include(">予</a>")
+    end
   end
 
   describe "PATCH /finance/forecasts" do
@@ -71,13 +109,21 @@ RSpec.describe "Finance summaries", type: :request do
       expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1)).amount).to eq(250_000)
     end
 
-    it "ignores income kind and saves as expense forecast" do
+    it "upserts income forecast and redirects" do
       patch finance_forecast_path, params: {
         forecast: { kind: "income", month: "2026-05-01", amount: 250_000 }
       }
       expect(response).to redirect_to(finance_summary_path(month: "2026-05"))
-      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 5, 1))).to be_nil
-      expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1)).amount).to eq(250_000)
+      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 5, 1)).amount).to eq(250_000)
+      expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1))).to be_nil
+    end
+
+    it "shows the income forecast editor" do
+      get edit_finance_forecast_path(kind: "income", month: "2026-05")
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("収入予測を編集")
+      expect(response.body).to include('name="forecast[kind]"')
+      expect(response.body).to include('value="income"')
     end
 
     it "accepts month in YYYY-MM format" do
@@ -90,17 +136,17 @@ RSpec.describe "Finance summaries", type: :request do
   end
 
   describe "POST /finance/bulk_forecasts" do
-    it "saves fiscal year expense forecasts without type error" do
+    it "saves fiscal year income and expense forecasts" do
       post finance_bulk_forecasts_path, params: {
         anchor_month: "2026-05",
         rows: {
-          "0" => { expense: "190_000" },
-          "1" => { expense: "195_000" }
+          "0" => { income: "300_000", expense: "190_000" },
+          "1" => { income: "310_000", expense: "195_000" }
         }
       }
 
       expect(response).to redirect_to(finance_summary_path(month: "2026-05"))
-      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 4, 1))).to be_nil
+      expect(Forecast.find_by(kind: :income, month: Date.new(2026, 5, 1)).amount).to eq(310_000)
       expect(Forecast.find_by(kind: :expense, month: Date.new(2026, 5, 1)).amount).to eq(195_000)
     end
   end
@@ -115,6 +161,28 @@ RSpec.describe "Finance summaries", type: :request do
     end
   end
 
+  describe "DELETE /finance/monthly_balance" do
+    it "deletes monthly balance" do
+      MonthlyBalance.create!(month: Date.new(2026, 9, 1), amount: 238_218)
+
+      delete finance_monthly_balance_path, params: {
+        monthly_balance: { month: "2026-09" }
+      }
+
+      expect(response).to redirect_to(finance_summary_path(month: "2026-09"))
+      expect(MonthlyBalance.find_by(month: Date.new(2026, 9, 1))).to be_nil
+    end
+
+    it "redirects with an alert when the monthly balance is missing" do
+      delete finance_monthly_balance_path, params: {
+        monthly_balance: { month: "2026-09" }
+      }
+
+      expect(response).to redirect_to(finance_summary_path(month: "2026-09"))
+      expect(flash[:alert]).to eq("月末残高が見つかりません。")
+    end
+  end
+
   describe "GET /finance/expense_breakdown" do
     it "shows the total of all expense line items" do
       month = Date.new(2026, 5, 1)
@@ -126,6 +194,24 @@ RSpec.describe "Finance summaries", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("支出の内訳")
       expect(response.body).to include("¥12,000")
+    end
+  end
+
+  describe "GET /finance/income_breakdown" do
+    it "shows income line items with an edit link" do
+      month = Date.new(2026, 5, 1)
+      major = create(:major_category, kind: :income, name: "給与")
+      minor = create(:minor_category, major_category: major, name: "本業")
+      income = create(:income, minor_category: minor, start_month: month, end_month: month)
+      tx = Transaction.create!(month: month, amount: 250_000)
+      IncomeTransaction.create!(income: income, ledger_transaction: tx)
+
+      get finance_income_breakdown_path(month: "2026-05", view: "lines")
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("収入の内訳")
+      expect(response.body).to include("¥250,000")
+      expect(response.body).to include("本業")
+      expect(response.body).to include(edit_finance_income_actual_path(income, tx))
     end
   end
 

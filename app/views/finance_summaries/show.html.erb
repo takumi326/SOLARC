@@ -26,11 +26,19 @@
             <tr>
               <td class="px-2 py-2 font-medium whitespace-nowrap sm:px-3"><%= row.month %></td>
               <td class="px-2 py-2 whitespace-nowrap sm:px-3">
-                <span class="inline-flex items-center gap-2">
-                  <span><%= format_yen(row.income.amount) %></span>
-                  <%= finance_mode_badge("実") if row.income.mode == "実" %>
-                  <%= finance_missing_sync_badge if row.missing_recurring_income_actual? %>
-                </span>
+                <% if row.income.mode == "実" %>
+                  <%= link_to finance_income_breakdown_path(month: format_month_input(row.month_date)), class: "inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-slate-100/80" do %>
+                    <span><%= format_yen(row.income.amount) %></span>
+                    <%= finance_mode_badge("実") %>
+                    <%= finance_missing_sync_badge if row.missing_recurring_income_actual? %>
+                  <% end %>
+                <% else %>
+                  <span class="inline-flex items-center gap-2">
+                    <span><%= format_yen(row.income.amount) %></span>
+                    <%= finance_mode_badge("予", path: edit_finance_forecast_path(kind: "income", month: row.month_date)) %>
+                    <%= finance_missing_sync_badge if row.missing_recurring_income_actual? %>
+                  </span>
+                <% end %>
               </td>
               <td class="px-2 py-2 whitespace-nowrap sm:px-3">
                 <% if row.expense.mode == "実" %>
@@ -63,13 +71,21 @@
   <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
     <h2 class="mb-2 text-lg font-semibold">月末残高の作成</h2>
     <p class="mb-3 text-xs text-slate-500">対象月を選んで保存します。</p>
-    <%= form_with url: finance_monthly_balance_path, method: :post, class: "flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center" do |form| %>
-      <label class="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto">
-        <span class="text-slate-600">対象月</span>
-        <input type="month" name="monthly_balance[month]" value="<%= @month_end_form_month %>" class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm sm:w-auto" />
-      </label>
-      <input type="number" name="monthly_balance[amount]" min="0" placeholder="例: 2300000" value="<%= @month_end_dashboard[:monthly_balance].to_i.positive? ? @month_end_dashboard[:monthly_balance].to_i : "" %>" class="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm sm:w-48" />
-      <%= form.submit "保存", class: btn_classes(:primary, extra: "w-full sm:w-auto cursor-pointer") %>
-    <% end %>
+    <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      <%= form_with url: finance_monthly_balance_path, method: :post, class: "flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center" do |form| %>
+        <label class="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto">
+          <span class="text-slate-600">対象月</span>
+          <input type="month" name="monthly_balance[month]" value="<%= @month_end_form_month %>" class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm sm:w-auto" />
+        </label>
+        <input type="number" name="monthly_balance[amount]" min="0" placeholder="例: 2300000" value="<%= @month_end_dashboard[:monthly_balance].to_i.positive? ? @month_end_dashboard[:monthly_balance].to_i : "" %>" class="w-full min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm sm:w-48" />
+        <%= form.submit "保存", class: btn_classes(:primary, extra: "w-full sm:w-auto cursor-pointer") %>
+      <% end %>
+      <% if @month_end_record %>
+        <%= button_to "削除", finance_monthly_balance_path, method: :delete,
+              params: { monthly_balance: { month: @month_end_form_month } },
+              form: { data: { turbo_confirm: "この月の月末残高を削除しますか？" }, class: "w-full sm:w-auto" },
+              class: btn_classes(:danger, extra: "w-full sm:w-auto") %>
+      <% end %>
+    </div>
   </section>
 </div>
