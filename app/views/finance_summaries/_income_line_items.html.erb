@@ -1,0 +1,23 @@
+<% if items.empty? %>
+  <p class="text-sm text-slate-500">この月に紐づく収入実績行がありません</p>
+<% else %>
+  <ul class="divide-y divide-slate-100">
+    <% items.each do |row| %>
+      <li class="py-3 text-sm">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div class="min-w-0">
+            <div class="font-medium text-slate-800"><%= row[:minor] %></div>
+            <div class="text-xs text-slate-500"><%= row[:major] %></div>
+            <div class="mt-1">
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"><%= recurring_type_label(row[:income_type]) %></span>
+            </div>
+          </div>
+          <div class="flex shrink-0 items-center gap-2 sm:pt-0.5">
+            <span class="font-semibold text-emerald-700"><%= format_yen(row[:amount]) %></span>
+            <%= link_to "編集", edit_finance_income_actual_path(row[:income_id], row[:transaction_id]), class: btn_classes(:secondary, extra: "px-2 py-1 text-xs") %>
+          </div>
+        </div>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

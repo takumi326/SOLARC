@@ -3,7 +3,7 @@
 class FinanceSummariesController < ApplicationController
   include FinanceMonthParams
 
-  before_action :set_month, only: [ :show, :sync_recurring, :sync_one_time, :expense_breakdown, :monthly_balance ]
+  before_action :set_month, only: [ :show, :sync_recurring, :sync_one_time, :expense_breakdown, :income_breakdown, :monthly_balance ]
 
   def show
     load_summary_data
@@ -31,15 +31,22 @@ class FinanceSummariesController < ApplicationController
     @expense_mode = @year_summary.selected_row&.expense&.mode || "予"
   end
 
+  def income_breakdown
+    @view = params[:view].presence_in(%w[category lines]) || "category"
+    @dashboard = DashboardSummaryBuilder.new(month: @month).call
+    @year_summary = FinanceYearSummaryBuilder.new(anchor_month: @month).call
+    @income_mode = @year_summary.selected_row&.income&.mode || "予"
+  end
+
   def edit_forecast
-    @kind = "expense"
+    @kind = forecast_kind_from(params[:kind])
     @month = parse_month_param(params[:month])
     @forecast = Forecast.find_or_initialize_by(kind: @kind, month: @month)
     @return_month = month_input_value(@month)
   end
 
   def update_forecast
-    @kind = "expense"
+    @kind = forecast_kind_from(params.dig(:forecast, :kind))
     @month = parse_month_param(params.dig(:forecast, :month))
     amount = params.dig(:forecast, :amount).to_d
     if !amount.finite? || amount.negative?
@@ -78,8 +85,11 @@ class FinanceSummariesController < ApplicationController
         row = rows_by_index[idx.to_s] || rows_by_index[idx]
         next if row.blank?
 
-        %w[expense].each do |kind|
-          amount = row[kind].to_d
+        %w[income expense].each do |kind|
+          raw = row[kind] || row[kind.to_sym]
+          next if raw.nil?
+
+          amount = raw.to_d
           raise ArgumentError, "金額は0以上で入力してください" unless amount.finite? && amount >= 0
 
           forecast = Forecast.find_or_initialize_by(kind: kind, month: month)
@@ -115,6 +125,17 @@ class FinanceSummariesController < ApplicationController
     end
   end
 
+  def destroy_monthly_balance
+    balance_month = parse_month_param(params.dig(:monthly_balance, :month) || params[:month])
+    balance = MonthlyBalance.find_by(month: balance_month)
+    if balance
+      balance.destroy!
+      redirect_to finance_summary_path(month: month_input_value(balance_month)), notice: "月末残高を削除しました。"
+    else
+      redirect_to finance_summary_path(month: month_input_value(balance_month)), alert: "月末残高が見つかりません。"
+    end
+  end
+
   private
 
   include FiscalYearMonths
@@ -124,12 +145,17 @@ class FinanceSummariesController < ApplicationController
     @month_input = month_input_value(@month)
   end
 
+  def forecast_kind_from(value)
+    value.to_s.presence_in(%w[expense income]) || "expense"
+  end
+
   def load_summary_data
     @year_summary = FinanceYearSummaryBuilder.new(anchor_month: @month).call
     @dashboard = DashboardSummaryBuilder.new(month: @month).call
     @month_end_balance = @dashboard[:monthly_balance]
-    @month_end_form_month = params[:month_end].presence || @month_input
-    month_end_month = parse_month_param("#{@month_end_form_month}-01")
+    @month_end_form_month = params[:month_end].presence || month_input_value(Date.current)
+    month_end_month = parse_month_param(@month_end_form_month)
+    @month_end_record = MonthlyBalance.find_by(month: month_end_month)
     @month_end_dashboard =
       if month_end_month == @month.beginning_of_month
         @dashboard

@@ -28,11 +28,13 @@ Rails.application.routes.draw do
   post "finance/sync_recurring", to: "finance_summaries#sync_recurring", as: :finance_sync_recurring
   post "finance/sync_one_time", to: "finance_summaries#sync_one_time", as: :finance_sync_one_time
   get "finance/expense_breakdown", to: "finance_summaries#expense_breakdown", as: :finance_expense_breakdown
+  get "finance/income_breakdown", to: "finance_summaries#income_breakdown", as: :finance_income_breakdown
   get "finance/forecasts/edit", to: "finance_summaries#edit_forecast", as: :edit_finance_forecast
   patch "finance/forecasts", to: "finance_summaries#update_forecast", as: :finance_forecast
   get "finance/forecasts/bulk/edit", to: "finance_summaries#bulk_forecasts_form", as: :edit_finance_bulk_forecasts
   post "finance/bulk_forecasts", to: "finance_summaries#bulk_forecasts", as: :finance_bulk_forecasts
   post "finance/monthly_balance", to: "finance_summaries#monthly_balance", as: :finance_monthly_balance
+  delete "finance/monthly_balance", to: "finance_summaries#destroy_monthly_balance"
 
   get "finance/import", to: "finance_imports#show", as: :finance_import
   post "finance/import", to: "finance_imports#create"

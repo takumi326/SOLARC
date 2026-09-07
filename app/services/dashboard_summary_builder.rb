@@ -11,6 +11,8 @@ class DashboardSummaryBuilder
       expense_by_payment: expense_by_payment,
       expense_by_category_groups: expense_by_category_groups,
       expense_line_items: expense_line_items,
+      income_by_category_groups: income_by_category_groups,
+      income_line_items: income_line_items,
       monthly_balance: monthly_balance_amount
     }
   end
@@ -70,6 +72,53 @@ class DashboardSummaryBuilder
       by_major[major_name] << {
         label: minor_name,
         amount: amount.to_d.abs,
+        mode: "実"
+      }
+    end
+
+    by_major.keys.sort.map do |major_name|
+      {
+        major: major_name,
+        mode: "実",
+        minors: by_major[major_name].sort_by { |row| row[:label] }
+      }
+    end
+  end
+
+  def income_rows
+    @income_rows ||= IncomeTransaction
+      .joins(:ledger_transaction, income: { minor_category: :major_category })
+      .where(transactions: { month: month })
+  end
+
+  def income_line_items
+    income_rows
+      .preload(income: { minor_category: :major_category })
+      .order(Arel.sql("major_categories.name ASC, minor_categories.name ASC, incomes.id ASC"))
+      .map do |it|
+        income = it.income
+        {
+          income_id: income.id,
+          transaction_id: it.transaction_id,
+          income_type: income.income_type,
+          major: income.minor_category.major_category.name,
+          minor: income.minor_category.name,
+          amount: it.ledger_transaction.amount.to_d,
+          memo: nil
+        }
+      end
+  end
+
+  def income_by_category_groups
+    grouped = income_rows.group("major_categories.id", "major_categories.name", "minor_categories.id", "minor_categories.name")
+                         .sum("transactions.amount")
+
+    by_major = {}
+    grouped.each do |(_major_id, major_name, _minor_id, minor_name), amount|
+      by_major[major_name] ||= []
+      by_major[major_name] << {
+        label: minor_name,
+        amount: amount.to_d,
         mode: "実"
       }
     end

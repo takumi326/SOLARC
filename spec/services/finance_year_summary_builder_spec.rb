@@ -6,15 +6,15 @@ RSpec.describe FinanceYearSummaryBuilder do
   describe "#call" do
     let(:anchor) { Date.new(2026, 5, 1) }
 
-    it "uses expense forecast when no actuals exist and ignores income forecast" do
+    it "uses income and expense forecasts when no actuals exist" do
       create(:forecast, kind: :income, month: anchor, amount: 200_000)
       create(:forecast, kind: :expense, month: anchor, amount: 80_000)
 
       result = described_class.new(anchor_month: anchor).call
       row = result.selected_row
 
-      expect(row.income.amount).to eq(0)
-      expect(row.income.mode).to be_nil
+      expect(row.income.amount).to eq(200_000)
+      expect(row.income.mode).to eq("予")
       expect(row.expense.amount).to eq(80_000)
       expect(row.expense.mode).to eq("予")
       expect(result.rows.size).to eq(12)
@@ -22,6 +22,20 @@ RSpec.describe FinanceYearSummaryBuilder do
 
     it "uses actual income when present" do
       month = anchor
+      income = create(:income, start_month: month, end_month: month)
+      tx = Transaction.create!(month: month, amount: 250_000)
+      IncomeTransaction.create!(income: income, ledger_transaction: tx)
+
+      result = described_class.new(anchor_month: anchor).call
+      row = result.selected_row
+
+      expect(row.income.amount).to eq(250_000)
+      expect(row.income.mode).to eq("実")
+    end
+
+    it "prefers actual income over income forecast" do
+      month = anchor
+      create(:forecast, kind: :income, month: month, amount: 200_000)
       income = create(:income, start_month: month, end_month: month)
       tx = Transaction.create!(month: month, amount: 250_000)
       IncomeTransaction.create!(income: income, ledger_transaction: tx)
