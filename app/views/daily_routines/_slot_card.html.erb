@@ -3,15 +3,20 @@
   incomplete_tint = "#fef2f2"
   complete_accent = "#059669"
   complete_tint = "#ecfdf5"
+  untracked = slot.completion_checks.empty?
 
   card_style =
-    if slot.completed
+    if untracked
+      "border:1px solid #64748b;background-color:#cbd5e1;"
+    elsif slot.completed
       "border:2px solid #{complete_accent};background-color:#{complete_tint};"
     else
       "border:2px solid #{incomplete_accent};background-color:#{incomplete_tint};"
     end
   status_style =
-    if slot.completed
+    if untracked
+      "background-color:#64748b;color:#ffffff;"
+    elsif slot.completed
       "background-color:#{complete_accent};color:#ffffff;"
     else
       "background-color:#{incomplete_accent};color:#ffffff;"
@@ -20,9 +25,11 @@
 <article class="overflow-hidden rounded-xl" style="<%= card_style %>">
   <div class="flex items-center justify-between gap-2 px-4 py-2" style="<%= status_style %>">
     <h3 class="text-base font-bold"><%= slot.label %></h3>
-    <span class="text-sm font-bold tracking-wide">
-      <% if slot.completed %>✓ 完了<% else %>未完了<% end %>
-    </span>
+    <% unless untracked %>
+      <span class="text-sm font-bold tracking-wide">
+        <% if slot.completed %>✓ 完了<% else %>未完了<% end %>
+      </span>
+    <% end %>
   </div>
 
   <div class="p-4">

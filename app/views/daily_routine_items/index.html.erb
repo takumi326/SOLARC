@@ -3,7 +3,7 @@
     <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
       <div>
         <h2 class="text-xl font-bold">ルーチンの項目を編集</h2>
-        <p class="mt-1 text-xs text-slate-500">文言の追加・変更・並び替えができます。平日の朝・夜はオフにでき、完了条件も選べます。選んだ条件は今日以降に使います。</p>
+        <p class="mt-1 text-xs text-slate-500">文言の追加・変更・並び替えができます。平日の朝・夜はオフにでき、完了条件も選べます。選んだ条件は今日以降に使います。完了条件をすべて外すと、完了・未完了の判定をしません。</p>
       </div>
       <%= link_to "ダッシュボードへ", daily_routine_path, class: btn_classes(:secondary) %>
     </div>
@@ -27,6 +27,7 @@
               <%= hidden_field_tag :slot, slot %>
               <%= hidden_field_tag "checks[]", "" %>
               <p class="mb-2 text-xs font-semibold text-slate-600">完了条件</p>
+              <p class="mb-2 text-xs text-slate-500">どれも外すと、この枠は完了・未完了を判定しません。</p>
               <div class="flex flex-wrap items-center gap-3">
                 <% DailyRoutineItem::COMPLETION_CHECK_LABELS.each do |key, check_label| %>
                   <label class="inline-flex items-center gap-2 text-sm text-slate-800">
