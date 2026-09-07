@@ -38,7 +38,7 @@ class DailyRoutineStatus
       SlotStatus.new(
         slot: slot,
         label: DailyRoutineItem::SLOT_LABELS.fetch(slot),
-        completed: checks.all?(&:completed),
+        completed: checks.empty? ? nil : checks.all?(&:completed),
         items: items_by_slot[slot] || [],
         # 休日は未完了なら休み期間中ずっと、完了後は完了日だけ出す（履歴）
         emphasized: slot == "holiday" ? holiday_card_visible? : emphasized.include?(slot),
@@ -52,7 +52,7 @@ class DailyRoutineStatus
 
   def day_status
     # カレンダーの色は日次ルーチンだけ。月末取込は含めない。
-    results = day_slots.map { |slot| completed?(slot) }
+    results = day_slots.map { |slot| completed?(slot) }.compact
     return :none if results.empty?
 
     done = results.count(true)
@@ -164,7 +164,10 @@ class DailyRoutineStatus
   end
 
   def completed?(slot)
-    completion_checks_for(slot).all?(&:completed)
+    checks = completion_checks_for(slot)
+    return nil if checks.empty?
+
+    checks.all?(&:completed)
   end
 
   def completion_checks_for(slot)

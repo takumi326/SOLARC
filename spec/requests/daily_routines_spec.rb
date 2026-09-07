@@ -57,6 +57,24 @@ RSpec.describe "DailyRoutines", type: :request do
       end
     end
 
+    it "omits complete or incomplete labels when weekday checks are cleared" do
+      pref = UserPreference.create!(owner_key: "development")
+      DailyRoutineItem::TOGGLEABLE_SLOTS.each do |slot|
+        pref.set_daily_routine_completion_checks!(slot, [])
+      end
+
+      travel_to Time.zone.local(2026, 8, 11, 10, 0, 0) do
+        get daily_routine_path
+
+        expect(response.body).to include(">平日朝</h3>")
+        expect(response.body).to include(">平日夜</h3>")
+        morning = Nokogiri::HTML(response.body).css("article").find { |node| node.at("h3")&.text == "平日朝" }
+        expect(morning).to be_present
+        expect(morning.text).not_to include("完了")
+        expect(morning.text).not_to include("未完了")
+      end
+    end
+
     it "keeps past completed weekdays even when evening is off and no stocks are watched" do
       UserPreference.create!(owner_key: "development", weekday_evening_routine_enabled: false)
       StockDailyNote.create!(
@@ -589,6 +607,18 @@ RSpec.describe "DailyRoutines", type: :request do
       expect(response).to redirect_to(daily_routine_settings_path)
       pref = UserPreference.find_by!(owner_key: "development")
       expect(pref.daily_routine_completion_check_keys("weekday_morning")).to eq(%w[daily_note watched_stocks])
+      expect(pref.daily_routine_completion_check_keys("weekday_evening")).to eq(%w[daily_note])
+    end
+
+    it "allows clearing all completion checks for a slot" do
+      patch completion_checks_daily_routine_items_path, params: {
+        slot: "weekday_morning",
+        checks: [ "" ]
+      }
+
+      expect(response).to redirect_to(daily_routine_settings_path)
+      pref = UserPreference.find_by!(owner_key: "development")
+      expect(pref.daily_routine_completion_check_keys("weekday_morning")).to eq([])
       expect(pref.daily_routine_completion_check_keys("weekday_evening")).to eq(%w[daily_note])
     end
   end

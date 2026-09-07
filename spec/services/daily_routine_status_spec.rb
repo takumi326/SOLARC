@@ -82,6 +82,21 @@ RSpec.describe DailyRoutineStatus do
       end
     end
 
+    it "treats a weekday as none when no completion checks are selected" do
+      travel_to Time.zone.local(2026, 8, 14, 10, 0, 0) do
+        pref = UserPreference.create!(owner_key: "development")
+        DailyRoutineItem::TOGGLEABLE_SLOTS.each do |slot|
+          pref.set_daily_routine_completion_checks!(slot, [])
+        end
+
+        status = described_class.new(owner_key: "development", date: Date.new(2026, 8, 14))
+
+        expect(status.day_status).to eq(:none)
+        expect(status.call.find { |slot| slot.slot == "weekday_morning" }.completed).to be_nil
+        expect(status.call.find { |slot| slot.slot == "weekday_evening" }.completed).to be_nil
+      end
+    end
+
     it "does not apply slot off or watched-stocks checks to past dates" do
       travel_to Time.zone.local(2026, 8, 21, 10, 0, 0) do
         UserPreference.create!(owner_key: "development", weekday_evening_routine_enabled: false)
